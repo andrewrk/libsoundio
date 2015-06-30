@@ -4,6 +4,8 @@ C library which provides cross-platform audio input and output. The API is
 suitable for real-time software such as digital audio workstations as well
 as consumer software such as music players.
 
+This library is a work-in-progress.
+
 ## How It Works
 
 On Linux, libsoundio tries in order: JACK, PulseAudio, ALSA, Dummy.
