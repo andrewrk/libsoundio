@@ -8,10 +8,10 @@ This library is a work-in-progress.
 
 ## How It Works
 
-On Linux, libsoundio tries in order: JACK, PulseAudio, ALSA, Dummy.
-On OSX, libsoundio tries in order: JACK, PulseAudio, CoreAudio, Dummy.
-On Windows, libsoundio tries in order: ASIO, DirectSound, Dummy.
-On BSD, libsoundio tries in order: JACK, PulseAudio, OSS, Dummy.
+ * On Linux, libsoundio tries in order: JACK, PulseAudio, ALSA, Dummy.
+ * On OSX, libsoundio tries in order: JACK, PulseAudio, CoreAudio, Dummy.
+ * On Windows, libsoundio tries in order: ASIO, DirectSound, Dummy.
+ * On BSD, libsoundio tries in order: JACK, PulseAudio, OSS, Dummy.
 
 ## Roadmap
 
