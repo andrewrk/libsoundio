@@ -54,6 +54,7 @@ const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format
 
 const char *soundio_backend_name(enum SoundIoBackend backend) {
     switch (backend) {
+        case SoundIoBackendNone: return "(none)";
         case SoundIoBackendPulseAudio: return "PulseAudio";
         case SoundIoBackendDummy: return "Dummy";
     }
@@ -64,37 +65,76 @@ void soundio_destroy(struct SoundIo *soundio) {
     if (!soundio)
         return;
 
-    if (soundio->destroy)
-        soundio->destroy(soundio);
+    soundio_disconnect(soundio);
 
     destroy(soundio);
 }
 
-int soundio_create(struct SoundIo **out_soundio) {
-    *out_soundio = NULL;
-
+struct SoundIo * soundio_create(void) {
     struct SoundIo *soundio = create<SoundIo>();
     if (!soundio) {
         soundio_destroy(soundio);
-        return SoundIoErrorNoMem;
+        return NULL;
     }
+    return soundio;
+}
 
+int soundio_connect(struct SoundIo *soundio) {
     int err;
 
+    soundio->current_backend = SoundIoBackendPulseAudio;
     err = soundio_pulseaudio_init(soundio);
     if (err != SoundIoErrorInitAudioBackend) {
-        soundio_destroy(soundio);
+        soundio_disconnect(soundio);
         return err;
     }
 
+    soundio->current_backend = SoundIoBackendDummy;
     err = soundio_dummy_init(soundio);
     if (err) {
-        soundio_destroy(soundio);
+        soundio_disconnect(soundio);
         return err;
     }
 
-    *out_soundio = soundio;
     return 0;
+}
+
+void soundio_disconnect(struct SoundIo *soundio) {
+    if (soundio->destroy)
+        soundio->destroy(soundio);
+    assert(!soundio->backend_data);
+
+    soundio->current_backend = SoundIoBackendNone;
+
+    if (soundio->safe_devices_info) {
+        for (int i = 0; i < soundio->safe_devices_info->input_devices.length; i += 1)
+            soundio_device_unref(soundio->safe_devices_info->input_devices.at(i));
+        for (int i = 0; i < soundio->safe_devices_info->output_devices.length; i += 1)
+            soundio_device_unref(soundio->safe_devices_info->output_devices.at(i));
+        destroy(soundio->safe_devices_info);
+        soundio->safe_devices_info = nullptr;
+    }
+
+    soundio->destroy = nullptr;
+    soundio->flush_events = nullptr;
+    soundio->wait_events = nullptr;
+    soundio->wakeup = nullptr;
+    soundio->refresh_devices = nullptr;
+
+    soundio->output_device_init = nullptr;
+    soundio->output_device_destroy = nullptr;
+    soundio->output_device_start = nullptr;
+    soundio->output_device_free_count = nullptr;
+    soundio->output_device_begin_write = nullptr;
+    soundio->output_device_write = nullptr;
+    soundio->output_device_clear_buffer = nullptr;
+
+    soundio->input_device_init = nullptr;
+    soundio->input_device_destroy = nullptr;
+    soundio->input_device_start = nullptr;
+    soundio->input_device_peek = nullptr;
+    soundio->input_device_drop = nullptr;
+    soundio->input_device_clear_buffer = nullptr;
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {

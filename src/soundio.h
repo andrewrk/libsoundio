@@ -88,6 +88,7 @@ enum SoundIoChannelLayoutId {
 };
 
 enum SoundIoBackend {
+    SoundIoBackendNone,
     SoundIoBackendPulseAudio,
     SoundIoBackendDummy,
 };
@@ -145,7 +146,6 @@ struct SoundIoInputDevice {
 
 struct SoundIo {
     enum SoundIoBackend current_backend;
-    void *backend_data;
 
     // safe to read without a mutex from a single thread
     struct SoundIoDevicesInfo *safe_devices_info;
@@ -154,6 +154,8 @@ struct SoundIo {
     void (*on_devices_change)(struct SoundIo *);
     void (*on_events_signal)(struct SoundIo *);
 
+
+    void *backend_data;
     void (*destroy)(struct SoundIo *);
     void (*flush_events)(struct SoundIo *);
     void (*wait_events)(struct SoundIo *);
@@ -184,9 +186,11 @@ struct SoundIo {
 
 // Create a SoundIo context.
 // Returns an error code.
-int soundio_create(struct SoundIo **out_soundio);
-
+struct SoundIo * soundio_create(void);
 void soundio_destroy(struct SoundIo *soundio);
+
+int soundio_connect(struct SoundIo *soundio);
+void soundio_disconnect(struct SoundIo *soundio);
 
 const char *soundio_error_string(int error);
 const char *soundio_backend_name(enum SoundIoBackend backend);

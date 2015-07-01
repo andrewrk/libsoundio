@@ -87,9 +87,14 @@ int main(int argc, char **argv) {
         }
     }
 
+    struct SoundIo *soundio = soundio_create();
+    if (!soundio) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
+
     int err;
-    struct SoundIo *soundio;
-    if ((err = soundio_create(&soundio))) {
+    if ((err = soundio_connect(soundio))) {
         fprintf(stderr, "%s\n", soundio_error_string(err));
         return err;
     }

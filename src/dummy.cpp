@@ -89,15 +89,8 @@ static void destroy_dummy(SoundIo *soundio) {
     if (sid->mutex)
         soundio_os_mutex_destroy(sid->mutex);
 
-    if (soundio->safe_devices_info) {
-        for (int i = 0; i < soundio->safe_devices_info->input_devices.length; i += 1)
-            soundio_device_unref(soundio->safe_devices_info->input_devices.at(i));
-        for (int i = 0; i < soundio->safe_devices_info->output_devices.length; i += 1)
-            soundio_device_unref(soundio->safe_devices_info->output_devices.at(i));
-        destroy(soundio->safe_devices_info);
-        soundio->safe_devices_info = nullptr;
-    }
-
+    destroy(sid);
+    soundio->backend_data = nullptr;
 }
 
 static void flush_events(SoundIo *soundio) {
@@ -379,4 +372,3 @@ int soundio_dummy_init(SoundIo *soundio) {
 
     return 0;
 }
-
