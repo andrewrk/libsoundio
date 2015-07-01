@@ -12,7 +12,8 @@
 #include "list.hpp"
 
 struct SoundIoDevicesInfo {
-    SoundIoList<SoundIoDevice *> devices;
+    SoundIoList<SoundIoDevice *> input_devices;
+    SoundIoList<SoundIoDevice *> output_devices;
     // can be -1 when default device is unknown
     int default_output_index;
     int default_input_index;

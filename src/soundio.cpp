@@ -5,7 +5,7 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "soundio.h"
+#include "soundio.hpp"
 #include "util.hpp"
 #include "dummy.hpp"
 #include "pulseaudio.hpp"
@@ -471,4 +471,14 @@ int soundio_create(struct SoundIo **out_soundio) {
 void soundio_flush_events(struct SoundIo *soundio) {
     if (soundio->flush_events)
         soundio->flush_events(soundio);
+}
+
+int soundio_get_input_device_count(struct SoundIo *soundio) {
+    assert(soundio->safe_devices_info);
+    return soundio->safe_devices_info->input_devices.length;
+}
+
+int soundio_get_output_device_count(struct SoundIo *soundio) {
+    assert(soundio->safe_devices_info);
+    return soundio->safe_devices_info->output_devices.length;
 }

@@ -24,7 +24,7 @@ struct SoundIoOutputDeviceDummy {
 };
 
 struct SoundIoInputDeviceDummy {
-
+    // TODO
 };
 
 int soundio_dummy_init(struct SoundIo *soundio);

@@ -54,7 +54,10 @@ static void recording_thread_run(void *arg) {
 }
 */
 
-static void destroy_audio_hardware_dummy(SoundIo *soundio) { }
+static void destroy_dummy(SoundIo *soundio) {
+    destroy(soundio->safe_devices_info);
+    soundio->safe_devices_info = nullptr;
+}
 
 static void flush_events(SoundIo *soundio) { }
 
@@ -197,8 +200,14 @@ static void input_device_clear_buffer_dummy(SoundIo *soundio,
     // TODO
 }
 
-int audio_hardware_init_dummy(SoundIo *soundio) {
+int soundio_dummy_init(SoundIo *soundio) {
+    assert(!soundio->safe_devices_info);
     soundio->safe_devices_info = create<SoundIoDevicesInfo>();
+    if (!soundio->safe_devices_info) {
+        destroy_dummy(soundio);
+        return SoundIoErrorNoMem;
+    }
+
     soundio->safe_devices_info->default_input_index = 0;
     soundio->safe_devices_info->default_output_index = 0;
 
@@ -223,7 +232,7 @@ int audio_hardware_init_dummy(SoundIo *soundio) {
         device->default_sample_rate = 48000;
         device->purpose = SoundIoDevicePurposeOutput;
 
-        if (soundio->safe_devices_info->devices.append(device)) {
+        if (soundio->safe_devices_info->output_devices.append(device)) {
             soundio_audio_device_unref(device);
             return SoundIoErrorNoMem;
         }
@@ -250,14 +259,14 @@ int audio_hardware_init_dummy(SoundIo *soundio) {
         device->default_sample_rate = 48000;
         device->purpose = SoundIoDevicePurposeInput;
 
-        if (soundio->safe_devices_info->devices.append(device)) {
+        if (soundio->safe_devices_info->input_devices.append(device)) {
             soundio_audio_device_unref(device);
             return SoundIoErrorNoMem;
         }
     }
 
 
-    soundio->destroy = destroy_audio_hardware_dummy;
+    soundio->destroy = destroy_dummy;
     soundio->flush_events = flush_events;
     soundio->refresh_audio_devices = refresh_audio_devices;
 

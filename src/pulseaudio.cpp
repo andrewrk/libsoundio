@@ -62,8 +62,10 @@ static void context_state_callback(pa_context *context, void *userdata) {
 static void destroy_current_audio_devices_info(SoundIo *soundio) {
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
     if (ah->current_audio_devices_info) {
-        for (int i = 0; i < ah->current_audio_devices_info->devices.length; i += 1)
-            soundio_audio_device_unref(ah->current_audio_devices_info->devices.at(i));
+        for (int i = 0; i < ah->current_audio_devices_info->input_devices.length; i += 1)
+            soundio_audio_device_unref(ah->current_audio_devices_info->input_devices.at(i));
+        for (int i = 0; i < ah->current_audio_devices_info->output_devices.length; i += 1)
+            soundio_audio_device_unref(ah->current_audio_devices_info->output_devices.at(i));
 
         destroy(ah->current_audio_devices_info);
         ah->current_audio_devices_info = nullptr;
@@ -73,15 +75,17 @@ static void destroy_current_audio_devices_info(SoundIo *soundio) {
 static void destroy_ready_audio_devices_info(SoundIo *soundio) {
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
     if (ah->ready_audio_devices_info) {
-        for (int i = 0; i < ah->ready_audio_devices_info->devices.length; i += 1)
-            soundio_audio_device_unref(ah->ready_audio_devices_info->devices.at(i));
+        for (int i = 0; i < ah->ready_audio_devices_info->input_devices.length; i += 1)
+            soundio_audio_device_unref(ah->ready_audio_devices_info->input_devices.at(i));
+        for (int i = 0; i < ah->ready_audio_devices_info->output_devices.length; i += 1)
+            soundio_audio_device_unref(ah->ready_audio_devices_info->output_devices.at(i));
         destroy(ah->ready_audio_devices_info);
         ah->ready_audio_devices_info = nullptr;
     }
 }
 
 
-static void destroy_audio_hardware_pa(SoundIo *soundio) {
+static void destroy_pa(SoundIo *soundio) {
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
     if (ah->main_loop)
         pa_threaded_mainloop_stop(ah->main_loop);
@@ -193,16 +197,18 @@ static void finish_device_query(SoundIo *soundio) {
     // based on the default sink name, figure out the default output index
     ah->current_audio_devices_info->default_output_index = -1;
     ah->current_audio_devices_info->default_input_index = -1;
-    for (int i = 0; i < ah->current_audio_devices_info->devices.length; i += 1) {
-        SoundIoDevice *device = ah->current_audio_devices_info->devices.at(i);
-        if (device->purpose == SoundIoDevicePurposeOutput &&
-            strcmp(device->name, ah->default_sink_name) == 0)
-        {
-            ah->current_audio_devices_info->default_output_index = i;
-        } else if (device->purpose == SoundIoDevicePurposeInput &&
-            strcmp(device->name, ah->default_source_name) == 0)
-        {
+    for (int i = 0; i < ah->current_audio_devices_info->input_devices.length; i += 1) {
+        SoundIoDevice *device = ah->current_audio_devices_info->input_devices.at(i);
+        assert(device->purpose == SoundIoDevicePurposeInput);
+        if (strcmp(device->name, ah->default_source_name) == 0) {
             ah->current_audio_devices_info->default_input_index = i;
+        }
+    }
+    for (int i = 0; i < ah->current_audio_devices_info->output_devices.length; i += 1) {
+        SoundIoDevice *device = ah->current_audio_devices_info->output_devices.at(i);
+        assert(device->purpose == SoundIoDevicePurposeOutput);
+        if (strcmp(device->name, ah->default_sink_name) == 0) {
+            ah->current_audio_devices_info->default_output_index = i;
         }
     }
 
@@ -237,7 +243,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         device->default_sample_rate = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeOutput;
 
-        if (ah->current_audio_devices_info->devices.append(device))
+        if (ah->current_audio_devices_info->output_devices.append(device))
             panic("out of memory");
     }
     pa_threaded_mainloop_signal(ah->main_loop, 0);
@@ -266,7 +272,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         device->default_sample_rate = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeInput;
 
-        if (ah->current_audio_devices_info->devices.append(device))
+        if (ah->current_audio_devices_info->input_devices.append(device))
             panic("out of memory");
     }
     pa_threaded_mainloop_signal(ah->main_loop, 0);
@@ -350,8 +356,10 @@ static void flush_events(SoundIo *soundio) {
         soundio->on_devices_change(soundio);
 
     if (old_devices_info) {
-        for (int i = 0; i < old_devices_info->devices.length; i += 1)
-            soundio_audio_device_unref(old_devices_info->devices.at(i));
+        for (int i = 0; i < old_devices_info->input_devices.length; i += 1)
+            soundio_audio_device_unref(old_devices_info->input_devices.at(i));
+        for (int i = 0; i < old_devices_info->output_devices.length; i += 1)
+            soundio_audio_device_unref(old_devices_info->output_devices.at(i));
         destroy(old_devices_info);
     }
 }
@@ -788,7 +796,7 @@ static void refresh_audio_devices(SoundIo *soundio) {
     block_until_have_devices(soundio);
 }
 
-int audio_hardware_init_pulseaudio(SoundIo *soundio) {
+int soundio_pulseaudio_init(SoundIo *soundio) {
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
 
     ah->connection_refused = false;
@@ -798,7 +806,7 @@ int audio_hardware_init_pulseaudio(SoundIo *soundio) {
 
     ah->main_loop = pa_threaded_mainloop_new();
     if (!ah->main_loop) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorNoMem;
     }
 
@@ -806,7 +814,7 @@ int audio_hardware_init_pulseaudio(SoundIo *soundio) {
 
     ah->props = pa_proplist_new();
     if (!ah->props) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorNoMem;
     }
 
@@ -817,7 +825,7 @@ int audio_hardware_init_pulseaudio(SoundIo *soundio) {
 
     ah->pulse_context = pa_context_new_with_proplist(main_loop_api, "SoundIo", ah->props);
     if (!ah->pulse_context) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorNoMem;
     }
 
@@ -826,21 +834,21 @@ int audio_hardware_init_pulseaudio(SoundIo *soundio) {
 
     int err = pa_context_connect(ah->pulse_context, NULL, (pa_context_flags_t)0, NULL);
     if (err) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorInitAudioBackend;
     }
 
     if (ah->connection_refused) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorInitAudioBackend;
     }
 
     if (pa_threaded_mainloop_start(ah->main_loop)) {
-        destroy_audio_hardware_pa(soundio);
+        destroy_pa(soundio);
         return SoundIoErrorNoMem;
     }
 
-    soundio->destroy = destroy_audio_hardware_pa;
+    soundio->destroy = destroy_pa;
     soundio->flush_events = flush_events;
     soundio->refresh_audio_devices = refresh_audio_devices;
 
