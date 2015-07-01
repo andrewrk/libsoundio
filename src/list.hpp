@@ -61,12 +61,12 @@ struct SoundIoList {
         return items[length - 1];
     }
 
-    int __attribute__((warn_unused_result)) resize(int length) {
-        assert(length >= 0);
-        int err = ensure_capacity(length);
+    int __attribute__((warn_unused_result)) resize(int new_length) {
+        assert(new_length >= 0);
+        int err = ensure_capacity(new_length);
         if (err)
             return err;
-        length = length;
+        length = new_length;
         return 0;
     }
 
