@@ -29,20 +29,20 @@ static int list_devices(struct SoundIo *soundio) {
         struct SoundIoDevice *device = soundio_get_input_device(soundio, i);
         const char *purpose_str = "input";
         const char *default_str = (i == default_input) ? " (default)" : "";
-        const char *description = soundio_audio_device_description(device);
-        int sample_rate = soundio_audio_device_sample_rate(device);
+        const char *description = soundio_device_description(device);
+        int sample_rate = soundio_device_sample_rate(device);
         fprintf(stderr, "%s device: %d Hz %s%s\n", purpose_str, sample_rate, description, default_str);
-        soundio_audio_device_unref(device);
+        soundio_device_unref(device);
     }
     for (int i = 0; i < output_count; i += 1) {
         struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
 
         const char *purpose_str = "output";
         const char *default_str = (i == default_output) ? " (default)" : "";
-        const char *description = soundio_audio_device_description(device);
-        int sample_rate = soundio_audio_device_sample_rate(device);
+        const char *description = soundio_device_description(device);
+        int sample_rate = soundio_device_sample_rate(device);
         fprintf(stderr, "%s device: %d Hz %s%s\n", purpose_str, sample_rate, description, default_str);
-        soundio_audio_device_unref(device);
+        soundio_device_unref(device);
     }
 
     fprintf(stderr, "%d devices found\n", input_count + output_count);

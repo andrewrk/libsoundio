@@ -31,12 +31,12 @@ struct SoundIoPulseAudio {
     atomic_bool device_scan_queued;
 
     // the one that we're working on building
-    struct SoundIoDevicesInfo *current_audio_devices_info;
+    struct SoundIoDevicesInfo *current_devices_info;
     char * default_sink_name;
     char * default_source_name;
 
     // this one is ready to be read with flush_events. protected by mutex
-    struct SoundIoDevicesInfo *ready_audio_devices_info;
+    struct SoundIoDevicesInfo *ready_devices_info;
 
     bool have_sink_list;
     bool have_source_list;

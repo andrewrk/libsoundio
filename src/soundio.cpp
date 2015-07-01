@@ -120,3 +120,21 @@ int soundio_get_default_output_device_index(struct SoundIo *soundio) {
     assert(soundio->safe_devices_info);
     return soundio->safe_devices_info->default_output_index;
 }
+
+struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index) {
+    assert(soundio->safe_devices_info);
+    assert(index >= 0);
+    assert(index < soundio->safe_devices_info->input_devices.length);
+    SoundIoDevice *device = soundio->safe_devices_info->input_devices.at(index);
+    soundio_device_ref(device);
+    return device;
+}
+
+struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index) {
+    assert(soundio->safe_devices_info);
+    assert(index >= 0);
+    assert(index < soundio->safe_devices_info->output_devices.length);
+    SoundIoDevice *device = soundio->safe_devices_info->output_devices.at(index);
+    soundio_device_ref(device);
+    return device;
+}

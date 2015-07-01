@@ -156,7 +156,7 @@ struct SoundIo {
 
     void (*destroy)(struct SoundIo *);
     void (*flush_events)(struct SoundIo *);
-    void (*refresh_audio_devices)(struct SoundIo *);
+    void (*refresh_devices)(struct SoundIo *);
 
     int (*output_device_init)(struct SoundIo *, struct SoundIoOutputDevice *);
     void (*output_device_destroy)(struct SoundIo *, struct SoundIoOutputDevice *);
@@ -244,7 +244,7 @@ int soundio_get_input_device_count(struct SoundIo *soundio);
 int soundio_get_output_device_count(struct SoundIo *soundio);
 
 // returns NULL on error
-// call soundio_audio_device_unref when you no longer have a reference to the pointer.
+// call soundio_device_unref when you no longer have a reference to the pointer.
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
@@ -254,19 +254,19 @@ int soundio_get_default_input_device_index(struct SoundIo *soundio);
 // returns the index of the default output device, or -1 on error
 int soundio_get_default_output_device_index(struct SoundIo *soundio);
 
-void soundio_audio_device_ref(struct SoundIoDevice *device);
-void soundio_audio_device_unref(struct SoundIoDevice *device);
+void soundio_device_ref(struct SoundIoDevice *device);
+void soundio_device_unref(struct SoundIoDevice *device);
 
 // the name is the identifier for the device. UTF-8 encoded
-const char *soundio_audio_device_name(const struct SoundIoDevice *device);
+const char *soundio_device_name(const struct SoundIoDevice *device);
 
 // UTF-8 encoded
-const char *soundio_audio_device_description(const struct SoundIoDevice *device);
+const char *soundio_device_description(const struct SoundIoDevice *device);
 
-const struct SoundIoChannelLayout *soundio_audio_device_channel_layout(const struct SoundIoDevice *device);
-int soundio_audio_device_sample_rate(const struct SoundIoDevice *device);
+const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct SoundIoDevice *device);
+int soundio_device_sample_rate(const struct SoundIoDevice *device);
 
-bool soundio_audio_device_equal(
+bool soundio_device_equal(
         const struct SoundIoDevice *a,
         const struct SoundIoDevice *b);
 enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device);
@@ -275,7 +275,7 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 
 // Output Devices
 
-int soundio_output_device_create(struct SoundIoDevice *audio_device,
+int soundio_output_device_create(struct SoundIoDevice *device,
         enum SoundIoSampleFormat sample_format,
         double latency, void *userdata,
         void (*write_callback)(struct SoundIoOutputDevice *, int),
@@ -301,7 +301,7 @@ void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *device);
 
 // Input Devices
 
-int soundio_input_device_create(struct SoundIoDevice *audio_device,
+int soundio_input_device_create(struct SoundIoDevice *device,
         enum SoundIoSampleFormat sample_format, double latency, void *userdata,
         void (*read_callback)(struct SoundIoOutputDevice *),
         struct SoundIoOutputDevice **out_input_device);
