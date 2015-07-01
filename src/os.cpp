@@ -18,6 +18,11 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 struct SoundIoOsThread {
     pthread_attr_t attr;
     bool attr_init;
@@ -43,11 +48,26 @@ struct SoundIoOsCond {
 };
 
 double soundio_os_get_time(void) {
+#ifdef __MACH__
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+
+    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+    kern_return_t err = clock_get_time(cclock, &mts);
+    assert(!err);
+    mach_port_deallocate(mach_task_self(), cclock);
+
+    double seconds = (double)mts.tv_sec;
+    seconds += ((double)mts.tv_nsec) / 1000000000.0;
+
+    return seconds;
+#else
     struct timespec tms;
     clock_gettime(CLOCK_MONOTONIC, &tms);
     double seconds = (double)tms.tv_sec;
     seconds += ((double)tms.tv_nsec) / 1000000000.0;
     return seconds;
+#endif
 }
 
 static void assert_no_err(int err) {
@@ -62,13 +82,6 @@ static void emit_rtprio_warning(void) {
     fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
     fprintf(stderr, "See https://github.com/andrewrk/genesis/wiki/"
             "warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
-}
-
-int soundio_os_concurrency(void) {
-    long cpu_core_count = sysconf(_SC_NPROCESSORS_ONLN);
-    if (cpu_core_count <= 0)
-        cpu_core_count = 1;
-    return cpu_core_count;
 }
 
 static void *run_thread(void *userdata) {

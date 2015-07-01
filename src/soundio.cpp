@@ -21,7 +21,7 @@ const char *soundio_error_string(int error) {
         case SoundIoErrorSystemResources: return "system resource not available";
         case SoundIoErrorOpeningDevice: return "unable to open device";
     }
-    panic("invalid error enum value: %d", error);
+    soundio_panic("invalid error enum value: %d", error);
 }
 
 int soundio_get_bytes_per_sample(enum SoundIoSampleFormat sample_format) {
@@ -32,9 +32,9 @@ int soundio_get_bytes_per_sample(enum SoundIoSampleFormat sample_format) {
     case SoundIoSampleFormatInt32: return 4;
     case SoundIoSampleFormatFloat: return 4;
     case SoundIoSampleFormatDouble: return 8;
-    case SoundIoSampleFormatInvalid: panic("invalid sample format");
+    case SoundIoSampleFormatInvalid: soundio_panic("invalid sample format");
     }
-    panic("invalid sample format");
+    soundio_panic("invalid sample format");
 }
 
 const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format) {
@@ -47,7 +47,7 @@ const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format
     case SoundIoSampleFormatDouble: return "64-bit float";
     case SoundIoSampleFormatInvalid: return "invalid sample format";
     }
-    panic("invalid sample format");
+    soundio_panic("invalid sample format");
 }
 
 
@@ -58,7 +58,7 @@ const char *soundio_backend_name(enum SoundIoBackend backend) {
         case SoundIoBackendPulseAudio: return "PulseAudio";
         case SoundIoBackendDummy: return "Dummy";
     }
-    panic("invalid backend enum value: %d", (int)backend);
+    soundio_panic("invalid backend enum value: %d", (int)backend);
 }
 
 void soundio_destroy(struct SoundIo *soundio) {

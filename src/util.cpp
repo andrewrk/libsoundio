@@ -11,7 +11,7 @@
 
 #include "util.hpp"
 
-void panic(const char *format, ...) {
+void soundio_panic(const char *format, ...) {
     va_list ap;
     va_start(ap, format);
     vfprintf(stderr, format, ap);

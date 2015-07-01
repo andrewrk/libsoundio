@@ -79,7 +79,7 @@ static inline void destroy(T * ptr) {
     free(ptr);
 }
 
-void panic(const char *format, ...)
+void soundio_panic(const char *format, ...)
     __attribute__((cold))
     __attribute__ ((noreturn))
     __attribute__ ((format (printf, 1, 2)));

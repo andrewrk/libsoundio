@@ -62,7 +62,7 @@ static void subscribe_to_events(SoundIo *soundio) {
     pa_operation *subscribe_op = pa_context_subscribe(ah->pulse_context,
             events, nullptr, soundio);
     if (!subscribe_op)
-        panic("pa_context_subscribe failed: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
+        soundio_panic("pa_context_subscribe failed: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
     pa_operation_unref(subscribe_op);
 }
 
@@ -94,7 +94,7 @@ static void context_state_callback(pa_context *context, void *userdata) {
             if (err_number == PA_ERR_CONNECTIONREFUSED) {
                 ah->connection_refused = true;
             } else {
-                panic("pulseaudio connect failure: %s", pa_strerror(pa_context_errno(context)));
+                soundio_panic("pulseaudio connect failure: %s", pa_strerror(pa_context_errno(context)));
             }
             return;
         }
@@ -195,7 +195,7 @@ static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     case PA_CHANNEL_POSITION_TOP_REAR_CENTER: return SoundIoChannelIdTopBackCenter;
 
     default:
-        panic("cannot map pulseaudio channel to libsoundio");
+        soundio_panic("cannot map pulseaudio channel to libsoundio");
     }
 }
 
@@ -277,14 +277,14 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
     } else {
         SoundIoDevice *device = create<SoundIoDevice>();
         if (!device)
-            panic("out of memory");
+            soundio_panic("out of memory");
 
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup(info->name);
         device->description = strdup(info->description);
         if (!device->name || !device->description)
-            panic("out of memory");
+            soundio_panic("out of memory");
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
@@ -292,7 +292,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (ah->current_devices_info->output_devices.append(device))
-            panic("out of memory");
+            soundio_panic("out of memory");
     }
     pa_threaded_mainloop_signal(ah->main_loop, 0);
 }
@@ -306,14 +306,14 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
     } else {
         SoundIoDevice *device = create<SoundIoDevice>();
         if (!device)
-            panic("out of memory");
+            soundio_panic("out of memory");
 
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup(info->name);
         device->description = strdup(info->description);
         if (!device->name || !device->description)
-            panic("out of memory");
+            soundio_panic("out of memory");
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
@@ -321,7 +321,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         device->purpose = SoundIoDevicePurposeInput;
 
         if (ah->current_devices_info->input_devices.append(device))
-            panic("out of memory");
+            soundio_panic("out of memory");
     }
     pa_threaded_mainloop_signal(ah->main_loop, 0);
 }
@@ -338,7 +338,7 @@ static void server_info_callback(pa_context *pulse_context, const pa_server_info
     ah->default_source_name = strdup(info->default_source_name);
 
     if (!ah->default_sink_name || !ah->default_source_name)
-        panic("out of memory");
+        soundio_panic("out of memory");
 
     ah->have_default_sink = true;
     finish_device_query(soundio);
@@ -355,7 +355,7 @@ static void scan_devices(SoundIo *soundio) {
     destroy_current_devices_info(soundio);
     ah->current_devices_info = create<SoundIoDevicesInfo>();
     if (!ah->current_devices_info)
-        panic("out of memory");
+        soundio_panic("out of memory");
 
     pa_threaded_mainloop_lock(ah->main_loop);
 
@@ -367,11 +367,11 @@ static void scan_devices(SoundIo *soundio) {
             server_info_callback, soundio);
 
     if (perform_operation(soundio, list_sink_op))
-        panic("list sinks failed");
+        soundio_panic("list sinks failed");
     if (perform_operation(soundio, list_source_op))
-        panic("list sources failed");
+        soundio_panic("list sources failed");
     if (perform_operation(soundio, server_info_op))
-        panic("get server info failed");
+        soundio_panic("get server info failed");
 
     pa_threaded_mainloop_signal(ah->main_loop, 0);
 
@@ -447,18 +447,18 @@ static pa_sample_format_t to_pulseaudio_sample_format(SoundIoSampleFormat sample
     case SoundIoSampleFormatFloat:
         return PA_SAMPLE_FLOAT32NE;
     case SoundIoSampleFormatDouble:
-        panic("cannot use double sample format with pulseaudio");
+        soundio_panic("cannot use double sample format with pulseaudio");
     case SoundIoSampleFormatInvalid:
-        panic("invalid sample format");
+        soundio_panic("invalid sample format");
     }
-    panic("invalid sample format");
+    soundio_panic("invalid sample format");
 }
 
 static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_id) {
     switch (channel_id) {
     case SoundIoChannelIdInvalid:
     case SoundIoChannelIdCount:
-        panic("invalid channel id");
+        soundio_panic("invalid channel id");
     case SoundIoChannelIdFrontLeft:
         return PA_CHANNEL_POSITION_FRONT_LEFT;
     case SoundIoChannelIdFrontRight:
@@ -496,7 +496,7 @@ static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_
     case SoundIoChannelIdTopBackRight:
         return PA_CHANNEL_POSITION_TOP_REAR_RIGHT;
     }
-    panic("invalid channel id");
+    soundio_panic("invalid channel id");
 }
 
 static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *channel_layout) {
@@ -504,7 +504,7 @@ static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *chan
     channel_map.channels = channel_layout->channel_count;
 
     if ((unsigned)channel_layout->channel_count > PA_CHANNELS_MAX)
-        panic("channel layout greater than pulseaudio max channels");
+        soundio_panic("channel layout greater than pulseaudio max channels");
 
     for (int i = 0; i < channel_layout->channel_count; i += 1)
         channel_map.map[i] = to_pulseaudio_channel_pos(channel_layout->channels[i]);
@@ -527,7 +527,7 @@ static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
             pa_threaded_mainloop_signal(ah->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
-            panic("pulseaudio stream error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            soundio_panic("pulseaudio stream error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
             break;
     }
 }
@@ -651,7 +651,7 @@ static void output_device_begin_write_pa(SoundIo *soundio,
     pa_stream *stream = opd->stream;
     size_t byte_count = *frame_count * output_device->bytes_per_frame;
     if (pa_stream_begin_write(stream, (void**)data, &byte_count))
-        panic("pa_stream_begin_write error: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
+        soundio_panic("pa_stream_begin_write error: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
 
     *frame_count = byte_count / output_device->bytes_per_frame;
 }
@@ -664,7 +664,7 @@ static void output_device_write_pa(SoundIo *soundio,
     pa_stream *stream = opd->stream;
     size_t byte_count = frame_count * output_device->bytes_per_frame;
     if (pa_stream_write(stream, data, byte_count, NULL, 0, PA_SEEK_RELATIVE))
-        panic("pa_stream_write error: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
+        soundio_panic("pa_stream_write error: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
 }
 
 static void output_device_clear_buffer_pa(SoundIo *soundio,
@@ -676,7 +676,7 @@ static void output_device_clear_buffer_pa(SoundIo *soundio,
     pa_threaded_mainloop_lock(ah->main_loop);
     pa_operation *op = pa_stream_flush(stream, NULL, NULL);
     if (!op)
-        panic("pa_stream_flush failed: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
+        soundio_panic("pa_stream_flush failed: %s", pa_strerror(pa_context_errno(ah->pulse_context)));
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(ah->main_loop);
 }
@@ -693,7 +693,7 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
             ord->stream_ready = true;
             break;
         case PA_STREAM_FAILED:
-            panic("pulseaudio stream error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            soundio_panic("pulseaudio stream error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
             break;
     }
 }
@@ -793,7 +793,7 @@ static void input_device_peek_pa(SoundIo *soundio,
     if (ord->stream_ready) {
         size_t nbytes;
         if (pa_stream_peek(stream, (const void **)data, &nbytes))
-            panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            soundio_panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
         *frame_count = ((int)nbytes) / input_device->bytes_per_frame;
     } else {
         *data = nullptr;
@@ -807,7 +807,7 @@ static void input_device_drop_pa(SoundIo *soundio,
     SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
     pa_stream *stream = ord->stream;
     if (pa_stream_drop(stream))
-        panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+        soundio_panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
 }
 
 static void input_device_clear_buffer_pa(SoundIo *soundio,
@@ -826,13 +826,13 @@ static void input_device_clear_buffer_pa(SoundIo *soundio,
         const char *data;
         size_t nbytes;
         if (pa_stream_peek(stream, (const void **)&data, &nbytes))
-            panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            soundio_panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
 
         if (nbytes == 0)
             break;
 
         if (pa_stream_drop(stream))
-            panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            soundio_panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
     }
 
     pa_threaded_mainloop_unlock(ah->main_loop);
