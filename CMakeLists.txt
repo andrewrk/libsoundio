@@ -23,6 +23,7 @@ set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
     "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
+    "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
 )
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
