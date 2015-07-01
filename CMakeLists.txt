@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0042 NEW)
 cmake_policy(SET CMP0046 NEW)
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
       "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
 
-project(libsoundio C)
+project(libsoundio C CXX)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 set(LIBSOUNDIO_VERSION_MAJOR 0)
@@ -18,7 +17,12 @@ set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
 set(LIBSOUNDIO_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/soundio.c"
+    "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
+    "${CMAKE_SOURCE_DIR}/src/util.cpp"
+    "${CMAKE_SOURCE_DIR}/src/os.cpp"
+    "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
+    "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
+    "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
 )
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
@@ -58,10 +62,15 @@ else()
     endif()
 endif()
 
+# GTFO, -lstdc++ !!
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
+
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable")
 
 
-set(LIB_CFLAGS "-std=c11 -Werror -Wall -fdiagnostics-color=auto")
+set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -Werror -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -fdiagnostics-color=auto")
 set(EXAMPLE_CFLAGS "-std=c99 -pedantic -Werror -Wall")
 set(EXAMPLE_INCLUDES "${CMAKE_SOURCE_DIR}/src")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
@@ -111,12 +120,19 @@ install(FILES
 
 # Example Programs
 
-add_executable(noise example/noise.c)
-set_target_properties(noise PROPERTIES
+add_executable(sine example/sine.c)
+set_target_properties(sine PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
-target_link_libraries(noise libsoundio_shared)
+target_link_libraries(sine libsoundio_shared)
+
+add_executable(list_devices example/list_devices.c)
+set_target_properties(list_devices PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+include_directories(${EXAMPLE_INCLUDES})
+target_link_libraries(list_devices libsoundio_shared)
 
 
 

@@ -4,7 +4,7 @@ with import <nixpkgs> {}; {
     buildInputs = [
       alsaLib
       cmake
-      gcc49
+      gcc5
       libjack2
       libpulseaudio
     ];
