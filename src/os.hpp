@@ -35,5 +35,7 @@ void soundio_os_cond_broadcast(struct SoundIoOsCond *cond);
 
 void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *mutex, double seconds);
+void soundio_os_cond_wait(struct SoundIoOsCond *cond,
+        struct SoundIoOsMutex *mutex);
 
 #endif

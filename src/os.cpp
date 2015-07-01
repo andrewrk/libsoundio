@@ -249,3 +249,13 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         assert(err != EINVAL);
     }
 }
+
+void soundio_os_cond_wait(struct SoundIoOsCond *cond,
+        struct SoundIoOsMutex *mutex)
+{
+    int err;
+    if ((err = pthread_cond_wait(&cond->id, &mutex->id))) {
+        assert(err != EPERM);
+        assert(err != EINVAL);
+    }
+}

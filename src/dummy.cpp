@@ -7,9 +7,33 @@
 
 #include "dummy.hpp"
 #include "soundio.hpp"
+#include "dummy_ring_buffer.hpp"
+#include "os.hpp"
 
 #include <stdio.h>
 #include <string.h>
+#include <atomic>
+using std::atomic_flag;
+
+struct SoundIoOutputDeviceDummy {
+    struct SoundIoOsThread *thread;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
+    atomic_flag abort_flag;
+    int buffer_size;
+    double period;
+    struct SoundIoDummyRingBuffer ring_buffer;
+};
+
+struct SoundIoInputDeviceDummy {
+    // TODO
+};
+
+struct SoundIoDummy {
+    SoundIoOsMutex *mutex;
+    SoundIoOsCond *cond;
+    bool devices_emitted;
+};
 
 static void playback_thread_run(void *arg) {
     SoundIoOutputDevice *output_device = (SoundIoOutputDevice *)arg;
@@ -55,11 +79,49 @@ static void recording_thread_run(void *arg) {
 */
 
 static void destroy_dummy(SoundIo *soundio) {
-    destroy(soundio->safe_devices_info);
-    soundio->safe_devices_info = nullptr;
+    SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
+    if (!sid)
+        return;
+
+    if (sid->cond)
+        soundio_os_cond_destroy(sid->cond);
+
+    if (sid->mutex)
+        soundio_os_mutex_destroy(sid->mutex);
+
+    if (soundio->safe_devices_info) {
+        for (int i = 0; i < soundio->safe_devices_info->input_devices.length; i += 1)
+            soundio_device_unref(soundio->safe_devices_info->input_devices.at(i));
+        for (int i = 0; i < soundio->safe_devices_info->output_devices.length; i += 1)
+            soundio_device_unref(soundio->safe_devices_info->output_devices.at(i));
+        destroy(soundio->safe_devices_info);
+        soundio->safe_devices_info = nullptr;
+    }
+
 }
 
-static void flush_events(SoundIo *soundio) { }
+static void flush_events(SoundIo *soundio) {
+    SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
+    if (sid->devices_emitted)
+        return;
+    sid->devices_emitted = true;
+    soundio->on_devices_change(soundio);
+}
+
+static void wait_events(SoundIo *soundio) {
+    SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
+    flush_events(soundio);
+    soundio_os_mutex_lock(sid->mutex);
+    soundio_os_cond_wait(sid->cond, sid->mutex);
+    soundio_os_mutex_unlock(sid->mutex);
+}
+
+static void wakeup(SoundIo *soundio) {
+    SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
+    soundio_os_mutex_lock(sid->mutex);
+    soundio_os_cond_signal(sid->cond);
+    soundio_os_mutex_unlock(sid->mutex);
+}
 
 static void refresh_devices(SoundIo *soundio) { }
 
@@ -201,6 +263,26 @@ static void input_device_clear_buffer_dummy(SoundIo *soundio,
 }
 
 int soundio_dummy_init(SoundIo *soundio) {
+    assert(!soundio->backend_data);
+    SoundIoDummy *sid = create<SoundIoDummy>();
+    if (!sid) {
+        destroy_dummy(soundio);
+        return SoundIoErrorNoMem;
+    }
+    soundio->backend_data = sid;
+
+    sid->mutex = soundio_os_mutex_create();
+    if (!sid->mutex) {
+        destroy_dummy(soundio);
+        return SoundIoErrorNoMem;
+    }
+
+    sid->cond = soundio_os_cond_create();
+    if (!sid->cond) {
+        destroy_dummy(soundio);
+        return SoundIoErrorNoMem;
+    }
+
     assert(!soundio->safe_devices_info);
     soundio->safe_devices_info = create<SoundIoDevicesInfo>();
     if (!soundio->safe_devices_info) {
@@ -214,8 +296,10 @@ int soundio_dummy_init(SoundIo *soundio) {
     // create output device
     {
         SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device)
+        if (!device) {
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
+        }
 
         device->ref_count = 1;
         device->soundio = soundio;
@@ -224,6 +308,7 @@ int soundio_dummy_init(SoundIo *soundio) {
         if (!device->name || !device->description) {
             free(device->name);
             free(device->description);
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
@@ -234,6 +319,7 @@ int soundio_dummy_init(SoundIo *soundio) {
 
         if (soundio->safe_devices_info->output_devices.append(device)) {
             soundio_device_unref(device);
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
     }
@@ -241,8 +327,10 @@ int soundio_dummy_init(SoundIo *soundio) {
     // create input device
     {
         SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device)
+        if (!device) {
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
+        }
 
         device->ref_count = 1;
         device->soundio = soundio;
@@ -251,6 +339,7 @@ int soundio_dummy_init(SoundIo *soundio) {
         if (!device->name || !device->description) {
             free(device->name);
             free(device->description);
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
@@ -261,6 +350,7 @@ int soundio_dummy_init(SoundIo *soundio) {
 
         if (soundio->safe_devices_info->input_devices.append(device)) {
             soundio_device_unref(device);
+            destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
     }
@@ -268,6 +358,8 @@ int soundio_dummy_init(SoundIo *soundio) {
 
     soundio->destroy = destroy_dummy;
     soundio->flush_events = flush_events;
+    soundio->wait_events = wait_events;
+    soundio->wakeup = wakeup;
     soundio->refresh_devices = refresh_devices;
 
     soundio->output_device_init = output_device_init_dummy;

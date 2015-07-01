@@ -156,6 +156,8 @@ struct SoundIo {
 
     void (*destroy)(struct SoundIo *);
     void (*flush_events)(struct SoundIo *);
+    void (*wait_events)(struct SoundIo *);
+    void (*wakeup)(struct SoundIo *);
     void (*refresh_devices)(struct SoundIo *);
 
     int (*output_device_init)(struct SoundIo *, struct SoundIoOutputDevice *);

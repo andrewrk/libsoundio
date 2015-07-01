@@ -10,6 +10,7 @@
 #include "dummy.hpp"
 #include "pulseaudio.hpp"
 
+#include <string.h>
 #include <assert.h>
 
 const char *soundio_error_string(int error) {
@@ -137,4 +138,86 @@ struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int ind
     SoundIoDevice *device = soundio->safe_devices_info->output_devices.at(index);
     soundio_device_ref(device);
     return device;
+}
+
+void soundio_device_ref(struct SoundIoDevice *device);
+void soundio_device_unref(struct SoundIoDevice *device);
+
+// the name is the identifier for the device. UTF-8 encoded
+const char *soundio_device_name(const struct SoundIoDevice *device) {
+    return device->name;
+}
+
+// UTF-8 encoded
+const char *soundio_device_description(const struct SoundIoDevice *device) {
+    return device->description;
+}
+
+enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device) {
+    return device->purpose;
+}
+
+const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct SoundIoDevice *device) {
+    return &device->channel_layout;
+}
+
+int soundio_device_sample_rate(const struct SoundIoDevice *device) {
+    return device->default_sample_rate;
+}
+
+void soundio_device_unref(struct SoundIoDevice *device) {
+    if (!device)
+        return;
+
+    device->ref_count -= 1;
+    assert(device->ref_count >= 0);
+
+    if (device->ref_count == 0) {
+        free(device->name);
+        free(device->description);
+        destroy(device);
+    }
+}
+
+void soundio_device_ref(struct SoundIoDevice *device) {
+    device->ref_count += 1;
+}
+
+void soundio_wait_events(struct SoundIo *soundio) {
+    soundio->wait_events(soundio);
+}
+
+void soundio_wakeup(struct SoundIo *soundio) {
+    soundio->wakeup(soundio);
+}
+
+void soundio_output_device_fill_with_silence(struct SoundIoOutputDevice *output_device) {
+    char *buffer;
+    int requested_frame_count = soundio_output_device_free_count(output_device);
+    while (requested_frame_count > 0) {
+        int frame_count = requested_frame_count;
+        soundio_output_device_begin_write(output_device, &buffer, &frame_count);
+        memset(buffer, 0, frame_count * output_device->bytes_per_frame);
+        soundio_output_device_write(output_device, buffer, frame_count);
+        requested_frame_count -= frame_count;
+    }
+}
+
+int soundio_output_device_free_count(struct SoundIoOutputDevice *output_device) {
+    SoundIo *soundio = output_device->device->soundio;
+    return soundio->output_device_free_count(soundio, output_device);
+}
+
+void soundio_output_device_begin_write(struct SoundIoOutputDevice *output_device,
+        char **data, int *frame_count)
+{
+    SoundIo *soundio = output_device->device->soundio;
+    soundio->output_device_begin_write(soundio, output_device, data, frame_count);
+}
+
+void soundio_output_device_write(struct SoundIoOutputDevice *output_device,
+        char *data, int frame_count)
+{
+    SoundIo *soundio = output_device->device->soundio;
+    soundio->output_device_write(soundio, output_device, data, frame_count);
 }

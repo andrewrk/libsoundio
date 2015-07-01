@@ -32,7 +32,7 @@ set(LIBSOUNDIO_HEADERS
 )
 
 set(TEST_SOURCES
-    "${CMAKE_SOURCE_DIR}/test/unit_tests.c"
+    "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp"
 )
 
 find_package(Threads)

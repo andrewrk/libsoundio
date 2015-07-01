@@ -4,6 +4,48 @@
 #include <string.h>
 #include <math.h>
 
+#include <pulse/pulseaudio.h>
+#include <atomic>
+using std::atomic_bool;
+
+struct SoundIoOutputDevicePulseAudio {
+    pa_stream *stream;
+    atomic_bool stream_ready;
+    pa_buffer_attr buffer_attr;
+};
+
+struct SoundIoInputDevicePulseAudio {
+    pa_stream *stream;
+    atomic_bool stream_ready;
+    pa_buffer_attr buffer_attr;
+};
+
+struct SoundIoPulseAudio {
+    bool connection_refused;
+
+    pa_context *pulse_context;
+    atomic_bool device_scan_queued;
+
+    // the one that we're working on building
+    struct SoundIoDevicesInfo *current_devices_info;
+    char * default_sink_name;
+    char * default_source_name;
+
+    // this one is ready to be read with flush_events. protected by mutex
+    struct SoundIoDevicesInfo *ready_devices_info;
+
+    bool have_sink_list;
+    bool have_source_list;
+    bool have_default_sink;
+
+    atomic_bool ready_flag;
+    atomic_bool have_devices_flag;
+
+    pa_threaded_mainloop *main_loop;
+    pa_proplist *props;
+};
+
+
 static void subscribe_callback(pa_context *context,
         pa_subscription_event_type_t event_bits, uint32_t index, void *userdata)
 {
@@ -87,6 +129,9 @@ static void destroy_ready_devices_info(SoundIo *soundio) {
 
 static void destroy_pa(SoundIo *soundio) {
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
+    if (!ah)
+        return;
+
     if (ah->main_loop)
         pa_threaded_mainloop_stop(ah->main_loop);
 
@@ -104,6 +149,9 @@ static void destroy_pa(SoundIo *soundio) {
 
     free(ah->default_sink_name);
     free(ah->default_source_name);
+
+    destroy(ah);
+    soundio->backend_data = nullptr;
 }
 
 static double usec_to_sec(pa_usec_t usec) {
@@ -797,7 +845,13 @@ static void refresh_devices(SoundIo *soundio) {
 }
 
 int soundio_pulseaudio_init(SoundIo *soundio) {
-    SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
+    assert(!soundio->backend_data);
+    SoundIoPulseAudio *ah = create<SoundIoPulseAudio>();
+    if (!ah) {
+        destroy_pa(soundio);
+        return SoundIoErrorNoMem;
+    }
+    soundio->backend_data = ah;
 
     ah->connection_refused = false;
     ah->device_scan_queued = false;

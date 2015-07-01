@@ -70,49 +70,6 @@ struct SoundIoList {
         return 0;
     }
 
-    T swap_remove(int index) {
-        assert(index >= 0);
-        assert(index < length);
-        if (index == length - 1)
-            return pop();
-
-        T last = pop();
-        T item = items[index];
-        items[index] = last;
-        return item;
-    }
-
-    void remove_range(int start, int end) {
-        assert(0 <= start);
-        assert(start <= end);
-        assert(end <= length);
-        int del_count = end - start;
-        for (int i = start; i < length - del_count; i += 1) {
-            items[i] = items[i + del_count];
-        }
-        length -= del_count;
-    }
-
-    int __attribute__((warn_unused_result)) insert_space(int pos, int size) {
-        int old_length = length;
-        assert(pos >= 0 && pos <= old_length);
-        int err = resize(old_length + size);
-        if (err)
-            return err;
-
-        for (int i = old_length - 1; i >= pos; i -= 1) {
-            items[i + size] = items[i];
-        }
-
-        return 0;
-    }
-
-    void fill(T value) {
-        for (int i = 0; i < length; i += 1) {
-            items[i] = value;
-        }
-    }
-
     void clear() {
         length = 0;
     }
@@ -129,10 +86,6 @@ struct SoundIoList {
             capacity = better_capacity;
         }
         return 0;
-    }
-
-    int allocated_size() const {
-        return capacity * sizeof(T);
     }
 
     T * items;
