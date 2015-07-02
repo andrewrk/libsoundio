@@ -9,15 +9,13 @@
 #include "soundio.hpp"
 #include "dummy_ring_buffer.hpp"
 #include "os.hpp"
+#include "atomics.hpp"
 
 #include <stdio.h>
 #include <string.h>
-#include <atomic>
-using std::atomic_flag;
 
 struct SoundIoOutputDeviceDummy {
     struct SoundIoOsThread *thread;
-    struct SoundIoOsMutex *mutex;
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
     int buffer_size;
@@ -45,9 +43,7 @@ static void playback_thread_run(void *arg) {
 
     double time_per_frame = 1.0 / (double)device->default_sample_rate;
     while (opd->abort_flag.test_and_set()) {
-        soundio_os_mutex_lock(opd->mutex);
-        soundio_os_cond_timed_wait(opd->cond, opd->mutex, opd->period);
-        soundio_os_mutex_unlock(opd->mutex);
+        soundio_os_cond_timed_wait(opd->cond, nullptr, opd->period);
 
         double now = soundio_os_get_time();
         double total_time = now - start_time;
@@ -104,16 +100,12 @@ static void flush_events(SoundIo *soundio) {
 static void wait_events(SoundIo *soundio) {
     SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
     flush_events(soundio);
-    soundio_os_mutex_lock(sid->mutex);
-    soundio_os_cond_wait(sid->cond, sid->mutex);
-    soundio_os_mutex_unlock(sid->mutex);
+    soundio_os_cond_wait(sid->cond, nullptr);
 }
 
 static void wakeup(SoundIo *soundio) {
     SoundIoDummy *sid = (SoundIoDummy *)soundio->backend_data;
-    soundio_os_mutex_lock(sid->mutex);
-    soundio_os_cond_signal(sid->cond);
-    soundio_os_mutex_unlock(sid->mutex);
+    soundio_os_cond_signal(sid->cond, nullptr);
 }
 
 static void refresh_devices(SoundIo *soundio) { }
@@ -125,16 +117,11 @@ static void output_device_destroy_dummy(SoundIo *soundio,
     if (opd->thread) {
         if (opd->thread) {
             opd->abort_flag.clear();
-            soundio_os_mutex_lock(opd->mutex);
-            soundio_os_cond_signal(opd->cond);
-            soundio_os_mutex_unlock(opd->mutex);
+            soundio_os_cond_signal(opd->cond, nullptr);
             soundio_os_thread_destroy(opd->thread);
             opd->thread = nullptr;
         }
     }
-    soundio_os_mutex_destroy(opd->mutex);
-    opd->mutex = nullptr;
-
     soundio_os_cond_destroy(opd->cond);
     opd->cond = nullptr;
 }
@@ -149,12 +136,6 @@ static int output_device_init_dummy(SoundIo *soundio,
     opd->period = output_device->latency * 0.5;
 
     soundio_dummy_ring_buffer_init(&opd->ring_buffer, opd->buffer_size);
-
-    opd->mutex = soundio_os_mutex_create();
-    if (!opd->mutex) {
-        output_device_destroy_dummy(soundio, output_device);
-        return SoundIoErrorNoMem;
-    }
 
     opd->cond = soundio_os_cond_create();
     if (!opd->cond) {

@@ -8,6 +8,7 @@
 #include "os.hpp"
 #include "soundio.h"
 #include "util.hpp"
+#include "atomics.hpp"
 
 #include <stdlib.h>
 #include <time.h>
@@ -17,6 +18,16 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+
+#if defined(__FreeBSD__) || defined(__MACH__)
+#define SOUNDIO_OS_KQUEUE
+#endif
+
+#ifdef SOUNDIO_OS_KQUEUE
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#endif
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -39,13 +50,27 @@ struct SoundIoOsMutex {
     bool id_init;
 };
 
+#ifdef SOUNDIO_OS_KQUEUE
+static int kq_id;
+static atomic_uintptr_t next_notify_ident;
+struct SoundIoOsCond {
+    int notify_ident;
+};
+#else
 struct SoundIoOsCond {
     pthread_cond_t id;
     bool id_init;
 
     pthread_condattr_t attr;
     bool attr_init;
+
+    pthread_mutex_t default_mutex_id;
+    bool default_mutex_init;
 };
+#endif
+
+static atomic_bool initialized = ATOMIC_VAR_INIT(false);
+static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 double soundio_os_get_time(void) {
 #ifdef __MACH__
@@ -207,6 +232,9 @@ struct SoundIoOsCond * soundio_os_cond_create(void) {
         return NULL;
     }
 
+#ifdef SOUNDIO_OS_KQUEUE
+    cond->notify_ident = next_notify_ident.fetch_add(1);
+#else
     if (pthread_condattr_init(&cond->attr)) {
         soundio_os_cond_destroy(cond);
         return NULL;
@@ -224,6 +252,13 @@ struct SoundIoOsCond * soundio_os_cond_create(void) {
     }
     cond->id_init = true;
 
+    if ((err = pthread_mutex_init(&cond->default_mutex_id, NULL))) {
+        soundio_os_cond_destroy(cond);
+        return NULL;
+    }
+    cond->default_mutex_init = true;
+#endif
+
     return cond;
 }
 
@@ -231,6 +266,8 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
     if (!cond)
         return;
 
+#ifdef SOUNDIO_OS_KQUEUE
+#else
     if (cond->id_init) {
         assert_no_err(pthread_cond_destroy(&cond->id));
     }
@@ -238,37 +275,139 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
     if (cond->attr_init) {
         assert_no_err(pthread_condattr_destroy(&cond->attr));
     }
+    if (cond->default_mutex_init) {
+        assert_no_err(pthread_mutex_destroy(&cond->default_mutex_id));
+    }
+#endif
 
     destroy(cond);
 }
 
-void soundio_os_cond_signal(struct SoundIoOsCond *cond) {
-    assert_no_err(pthread_cond_signal(&cond->id));
-}
+void soundio_os_cond_signal(struct SoundIoOsCond *cond,
+        struct SoundIoOsMutex *locked_mutex)
+{
+#ifdef SOUNDIO_OS_KQUEUE
+    struct kevent kev;
+    struct timespec timeout = { 0, 0 };
 
-void soundio_os_cond_broadcast(struct SoundIoOsCond *cond) {
-    assert_no_err(pthread_cond_broadcast(&cond->id));
+    memset(&kev, 0, sizeof(kev));
+    kev.ident = cond->notify_ident;
+    kev.filter = EVFILT_USER;
+    kev.fflags = NOTE_TRIGGER;
+
+    if (kevent(kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
+        if (errno == EINTR)
+            return;
+        soundio_panic("kevent signal error: %s", strerror(errno));
+    }
+#else
+    if (locked_mutex) {
+        assert_no_err(pthread_cond_signal(&cond->id));
+    } else {
+        assert_no_err(pthread_mutex_lock(&cond->default_mutex_id));
+        assert_no_err(pthread_cond_signal(&cond->id));
+        assert_no_err(pthread_mutex_unlock(&cond->default_mutex_id));
+    }
+#endif
 }
 
 void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
-        struct SoundIoOsMutex *mutex, double seconds)
+        struct SoundIoOsMutex *locked_mutex, double seconds)
 {
+#ifdef SOUNDIO_OS_KQUEUE
+    struct kevent kev;
+    struct kevent out_kev;
+
+    memset(&kev, 0, sizeof(kev));
+    kev.ident = cond->notify_ident;
+    kev.filter = EVFILT_USER;
+    kev.flags = EV_ADD | EV_CLEAR;
+
+    // this time is relative
+    struct timespec timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = (seconds * 1000000000L);
+
+    if (kevent(kq_id, &kev, 1, &out_kev, 1, &timeout) == -1) {
+        if (errno == EINTR)
+            return;
+        soundio_panic("kevent wait error: %s", strerror(errno));
+    }
+#else
+    pthread_mutex_t *target_mutex;
+    if (locked_mutex) {
+        target_mutex = &locked_mutex->id;
+    } else {
+        target_mutex = &cond->default_mutex_id;
+        assert_no_err(pthread_mutex_lock(&cond->default_mutex_id));
+    }
+    // this time is absolute
     struct timespec tms;
     clock_gettime(CLOCK_MONOTONIC, &tms);
     tms.tv_nsec += (seconds * 1000000000L);
     int err;
-    if ((err = pthread_cond_timedwait(&cond->id, &mutex->id, &tms))) {
+    if ((err = pthread_cond_timedwait(&cond->id, target_mutex, &tms))) {
         assert(err != EPERM);
         assert(err != EINVAL);
     }
+    if (!locked_mutex)
+        assert_no_err(pthread_mutex_unlock(&cond->default_mutex_id));
+#endif
 }
 
 void soundio_os_cond_wait(struct SoundIoOsCond *cond,
-        struct SoundIoOsMutex *mutex)
+        struct SoundIoOsMutex *locked_mutex)
 {
+#ifdef SOUNDIO_OS_KQUEUE
+    struct kevent kev;
+    struct kevent out_kev;
+
+    memset(&kev, 0, sizeof(kev));
+    kev.ident = cond->notify_ident;
+    kev.filter = EVFILT_USER;
+    kev.flags = EV_ADD | EV_CLEAR;
+
+    if (kevent(kq_id, &kev, 1, &out_kev, 1, NULL) == -1) {
+        if (errno == EINTR)
+            return;
+        soundio_panic("kevent wait error: %s", strerror(errno));
+    }
+#else
+    pthread_mutex_t *target_mutex;
+    if (locked_mutex) {
+        target_mutex = &locked_mutex->id;
+    } else {
+        target_mutex = &cond->default_mutex_id;
+        assert_no_err(pthread_mutex_lock(&cond->default_mutex_id));
+    }
     int err;
-    if ((err = pthread_cond_wait(&cond->id, &mutex->id))) {
+    if ((err = pthread_cond_wait(&cond->id, target_mutex))) {
         assert(err != EPERM);
         assert(err != EINVAL);
     }
+    if (!locked_mutex)
+        assert_no_err(pthread_mutex_unlock(&cond->default_mutex_id));
+#endif
+}
+
+static void internal_init(void) {
+#ifdef SOUNDIO_OS_KQUEUE
+    kq_id = kqueue();
+    if (kq_id == -1)
+        soundio_panic("unable to create kqueue: %s", strerror(errno));
+    next_notify_ident.store(1);
+#endif
+}
+
+void soundio_os_init(void) {
+    if (initialized.load())
+        return;
+    assert_no_err(pthread_mutex_lock(&init_mutex));
+    if (initialized.load()) {
+        assert_no_err(pthread_mutex_unlock(&init_mutex));
+        return;
+    }
+    initialized.store(true);
+    internal_init();
+    assert_no_err(pthread_mutex_unlock(&init_mutex));
 }

@@ -1,12 +1,11 @@
 #include "pulseaudio.hpp"
 #include "soundio.hpp"
+#include "atomics.hpp"
 
 #include <string.h>
 #include <math.h>
 
 #include <pulse/pulseaudio.h>
-#include <atomic>
-using std::atomic_bool;
 
 struct SoundIoOutputDevicePulseAudio {
     pa_stream *stream;

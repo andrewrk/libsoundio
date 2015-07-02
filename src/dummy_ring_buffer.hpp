@@ -2,12 +2,7 @@
 #define SOUNDIO_DUMMY_RING_BUFFER_HPP
 
 #include "util.hpp"
-#include <atomic>
-using std::atomic_long;
-
-#ifndef ATOMIC_LONG_LOCK_FREE
-#error "require atomic long to be lock free"
-#endif
+#include "atomics.hpp"
 
 struct SoundIoDummyRingBuffer {
     char *address;
