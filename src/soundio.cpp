@@ -9,6 +9,7 @@
 #include "util.hpp"
 #include "dummy.hpp"
 #include "pulseaudio.hpp"
+#include "os.hpp"
 
 #include <string.h>
 #include <assert.h>
@@ -71,6 +72,7 @@ void soundio_destroy(struct SoundIo *soundio) {
 }
 
 struct SoundIo * soundio_create(void) {
+    soundio_os_init();
     struct SoundIo *soundio = create<SoundIo>();
     if (!soundio) {
         soundio_destroy(soundio);

@@ -38,10 +38,10 @@ libsoundio is programmed in a tiny subset of C++:
 
 ## Roadmap
 
- 0. Dummy
- 0. PulseAudio
- 0. JACK
  0. ALSA (Linux)
+ 0. Avoid calling `panic` in PulseAudio.
+ 0. JACK
+ 0. Dummy
  0. CoreAudio (OSX)
  0. ASIO (Windows)
  0. DirectSound (Windows)

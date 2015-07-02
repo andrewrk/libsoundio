@@ -252,7 +252,7 @@ struct SoundIoOsCond * soundio_os_cond_create(void) {
     }
     cond->id_init = true;
 
-    if ((err = pthread_mutex_init(&cond->default_mutex_id, NULL))) {
+    if ((pthread_mutex_init(&cond->default_mutex_id, NULL))) {
         soundio_os_cond_destroy(cond);
         return NULL;
     }
