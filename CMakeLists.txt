@@ -16,15 +16,56 @@ set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
+find_package(Threads)
+if(Threads_FOUND)
+    set(STATUS_THREADS "OK")
+else(Threads_FOUND)
+    set(STATUS_THREADS "not found")
+endif(Threads_FOUND)
+
+
+if(WIN32)
+    set(SOUNDIO_HAVE_PULSEAUDIO false)
+    set(STATUS_PULSEAUDIO "disabled")
+else()
+    find_package(PulseAudio)
+    if(PULSEAUDIO_FOUND)
+        set(STATUS_PULSEAUDIO "OK")
+        set(SOUNDIO_HAVE_PULSEAUDIO true)
+    else()
+        set(STATUS_PULSEAUDIO "not found")
+        set(SOUNDIO_HAVE_PULSEAUDIO false)
+    endif()
+endif()
+
+if(APPLE OR WIN32)
+    set(SOUNDIO_HAVE_ALSA false)
+    set(STATUS_ALSA "disabled")
+else()
+    find_package(ALSA)
+    if(ALSA_FOUND)
+        set(STATUS_ALSA "OK")
+        set(SOUNDIO_HAVE_ALSA true)
+    else()
+        set(STATUS_ALSA "not found")
+        set(SOUNDIO_HAVE_ALSA false)
+    endif()
+endif()
+
 set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
     "${CMAKE_SOURCE_DIR}/src/util.cpp"
     "${CMAKE_SOURCE_DIR}/src/os.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
-    "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
     "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
 )
+if(SOUNDIO_HAVE_PULSEAUDIO)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
+    )
+endif()
+
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${CMAKE_SOURCE_DIR}/src/soundio.h"
@@ -35,33 +76,6 @@ set(TEST_SOURCES
     "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp"
 )
 
-find_package(Threads)
-if(Threads_FOUND)
-    set(STATUS_THREADS "OK")
-else(Threads_FOUND)
-    set(STATUS_THREADS "not found")
-endif(Threads_FOUND)
-
-
-find_package(PulseAudio)
-if(PULSEAUDIO_FOUND)
-    set(STATUS_PULSEAUDIO "OK")
-else()
-    set(STATUS_PULSEAUDIO "not found")
-endif()
-
-if(APPLE)
-  set(SOUNDIO_HAVE_ALSA false)
-    set(STATUS_ALSA "OK")
-else()
-  set(SOUNDIO_HAVE_ALSA true)
-    find_package(ALSA)
-    if(ALSA_FOUND)
-        set(STATUS_ALSA "OK")
-    else()
-        set(STATUS_ALSA "not found")
-    endif()
-endif()
 
 # GTFO, -lstdc++ !!
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")

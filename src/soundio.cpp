@@ -8,8 +8,12 @@
 #include "soundio.hpp"
 #include "util.hpp"
 #include "dummy.hpp"
-#include "pulseaudio.hpp"
 #include "os.hpp"
+#include "config.h"
+
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
+#include "pulseaudio.hpp"
+#endif
 
 #include <string.h>
 #include <assert.h>
@@ -84,12 +88,14 @@ struct SoundIo * soundio_create(void) {
 int soundio_connect(struct SoundIo *soundio) {
     int err;
 
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
     soundio->current_backend = SoundIoBackendPulseAudio;
     err = soundio_pulseaudio_init(soundio);
     if (err != SoundIoErrorInitAudioBackend) {
         soundio_disconnect(soundio);
         return err;
     }
+#endif
 
     soundio->current_backend = SoundIoBackendDummy;
     err = soundio_dummy_init(soundio);

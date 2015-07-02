@@ -36,6 +36,38 @@ libsoundio is programmed in a tiny subset of C++:
  * No references.
  * No linking against libstdc++.
 
+### Building
+
+```
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
+```
+
+### Building With MXE
+
+You can build libsoundio with [mxe](http://mxe.cc/). Follow the
+[requirements](http://mxe.cc/#requirements) section to install the
+packages necessary on your system. Then somewhere on your file system:
+
+```
+$ git clone https://github.com/mxe/mxe
+$ cd mxe
+$ make gcc
+```
+
+Then in the libsoundio source directory (replace "/path/to/mxe" with the
+appropriate path):
+
+```
+$ mkdir build-win
+$ cd build-win
+$ cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/i686-w64-mingw32.static/share/cmake/mxe-conf.cmake
+$ make
+```
+
 ## Roadmap
 
  0. ALSA (Linux)
