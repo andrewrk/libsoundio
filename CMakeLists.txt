@@ -24,32 +24,26 @@ else(Threads_FOUND)
 endif(Threads_FOUND)
 
 
-if(WIN32)
-    set(SOUNDIO_HAVE_PULSEAUDIO false)
-    set(STATUS_PULSEAUDIO "disabled")
+find_package(PulseAudio)
+if(PULSEAUDIO_FOUND)
+    set(STATUS_PULSEAUDIO "OK")
+    set(SOUNDIO_HAVE_PULSEAUDIO true)
+    include_directories(${PULSEAUDIO_INCLUDE_DIR})
 else()
-    find_package(PulseAudio)
-    if(PULSEAUDIO_FOUND)
-        set(STATUS_PULSEAUDIO "OK")
-        set(SOUNDIO_HAVE_PULSEAUDIO true)
-    else()
-        set(STATUS_PULSEAUDIO "not found")
-        set(SOUNDIO_HAVE_PULSEAUDIO false)
-    endif()
+    set(STATUS_PULSEAUDIO "not found")
+    set(SOUNDIO_HAVE_PULSEAUDIO false)
+    set(PULSEAUDIO_LIBRARY "")
 endif()
 
-if(APPLE OR WIN32)
-    set(SOUNDIO_HAVE_ALSA false)
-    set(STATUS_ALSA "disabled")
+find_package(ALSA)
+if(ALSA_FOUND)
+    set(STATUS_ALSA "OK")
+    set(SOUNDIO_HAVE_ALSA true)
+    include_directories(${ALSA_INCLUDE_DIRS})
 else()
-    find_package(ALSA)
-    if(ALSA_FOUND)
-        set(STATUS_ALSA "OK")
-        set(SOUNDIO_HAVE_ALSA true)
-    else()
-        set(STATUS_ALSA "not found")
-        set(SOUNDIO_HAVE_ALSA false)
-    endif()
+    set(STATUS_ALSA "not found")
+    set(SOUNDIO_HAVE_ALSA false)
+    set(ALSA_LIBRARIES "")
 endif()
 
 set(LIBSOUNDIO_SOURCES
@@ -107,7 +101,6 @@ set_target_properties(libsoundio_shared PROPERTIES
 )
 include_directories(
     ${CMAKE_SOURCE_DIR}
-    ${PULSEAUDIO_INCLUDE_DIR}
     ${CMAKE_BINARY_DIR}
     ${ALSA_INCLUDE_DIRS}
 )
