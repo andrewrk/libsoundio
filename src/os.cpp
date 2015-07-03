@@ -210,8 +210,10 @@ int soundio_os_thread_create(
         soundio_os_thread_destroy(thread);
         return SoundIoErrorSystemResources;
     }
-    if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
-        win32_panic("unable to set high priority thread: %s"); // TODO don't panic
+    if (high_priority) {
+        if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
+            win32_panic("unable to set high priority thread: %s"); // TODO don't panic
+        }
     }
 #else
     int err;
