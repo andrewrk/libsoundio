@@ -442,7 +442,17 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex, double seconds)
 {
 #if defined(SOUNDIO_OS_WINDOWS)
-    // TODO
+    CRITICAL_SECTION *target_cs;
+    if (locked_mutex) {
+        target_cs = &locked_mutex->id;
+    } else {
+        target_cs = &cond->default_cs_id;
+        EnterCriticalSection(&cond->default_cs_id);
+    }
+    DWORD ms = seconds * 1000.0;
+    SleepConditionVariableCS(&cond->id, target_cs, ms);
+    if (!locked_mutex)
+        LeaveCriticalSection(&cond->default_cs_id);
 #elif defined(SOUNDIO_OS_KQUEUE)
     struct kevent kev;
     struct kevent out_kev;
@@ -488,7 +498,16 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex)
 {
 #if defined(SOUNDIO_OS_WINDOWS)
-    // TODO
+    CRITICAL_SECTION *target_cs;
+    if (locked_mutex) {
+        target_cs = &locked_mutex->id;
+    } else {
+        target_cs = &cond->default_cs_id;
+        EnterCriticalSection(&cond->default_cs_id);
+    }
+    SleepConditionVariableCS(&cond->id, target_cs, INFINITE);
+    if (!locked_mutex)
+        LeaveCriticalSection(&cond->default_cs_id);
 #elif defined(SOUNDIO_OS_KQUEUE)
     struct kevent kev;
     struct kevent out_kev;
