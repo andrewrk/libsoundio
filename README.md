@@ -94,6 +94,7 @@ make
  0. record to playback example
  0. clean up API and improve documentation
  0. use a documentation generator and host the docs somewhere
+ 0. -fvisibility=hidden and then explicitly export stuff
 
 ## Planned Uses for libsoundio
 

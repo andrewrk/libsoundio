@@ -32,7 +32,7 @@ void soundio_os_mutex_lock(struct SoundIoOsMutex *mutex);
 void soundio_os_mutex_unlock(struct SoundIoOsMutex *mutex);
 
 struct SoundIoOsCond;
-struct SoundIoOsCond * soundio_os_cond_create(void);
+struct SoundIoOsCond *soundio_os_cond_create(void);
 void soundio_os_cond_destroy(struct SoundIoOsCond *cond);
 
 // locked_mutex is optional. On systems that use mutexes for conditions, if you

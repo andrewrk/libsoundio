@@ -12,49 +12,94 @@
 
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
 
-#if defined(__FreeBSD__) || defined(__MACH__)
-#define SOUNDIO_OS_KQUEUE
+#if defined(_WIN32)
+#define SOUNDIO_OS_WINDOWS
+
+#if !defined(NOMINMAX)
+#define NOMINMAX
 #endif
 
-#ifdef SOUNDIO_OS_KQUEUE
+#if !defined(VC_EXTRALEAN)
+#define VC_EXTRALEAN
+#endif
+
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#if !defined(UNICODE)
+#define UNICODE
+#endif
+
+// require Windows 7 or later
+#if WINVER < 0x0601
+#undef WINVER
+#define WINVER 0x0601
+#endif
+#if _WIN32_WINNT < 0x0601
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+
+#include <windows.h>
+#include <mmsystem.h>
+
+#else
+#include <pthread.h>
+#include <unistd.h>
+#endif
+
+#if defined(__FreeBSD__) || defined(__MACH__)
+#define SOUNDIO_OS_KQUEUE
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #endif
 
-#ifdef __MACH__
+#if defined(__MACH__)
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
 
 struct SoundIoOsThread {
+#if defined(SOUNDIO_OS_WINDOWS)
+    HANDLE handle;
+    DWORD id;
+#else
     pthread_attr_t attr;
     bool attr_init;
 
     pthread_t id;
     bool running;
-
+#endif
     void *arg;
     void (*run)(void *arg);
 };
 
 struct SoundIoOsMutex {
+#if defined(SOUNDIO_OS_WINDOWS)
+    CRITICAL_SECTION id;
+#else
     pthread_mutex_t id;
     bool id_init;
+#endif
 };
 
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_KQUEUE)
 static int kq_id;
 static atomic_uintptr_t next_notify_ident;
 struct SoundIoOsCond {
     int notify_ident;
+};
+#elif defined(SOUNDIO_OS_WINDOWS)
+struct SoundIoOsCond {
+    CONDITION_VARIABLE id;
+    CRITICAL_SECTION default_cs_id;
 };
 #else
 struct SoundIoOsCond {
@@ -69,11 +114,23 @@ struct SoundIoOsCond {
 };
 #endif
 
-static atomic_bool initialized = ATOMIC_VAR_INIT(false);
-static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+#if defined(SOUNDIO_OS_WINDOWS)
+INIT_ONCE win32_init_once = INIT_ONCE_STATIC_INIT;
+#else
+atomic_bool initialized = ATOMIC_VAR_INIT(false);
+pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+#if defined(SOUNDIO_OS_WINDOWS)
+static double win32_time_resolution;
+#endif
 
 double soundio_os_get_time(void) {
-#ifdef __MACH__
+#if defined(SOUNDIO_OS_WINDOWS)
+    unsigned __int64 time;
+    QueryPerformanceCounter((LARGE_INTEGER*) &time);
+    return time * win32_time_resolution;
+#elif defined(__MACH__)
     clock_serv_t cclock;
     mach_timespec_t mts;
 
@@ -95,10 +152,32 @@ double soundio_os_get_time(void) {
 #endif
 }
 
+#if defined(SOUNDIO_OS_WINDOWS)
+static DWORD WINAPI run_win32_thread(LPVOID userdata) {
+    struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
+    thread->run(thread->arg);
+    return 0;
+}
+
+static void win32_panic(const char *str) {
+    DWORD err = GetLastError();
+    LPSTR messageBuffer = nullptr;
+    size_t size = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+    soundio_panic(str, messageBuffer);
+    LocalFree(messageBuffer);
+}
+#else
 static void assert_no_err(int err) {
     assert(!err);
 }
 
+static void *run_pthread(void *userdata) {
+    struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
+    thread->run(thread->arg);
+    return NULL;
+}
 static void emit_rtprio_warning(void) {
     static bool seen = false;
     if (seen)
@@ -108,12 +187,7 @@ static void emit_rtprio_warning(void) {
     fprintf(stderr, "See https://github.com/andrewrk/genesis/wiki/"
             "warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
 }
-
-static void *run_thread(void *userdata) {
-    struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
-    thread->run(thread->arg);
-    return NULL;
-}
+#endif
 
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
@@ -130,6 +204,16 @@ int soundio_os_thread_create(
     thread->run = run;
     thread->arg = arg;
 
+#if defined(SOUNDIO_OS_WINDOWS)
+    thread->handle = CreateThread(NULL, 0, run_win32_thread, thread, 0, &thread->id);
+    if (!thread->handle) {
+        soundio_os_thread_destroy(thread);
+        return SoundIoErrorSystemResources;
+    }
+    if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
+        win32_panic("unable to set high priority thread: %s"); // TODO don't panic
+    }
+#else
     int err;
     if ((err = pthread_attr_init(&thread->attr))) {
         soundio_os_thread_destroy(thread);
@@ -156,10 +240,10 @@ int soundio_os_thread_create(
         }
     }
 
-    if ((err = pthread_create(&thread->id, &thread->attr, run_thread, thread))) {
+    if ((err = pthread_create(&thread->id, &thread->attr, run_pthread, thread))) {
         if (err == EPERM) {
             emit_rtprio_warning();
-            err = pthread_create(&thread->id, NULL, run_thread, thread);
+            err = pthread_create(&thread->id, NULL, run_pthread, thread);
         }
         if (err) {
             soundio_os_thread_destroy(thread);
@@ -167,6 +251,7 @@ int soundio_os_thread_create(
         }
     }
     thread->running = true;
+#endif
 
     *out_thread = thread;
     return 0;
@@ -176,6 +261,15 @@ void soundio_os_thread_destroy(struct SoundIoOsThread *thread) {
     if (!thread)
         return;
 
+#if defined(SOUNDIO_OS_WINDOWS)
+    if (thread->handle) {
+        DWORD err = WaitForSingleObject(thread->handle, INFINITE);
+        assert(err != WAIT_FAILED);
+        BOOL ok = CloseHandle(thread->handle);
+        assert(ok);
+    }
+#else
+
     if (thread->running) {
         assert_no_err(pthread_join(thread->id, NULL));
     }
@@ -183,6 +277,7 @@ void soundio_os_thread_destroy(struct SoundIoOsThread *thread) {
     if (thread->attr_init) {
         assert_no_err(pthread_attr_destroy(&thread->attr));
     }
+#endif
 
     destroy(thread);
 }
@@ -196,11 +291,15 @@ struct SoundIoOsMutex *soundio_os_mutex_create(void) {
         return NULL;
     }
 
+#if defined(SOUNDIO_OS_WINDOWS)
+    InitializeCriticalSection(&mutex->id);
+#else
     if ((err = pthread_mutex_init(&mutex->id, NULL))) {
         soundio_os_mutex_destroy(mutex);
         return NULL;
     }
     mutex->id_init = true;
+#endif
 
     return mutex;
 }
@@ -209,19 +308,31 @@ void soundio_os_mutex_destroy(struct SoundIoOsMutex *mutex) {
     if (!mutex)
         return;
 
+#if defined(SOUNDIO_OS_WINDOWS)
+    DeleteCriticalSection(&mutex->id);
+#else
     if (mutex->id_init) {
         assert_no_err(pthread_mutex_destroy(&mutex->id));
     }
+#endif
 
     destroy(mutex);
 }
 
 void soundio_os_mutex_lock(struct SoundIoOsMutex *mutex) {
+#if defined(SOUNDIO_OS_WINDOWS)
+    EnterCriticalSection(&mutex->id);
+#else
     assert_no_err(pthread_mutex_lock(&mutex->id));
+#endif
 }
 
 void soundio_os_mutex_unlock(struct SoundIoOsMutex *mutex) {
+#if defined(SOUNDIO_OS_WINDOWS)
+    LeaveCriticalSection(&mutex->id);
+#else
     assert_no_err(pthread_mutex_unlock(&mutex->id));
+#endif
 }
 
 struct SoundIoOsCond * soundio_os_cond_create(void) {
@@ -232,7 +343,10 @@ struct SoundIoOsCond * soundio_os_cond_create(void) {
         return NULL;
     }
 
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_WINDOWS)
+    InitializeConditionVariable(&cond->id);
+    InitializeCriticalSection(&cond->default_cs_id);
+#elif defined(SOUNDIO_OS_KQUEUE)
     cond->notify_ident = next_notify_ident.fetch_add(1);
 #else
     if (pthread_condattr_init(&cond->attr)) {
@@ -266,7 +380,10 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
     if (!cond)
         return;
 
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_WINDOWS)
+    DeleteCriticalSection(&cond->default_cs_id);
+#elif defined(SOUNDIO_OS_KQUEUE)
+    // nothing to do
 #else
     if (cond->id_init) {
         assert_no_err(pthread_cond_destroy(&cond->id));
@@ -286,7 +403,15 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
 void soundio_os_cond_signal(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex)
 {
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_WINDOWS)
+    if (locked_mutex) {
+        WakeConditionVariable(&cond->id);
+    } else {
+        EnterCriticalSection(&cond->default_cs_id);
+        WakeConditionVariable(&cond->id);
+        LeaveCriticalSection(&cond->default_cs_id);
+    }
+#elif defined(SOUNDIO_OS_KQUEUE)
     struct kevent kev;
     struct timespec timeout = { 0, 0 };
 
@@ -314,7 +439,9 @@ void soundio_os_cond_signal(struct SoundIoOsCond *cond,
 void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex, double seconds)
 {
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_WINDOWS)
+    // TODO
+#elif defined(SOUNDIO_OS_KQUEUE)
     struct kevent kev;
     struct kevent out_kev;
 
@@ -358,7 +485,9 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
 void soundio_os_cond_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex)
 {
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_WINDOWS)
+    // TODO
+#elif defined(SOUNDIO_OS_KQUEUE)
     struct kevent kev;
     struct kevent out_kev;
 
@@ -391,15 +520,35 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
 }
 
 static void internal_init(void) {
-#ifdef SOUNDIO_OS_KQUEUE
+#if defined(SOUNDIO_OS_KQUEUE)
     kq_id = kqueue();
     if (kq_id == -1)
         soundio_panic("unable to create kqueue: %s", strerror(errno));
     next_notify_ident.store(1);
 #endif
+#if defined(SOUNDIO_OS_WINDOWS)
+    unsigned __int64 frequency;
+    if (QueryPerformanceFrequency((LARGE_INTEGER*) &frequency)) {
+        win32_time_resolution = 1.0 / (double) frequency;
+    } else {
+        win32_panic("unable to initialize high precision timer: %s");
+    }
+#endif
 }
 
+#if defined(SOUNDIO_OS_WINDOWS)
+static BOOL CALLBACK win32_init_once_cb(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *lpContext) {
+    internal_init();
+    return TRUE;
+}
+#endif
+
 void soundio_os_init(void) {
+#if defined(SOUNDIO_OS_WINDOWS)
+    PVOID lpContext;
+    if (!InitOnceExecuteOnce(&win32_init_once, win32_init_once_cb, NULL, &lpContext))
+        win32_panic("unable to initialize: %s");
+#else
     if (initialized.load())
         return;
     assert_no_err(pthread_mutex_lock(&init_mutex));
@@ -410,4 +559,5 @@ void soundio_os_init(void) {
     initialized.store(true);
     internal_init();
     assert_no_err(pthread_mutex_unlock(&init_mutex));
+#endif
 }
