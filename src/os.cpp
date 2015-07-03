@@ -536,18 +536,21 @@ static void internal_init(void) {
 #endif
 }
 
-#if defined(SOUNDIO_OS_WINDOWS)
-static BOOL CALLBACK win32_init_once_cb(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *lpContext) {
-    internal_init();
-    return TRUE;
-}
-#endif
-
 void soundio_os_init(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
     PVOID lpContext;
-    if (!InitOnceExecuteOnce(&win32_init_once, win32_init_once_cb, NULL, &lpContext))
-        win32_panic("unable to initialize: %s");
+    BOOL pending;
+
+    if (!InitOnceBeginInitialize(&win32_init_once, INIT_ONCE_ASYNC, &pending, &lpContext))
+      win32_panic("InitOnceBeginInitialize failed: %s");
+
+    if (!pending)
+        return;
+
+    internal_init();
+
+    if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, nullptr))
+        win32_panic("InitOnceComplete failed: %s");
 #else
     if (initialized.load())
         return;
