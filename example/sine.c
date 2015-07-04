@@ -57,6 +57,12 @@ int main(int argc, char **argv) {
     soundio_output_device_create(device, SoundIoSampleFormatFloat, 0.1, NULL,
             write_callback, underrun_callback, &output_device);
 
+    if ((err = soundio_output_device_start(output_device)))
+        panic("unable to start device: %s", soundio_error_string(err));
+
+    for (;;)
+        soundio_wait_events(soundio);
+
     soundio_output_device_destroy(output_device);
     soundio_device_unref(device);
     soundio_destroy(soundio);

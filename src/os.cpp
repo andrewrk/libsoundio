@@ -229,6 +229,12 @@ int soundio_os_thread_create(
             soundio_os_thread_destroy(thread);
             return SoundIoErrorSystemResources;
         }
+
+        if ((err = pthread_attr_setschedpolicy(&thread->attr, SCHED_FIFO))) {
+            soundio_os_thread_destroy(thread);
+            return SoundIoErrorSystemResources;
+        }
+
         struct sched_param param;
         param.sched_priority = max_priority;
         if ((err = pthread_attr_setschedparam(&thread->attr, &param))) {
@@ -236,10 +242,6 @@ int soundio_os_thread_create(
             return SoundIoErrorSystemResources;
         }
 
-        if ((err = pthread_attr_setschedpolicy(&thread->attr, SCHED_FIFO))) {
-            soundio_os_thread_destroy(thread);
-            return SoundIoErrorSystemResources;
-        }
     }
 
     if ((err = pthread_create(&thread->id, &thread->attr, run_pthread, thread))) {
@@ -478,19 +480,21 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         target_mutex = &locked_mutex->id;
     } else {
         target_mutex = &cond->default_mutex_id;
-        assert_no_err(pthread_mutex_lock(&cond->default_mutex_id));
+        assert_no_err(pthread_mutex_lock(target_mutex));
     }
     // this time is absolute
     struct timespec tms;
     clock_gettime(CLOCK_MONOTONIC, &tms);
     tms.tv_nsec += (seconds * 1000000000L);
+    tms.tv_sec += tms.tv_nsec / 1000000000L;
+    tms.tv_nsec = tms.tv_nsec % 1000000000L;
     int err;
     if ((err = pthread_cond_timedwait(&cond->id, target_mutex, &tms))) {
         assert(err != EPERM);
         assert(err != EINVAL);
     }
     if (!locked_mutex)
-        assert_no_err(pthread_mutex_unlock(&cond->default_mutex_id));
+        assert_no_err(pthread_mutex_unlock(target_mutex));
 #endif
 }
 

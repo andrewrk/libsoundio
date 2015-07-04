@@ -75,6 +75,8 @@ void soundio_destroy(struct SoundIo *soundio) {
     destroy(soundio);
 }
 
+static void default_on_devices_change(struct SoundIo *) { }
+
 struct SoundIo * soundio_create(void) {
     soundio_os_init();
     struct SoundIo *soundio = create<SoundIo>();
@@ -82,6 +84,7 @@ struct SoundIo * soundio_create(void) {
         soundio_destroy(soundio);
         return NULL;
     }
+    soundio->on_devices_change = default_on_devices_change;
     return soundio;
 }
 
@@ -318,4 +321,9 @@ void soundio_output_device_destroy(SoundIoOutputDevice *output_device) {
 
     soundio_device_unref(output_device->device);
     destroy(output_device);
+}
+
+int soundio_output_device_start(struct SoundIoOutputDevice *output_device) {
+    SoundIo *soundio = output_device->device->soundio;
+    return soundio->output_device_start(soundio, output_device);
 }
