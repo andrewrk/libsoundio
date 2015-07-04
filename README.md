@@ -81,7 +81,7 @@ make
 
 ## Roadmap
 
- 0. sine example working with dummy backend linux, osx, windows
+ 0. sine example working with dummy backend osx, windows
  0. sine example working with pulseaudio backend linux
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux

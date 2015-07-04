@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 __attribute__ ((cold))
 __attribute__ ((noreturn))
@@ -23,8 +25,42 @@ static void panic(const char *format, ...) {
     abort();
 }
 
-static void write_callback(struct SoundIoOutputDevice *device, int frame_count) {
-    fprintf(stderr, "write_callback\n");
+static const float PI = 3.1415926535f;
+static float seconds_offset = 0.0f;
+
+static void write_callback(struct SoundIoOutputDevice *output_device, int requested_frame_count) {
+    //device->bytes_per_frame;
+    float float_sample_rate = output_device->device->default_sample_rate;
+    float seconds_per_frame = 1.0f / float_sample_rate;
+
+    while (requested_frame_count > 0) {
+        char *data;
+        int frame_count = requested_frame_count;
+        soundio_output_device_begin_write(output_device, &data, &frame_count);
+
+        // clear everything to 0
+        memset(data, 0, frame_count * output_device->bytes_per_frame);
+
+        const struct SoundIoChannelLayout *channel_layout = &output_device->device->channel_layout;
+
+        float *ptr = (float *)data;
+
+        // 69 is A 440
+        float pitch = 440.0f;
+        float radians_per_second = pitch * 2.0f * PI;
+        for (int frame = 0; frame < frame_count; frame += 1) {
+            float sample = sinf((seconds_offset + frame * seconds_per_frame) * radians_per_second);
+            for (int channel = 0; channel < channel_layout->channel_count; channel += 1) {
+                *ptr += sample;
+                ptr += 1;
+            }
+        }
+        seconds_offset += seconds_per_frame * frame_count;
+
+        soundio_output_device_write(output_device, data, frame_count);
+        requested_frame_count -= frame_count;
+    }
+
 }
 
 static void underrun_callback(struct SoundIoOutputDevice *device) {

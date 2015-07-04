@@ -287,21 +287,21 @@ int soundio_output_device_create(struct SoundIoDevice *device,
         void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
         struct SoundIoOutputDevice **out_output_device);
-void soundio_output_device_destroy(struct SoundIoOutputDevice *device);
+void soundio_output_device_destroy(struct SoundIoOutputDevice *output_device);
 
-int soundio_output_device_start(struct SoundIoOutputDevice *device);
+int soundio_output_device_start(struct SoundIoOutputDevice *output_device);
 
-void soundio_output_device_fill_with_silence(struct SoundIoOutputDevice *device);
+void soundio_output_device_fill_with_silence(struct SoundIoOutputDevice *output_device);
 
 
 // number of frames available to write
-int soundio_output_device_free_count(struct SoundIoOutputDevice *device);
-void soundio_output_device_begin_write(struct SoundIoOutputDevice *device,
+int soundio_output_device_free_count(struct SoundIoOutputDevice *output_device);
+void soundio_output_device_begin_write(struct SoundIoOutputDevice *output_device,
         char **data, int *frame_count);
-void soundio_output_device_write(struct SoundIoOutputDevice *device,
+void soundio_output_device_write(struct SoundIoOutputDevice *output_device,
         char *data, int frame_count);
 
-void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *device);
+void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *output_device);
 
 
 
@@ -311,14 +311,14 @@ int soundio_input_device_create(struct SoundIoDevice *device,
         enum SoundIoSampleFormat sample_format, double latency, void *userdata,
         void (*read_callback)(struct SoundIoOutputDevice *),
         struct SoundIoOutputDevice **out_input_device);
-void soundio_input_device_destroy(struct SoundIoOutputDevice *device);
+void soundio_input_device_destroy(struct SoundIoOutputDevice *input_device);
 
-int soundio_input_device_start(struct SoundIoOutputDevice *device);
-void soundio_input_device_peek(struct SoundIoOutputDevice *device,
+int soundio_input_device_start(struct SoundIoOutputDevice *input_device);
+void soundio_input_device_peek(struct SoundIoOutputDevice *input_device,
         const char **data, int *frame_count);
-void soundio_input_device_drop(struct SoundIoOutputDevice *device);
+void soundio_input_device_drop(struct SoundIoOutputDevice *input_device);
 
-void soundio_input_device_clear_buffer(struct SoundIoOutputDevice *device);
+void soundio_input_device_clear_buffer(struct SoundIoOutputDevice *input_device);
 
 #ifdef __cplusplus
 }
