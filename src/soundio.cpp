@@ -76,6 +76,7 @@ void soundio_destroy(struct SoundIo *soundio) {
 }
 
 static void default_on_devices_change(struct SoundIo *) { }
+static void default_on_events_signal(struct SoundIo *) { }
 
 struct SoundIo * soundio_create(void) {
     soundio_os_init();
@@ -85,6 +86,7 @@ struct SoundIo * soundio_create(void) {
         return NULL;
     }
     soundio->on_devices_change = default_on_devices_change;
+    soundio->on_events_signal = default_on_events_signal;
     return soundio;
 }
 
@@ -94,6 +96,8 @@ int soundio_connect(struct SoundIo *soundio) {
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
     soundio->current_backend = SoundIoBackendPulseAudio;
     err = soundio_pulseaudio_init(soundio);
+    if (!err)
+        return 0;
     if (err != SoundIoErrorInitAudioBackend) {
         soundio_disconnect(soundio);
         return err;
@@ -149,26 +153,31 @@ void soundio_disconnect(struct SoundIo *soundio) {
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {
+    assert(soundio->flush_events);
     if (soundio->flush_events)
         soundio->flush_events(soundio);
 }
 
 int soundio_get_input_device_count(struct SoundIo *soundio) {
+    soundio_flush_events(soundio);
     assert(soundio->safe_devices_info);
     return soundio->safe_devices_info->input_devices.length;
 }
 
 int soundio_get_output_device_count(struct SoundIo *soundio) {
+    soundio_flush_events(soundio);
     assert(soundio->safe_devices_info);
     return soundio->safe_devices_info->output_devices.length;
 }
 
 int soundio_get_default_input_device_index(struct SoundIo *soundio) {
+    soundio_flush_events(soundio);
     assert(soundio->safe_devices_info);
     return soundio->safe_devices_info->default_input_index;
 }
 
 int soundio_get_default_output_device_index(struct SoundIo *soundio) {
+    soundio_flush_events(soundio);
     assert(soundio->safe_devices_info);
     return soundio->safe_devices_info->default_output_index;
 }
