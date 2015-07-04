@@ -114,6 +114,9 @@ static void output_device_destroy_dummy(SoundIo *soundio,
         SoundIoOutputDevice *output_device)
 {
     SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
+    if (!opd)
+        return;
+
     if (opd->thread) {
         if (opd->thread) {
             opd->abort_flag.clear();
@@ -124,12 +127,24 @@ static void output_device_destroy_dummy(SoundIo *soundio,
     }
     soundio_os_cond_destroy(opd->cond);
     opd->cond = nullptr;
+
+    soundio_dummy_ring_buffer_deinit(&opd->ring_buffer);
+
+    destroy(opd);
+    output_device->backend_data = nullptr;
 }
 
 static int output_device_init_dummy(SoundIo *soundio,
         SoundIoOutputDevice *output_device)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
+
+    SoundIoOutputDeviceDummy *opd = create<SoundIoOutputDeviceDummy>();
+    if (!opd) {
+        output_device_destroy_dummy(soundio, output_device);
+        return SoundIoErrorNoMem;
+    }
+    output_device->backend_data = opd;
+
     SoundIoDevice *device = output_device->device;
     int buffer_frame_count = output_device->latency * device->default_sample_rate;
     opd->buffer_size = output_device->bytes_per_frame * buffer_frame_count;

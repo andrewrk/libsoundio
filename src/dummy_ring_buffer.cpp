@@ -44,7 +44,7 @@ void soundio_dummy_ring_buffer_destroy(struct SoundIoDummyRingBuffer *rb) {
 }
 
 void soundio_dummy_ring_buffer_deinit(struct SoundIoDummyRingBuffer *rb) {
-    deallocate(rb, rb->capacity);
+    deallocate(rb->address, rb->capacity);
     rb->address = nullptr;
 }
 

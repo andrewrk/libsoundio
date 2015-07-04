@@ -284,7 +284,7 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 int soundio_output_device_create(struct SoundIoDevice *device,
         enum SoundIoSampleFormat sample_format,
         double latency, void *userdata,
-        void (*write_callback)(struct SoundIoOutputDevice *, int),
+        void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
         struct SoundIoOutputDevice **out_output_device);
 void soundio_output_device_destroy(struct SoundIoOutputDevice *device);

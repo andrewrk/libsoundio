@@ -54,11 +54,6 @@ set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
     "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
 )
-if(SOUNDIO_HAVE_PULSEAUDIO)
-    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
-    )
-endif()
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
@@ -68,7 +63,22 @@ set(LIBSOUNDIO_HEADERS
 
 set(TEST_SOURCES
     "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp"
+    "${CMAKE_SOURCE_DIR}/src/util.cpp"
+    "${CMAKE_SOURCE_DIR}/src/os.cpp"
+    "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
+    "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
+    "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
+    "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
 )
+
+if(SOUNDIO_HAVE_PULSEAUDIO)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
+    )
+    set(TEST_SOURCES ${TEST_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
+    )
+endif()
 
 
 # GTFO, -lstdc++ !!

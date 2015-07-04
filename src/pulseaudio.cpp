@@ -543,10 +543,44 @@ static void playback_stream_write_callback(pa_stream *stream, size_t nbytes, voi
     output_device->write_callback(output_device, frame_count);
 }
 
-static int output_device_init_pa(SoundIo *soundio,
+static void output_device_destroy_pa(SoundIo *soundio,
         SoundIoOutputDevice *output_device)
 {
     SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    if (!opd)
+        return;
+
+    SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
+    pa_stream *stream = opd->stream;
+    if (stream) {
+        pa_threaded_mainloop_lock(ah->main_loop);
+
+        pa_stream_set_write_callback(stream, nullptr, nullptr);
+        pa_stream_set_state_callback(stream, nullptr, nullptr);
+        pa_stream_set_underflow_callback(stream, nullptr, nullptr);
+        pa_stream_disconnect(stream);
+
+        pa_stream_unref(stream);
+
+        pa_threaded_mainloop_unlock(ah->main_loop);
+
+        opd->stream = nullptr;
+    }
+
+    destroy(opd);
+    output_device->backend_data = nullptr;
+}
+
+static int output_device_init_pa(SoundIo *soundio,
+        SoundIoOutputDevice *output_device)
+{
+    SoundIoOutputDevicePulseAudio *opd = create<SoundIoOutputDevicePulseAudio>();
+    if (!opd) {
+        output_device_destroy_pa(soundio, output_device);
+        return SoundIoErrorNoMem;
+    }
+    output_device->backend_data = opd;
+
     SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
     SoundIoDevice *device = output_device->device; 
     opd->stream_ready = false;
@@ -564,6 +598,7 @@ static int output_device_init_pa(SoundIo *soundio,
     opd->stream = pa_stream_new(ah->pulse_context, "SoundIo", &sample_spec, &channel_map);
     if (!opd->stream) {
         pa_threaded_mainloop_unlock(ah->main_loop);
+        output_device_destroy_pa(soundio, output_device);
         return SoundIoErrorNoMem;
     }
     pa_stream_set_state_callback(opd->stream, playback_stream_state_callback, output_device);
@@ -583,28 +618,6 @@ static int output_device_init_pa(SoundIo *soundio,
     pa_threaded_mainloop_unlock(ah->main_loop);
 
     return 0;
-}
-
-static void output_device_destroy_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
-{
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
-    SoundIoPulseAudio *ah = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = opd->stream;
-    if (stream) {
-        pa_threaded_mainloop_lock(ah->main_loop);
-
-        pa_stream_set_write_callback(stream, nullptr, nullptr);
-        pa_stream_set_state_callback(stream, nullptr, nullptr);
-        pa_stream_set_underflow_callback(stream, nullptr, nullptr);
-        pa_stream_disconnect(stream);
-
-        pa_stream_unref(stream);
-
-        pa_threaded_mainloop_unlock(ah->main_loop);
-
-        opd->stream = nullptr;
-    }
 }
 
 static int output_device_start_pa(SoundIo *soundio,
