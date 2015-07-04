@@ -81,20 +81,21 @@ make
 
 ## Roadmap
 
- 0. ALSA (Linux)
+ 0. sine example working with dummy backend linux, osx, windows
+ 0. sine example working with pulseaudio backend linux
+ 0. pipe record to playback example working with dummy linux, osx, windows
+ 0. pipe record to playback example working with pulseaudio linux
+ 0. implement CoreAudio (OSX) backend, get examples working
+ 0. implement DirectSound (Windows) backend, get examples working
+ 0. implement ALSA (Linux) backend, get examples working
+ 0. implement JACK backend, get examples working
  0. Avoid calling `panic` in PulseAudio.
- 0. JACK
- 0. Dummy
- 0. CoreAudio (OSX)
- 0. ASIO (Windows)
- 0. DirectSound (Windows)
- 0. OSS (BSD)
- 0. list devices example
- 0. sine wave example
- 0. record to playback example
+ 0. implement ASIO (Windows) backend, get examples working
  0. clean up API and improve documentation
  0. use a documentation generator and host the docs somewhere
  0. -fvisibility=hidden and then explicitly export stuff
+ 0. Integrate into libgroove and test with Groove Basin
+ 0. Consider testing on FreeBSD
 
 ## Planned Uses for libsoundio
 
