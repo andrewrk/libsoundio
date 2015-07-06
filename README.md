@@ -8,7 +8,25 @@ This library is an abstraction; however it prioritizes performance and power
 over API convenience. Features that only exist in some sound backends are
 exposed.
 
-This library is a work-in-progress.
+**This library is a work-in-progress.**
+
+## Why libsoundio?
+
+ * [PortAudio](http://www.portaudio.com/)
+   - It does not support [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/).
+   - It logs messages to stdio and you can't turn that off.
+   - It is not written by me.
+ * [rtaudio](https://www.music.mcgill.ca/~gary/rtaudio/)
+   - It is not a C library.
+   - It uses [exceptions](http://stackoverflow.com/questions/1736146/why-is-exception-handling-bad).
+   - It is not written by me.
+ * [SDL](https://www.libsdl.org/)
+   - It comes with a bunch of other baggage - display, windowing, input
+     handling, and lots more.
+   - It is not designed with real-time low latency audio in mind.
+   - Listing audio devices is [broken](https://github.com/andrewrk/node-groove/issues/13).
+   - It does not support recording devices.
+   - It is not written by me.
 
 ## How It Works
 
