@@ -16,6 +16,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity) {
     SoundIoRingBuffer *rb = create<SoundIoRingBuffer>();
 
@@ -88,33 +92,20 @@ int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacit
     rb->write_offset = 0;
     rb->read_offset = 0;
 
-    char shm_path[] = "/dev/shm/ring-buffer-XXXXXX";
-    int fd = mkstemp(shm_path);
-    if (fd < 0)
-        return SoundIoErrorSystemResources;
-
-    if (unlink(shm_path))
-        return SoundIoErrorSystemResources;
-
-    if (ftruncate(fd, rb->capacity))
-        return SoundIoErrorNoMem;
-
-    rb->address = (char*)mmap(NULL, rb->capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    rb->address = (char*)mmap(NULL, rb->capacity * 2, PROT_NONE,
+            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (rb->address == MAP_FAILED)
         return SoundIoErrorNoMem;
 
     char *other_address = (char*)mmap(rb->address, rb->capacity,
-            PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED, fd, 0);
+            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != rb->address)
         return SoundIoErrorNoMem;
 
     other_address = (char*)mmap(rb->address + rb->capacity, rb->capacity,
-            PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED, fd, 0);
+            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != rb->address + rb->capacity)
         return SoundIoErrorNoMem;
-
-    if (close(fd))
-        return SoundIoErrorSystemResources;
 
     return 0;
 }

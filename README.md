@@ -99,7 +99,6 @@ make
 
 ## Roadmap
 
- 0. sine example working with dummy backend osx
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux
  0. implement CoreAudio (OSX) backend, get examples working
