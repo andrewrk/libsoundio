@@ -9,6 +9,7 @@
 #define SOUNDIO_OS_HPP
 
 #include <stdbool.h>
+#include <stddef.h>
 
 
 // safe to call from any thread(s) multiple times, but
@@ -46,5 +47,15 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex, double seconds);
 void soundio_os_cond_wait(struct SoundIoOsCond *cond,
         struct SoundIoOsMutex *locked_mutex);
+
+
+int soundio_os_page_size(void);
+
+// capacity is replaced with actual capacity which might be modified to be
+// a multiple of the system page size
+int soundio_os_create_mirrored_memory(size_t *capacity, char **out_address);
+// capacity should be the actual capacity value that was given via
+// soundio_os_create_mirrored_memory
+void soundio_os_destroy_mirrored_memory(char *address, size_t capacity);
 
 #endif

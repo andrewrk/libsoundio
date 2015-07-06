@@ -51,14 +51,16 @@ static void test_ring_buffer_basic(void) {
     SoundIoRingBuffer *rb = soundio_ring_buffer_create(soundio, 10);
     assert(rb);
 
-    assert(soundio_ring_buffer_capacity(rb) == 4096);
+    int page_size = soundio_os_page_size();
+
+    assert(soundio_ring_buffer_capacity(rb) == page_size);
 
     char *write_ptr = soundio_ring_buffer_write_ptr(rb);
     int amt = sprintf(write_ptr, "hello") + 1;
     soundio_ring_buffer_advance_write_ptr(rb, amt);
 
     assert(soundio_ring_buffer_fill_count(rb) == amt);
-    assert(soundio_ring_buffer_free_count(rb) == 4096 - amt);
+    assert(soundio_ring_buffer_free_count(rb) == page_size - amt);
 
     char *read_ptr = soundio_ring_buffer_read_ptr(rb);
 
@@ -69,8 +71,8 @@ static void test_ring_buffer_basic(void) {
     assert(soundio_ring_buffer_fill_count(rb) == 0);
     assert(soundio_ring_buffer_free_count(rb) == soundio_ring_buffer_capacity(rb));
 
-    soundio_ring_buffer_advance_write_ptr(rb, 4094);
-    soundio_ring_buffer_advance_read_ptr(rb, 4094);
+    soundio_ring_buffer_advance_write_ptr(rb, page_size - 2);
+    soundio_ring_buffer_advance_read_ptr(rb, page_size - 2);
     amt = sprintf(soundio_ring_buffer_write_ptr(rb), "writing past the end") + 1;
     soundio_ring_buffer_advance_write_ptr(rb, amt);
 

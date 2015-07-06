@@ -8,17 +8,9 @@
 #include "ring_buffer.hpp"
 #include "soundio.hpp"
 #include "util.hpp"
+#include "os.hpp"
 
-#include <sys/mman.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
-#include <string.h>
-#include <errno.h>
-
-#ifndef MAP_ANONYMOUS
-#define MAP_ANONYMOUS MAP_ANON
-#endif
 
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity) {
     SoundIoRingBuffer *rb = create<SoundIoRingBuffer>();
@@ -83,34 +75,20 @@ void soundio_ring_buffer_clear(struct SoundIoRingBuffer *rb) {
 }
 
 int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacity) {
-    // round size up to the nearest power of two
-    int pow2_size = powf(2, ceilf(log2(requested_capacity)));
-    // at minimum must be page size
-    int page_size = getpagesize();
-    rb->capacity = max(pow2_size, page_size);
+    int err;
+    size_t capacity = requested_capacity;
+    if ((err = soundio_os_create_mirrored_memory(&capacity, &rb->address))) {
+        soundio_ring_buffer_deinit(rb);
+        return err;
+    }
 
+    rb->capacity = capacity;
     rb->write_offset = 0;
     rb->read_offset = 0;
-
-    rb->address = (char*)mmap(NULL, rb->capacity * 2, PROT_NONE,
-            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (rb->address == MAP_FAILED)
-        return SoundIoErrorNoMem;
-
-    char *other_address = (char*)mmap(rb->address, rb->capacity,
-            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
-    if (other_address != rb->address)
-        return SoundIoErrorNoMem;
-
-    other_address = (char*)mmap(rb->address + rb->capacity, rb->capacity,
-            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
-    if (other_address != rb->address + rb->capacity)
-        return SoundIoErrorNoMem;
 
     return 0;
 }
 
 void soundio_ring_buffer_deinit(struct SoundIoRingBuffer *rb) {
-    if (munmap(rb->address, 2 * rb->capacity))
-        soundio_panic("munmap failed: %s", strerror(errno));
+    soundio_os_destroy_mirrored_memory(rb->address, rb->capacity);
 }

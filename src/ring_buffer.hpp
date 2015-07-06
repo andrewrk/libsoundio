@@ -12,7 +12,7 @@
 
 struct SoundIoRingBuffer {
     char *address;
-    long capacity;
+    int capacity;
     atomic_long write_offset;
     atomic_long read_offset;
 };
