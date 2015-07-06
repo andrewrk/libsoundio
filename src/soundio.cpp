@@ -336,3 +336,54 @@ int soundio_output_device_start(struct SoundIoOutputDevice *output_device) {
     SoundIo *soundio = output_device->device->soundio;
     return soundio->output_device_start(soundio, output_device);
 }
+
+int soundio_input_device_create(struct SoundIoDevice *device,
+        enum SoundIoSampleFormat sample_format, double latency, void *userdata,
+        void (*read_callback)(struct SoundIoInputDevice *),
+        struct SoundIoInputDevice **out_input_device)
+{
+    *out_input_device = nullptr;
+
+    SoundIoInputDevice *sid = create<SoundIoInputDevice>();
+    if (!sid) {
+        soundio_input_device_destroy(sid);
+        return SoundIoErrorNoMem;
+    }
+
+    soundio_device_ref(device);
+    sid->device = device;
+    sid->userdata = userdata;
+    sid->read_callback = read_callback;
+    sid->sample_format = sample_format;
+    sid->latency = latency;
+    sid->bytes_per_frame = soundio_get_bytes_per_frame(sample_format,
+            device->channel_layout.channel_count);
+
+    SoundIo *soundio = device->soundio;
+    int err = soundio->input_device_init(soundio, sid);
+    if (err) {
+        soundio_input_device_destroy(sid);
+        return err;
+    }
+
+    *out_input_device = sid;
+    return 0;
+}
+
+int soundio_input_device_start(struct SoundIoInputDevice *input_device) {
+    SoundIo *soundio = input_device->device->soundio;
+    return soundio->input_device_start(soundio, input_device);
+}
+
+void soundio_input_device_destroy(struct SoundIoInputDevice *input_device) {
+    if (!input_device)
+        return;
+
+    SoundIo *soundio = input_device->device->soundio;
+
+    if (soundio->input_device_destroy)
+        soundio->input_device_destroy(soundio, input_device);
+
+    soundio_device_unref(input_device->device);
+    destroy(input_device);
+}

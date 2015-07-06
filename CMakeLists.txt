@@ -51,8 +51,8 @@ set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/util.cpp"
     "${CMAKE_SOURCE_DIR}/src/os.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
-    "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
     "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
+    "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
 )
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
@@ -67,8 +67,8 @@ set(TEST_SOURCES
     "${CMAKE_SOURCE_DIR}/src/os.cpp"
     "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
-    "${CMAKE_SOURCE_DIR}/src/dummy_ring_buffer.cpp"
     "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
+    "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
 )
 
 if(SOUNDIO_HAVE_PULSEAUDIO)
@@ -151,6 +151,13 @@ set_target_properties(list_devices PROPERTIES
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(list_devices libsoundio_shared)
+
+add_executable(microphone example/microphone.c)
+set_target_properties(microphone PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+include_directories(${EXAMPLE_INCLUDES})
+target_link_libraries(microphone libsoundio_shared)
 
 
 

@@ -309,16 +309,41 @@ void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *output_devic
 
 int soundio_input_device_create(struct SoundIoDevice *device,
         enum SoundIoSampleFormat sample_format, double latency, void *userdata,
-        void (*read_callback)(struct SoundIoOutputDevice *),
-        struct SoundIoOutputDevice **out_input_device);
-void soundio_input_device_destroy(struct SoundIoOutputDevice *input_device);
+        void (*read_callback)(struct SoundIoInputDevice *),
+        struct SoundIoInputDevice **out_input_device);
+void soundio_input_device_destroy(struct SoundIoInputDevice *input_device);
 
-int soundio_input_device_start(struct SoundIoOutputDevice *input_device);
-void soundio_input_device_peek(struct SoundIoOutputDevice *input_device,
+int soundio_input_device_start(struct SoundIoInputDevice *input_device);
+void soundio_input_device_peek(struct SoundIoInputDevice *input_device,
         const char **data, int *frame_count);
-void soundio_input_device_drop(struct SoundIoOutputDevice *input_device);
+void soundio_input_device_drop(struct SoundIoInputDevice *input_device);
 
-void soundio_input_device_clear_buffer(struct SoundIoOutputDevice *input_device);
+void soundio_input_device_clear_buffer(struct SoundIoInputDevice *input_device);
+
+
+// Ring Buffer
+struct SoundIoRingBuffer;
+struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity);
+void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *ring_buffer);
+int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *ring_buffer);
+
+// don't write more than capacity
+char *soundio_ring_buffer_write_ptr(struct SoundIoRingBuffer *ring_buffer);
+void soundio_ring_buffer_advance_write_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
+
+// don't read more than capacity
+char *soundio_ring_buffer_read_ptr(struct SoundIoRingBuffer *ring_buffer);
+void soundio_ring_buffer_advance_read_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
+
+// how much of the buffer is used, ready for reading
+int soundio_ring_buffer_fill_count(struct SoundIoRingBuffer *ring_buffer);
+
+// how much is available, ready for writing
+int soundio_ring_buffer_free_count(struct SoundIoRingBuffer *ring_buffer);
+
+// must be called by the writer
+void soundio_ring_buffer_clear(struct SoundIoRingBuffer *ring_buffer);
+
 
 #ifdef __cplusplus
 }

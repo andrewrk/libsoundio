@@ -3,9 +3,14 @@
 
 #include <atomic>
 using std::atomic_flag;
+using std::atomic_int;
 using std::atomic_long;
 using std::atomic_bool;
 using std::atomic_uintptr_t;
+
+#if ATOMIC_INT_LOCK_FREE != 2
+#error "require atomic_int to be lock free"
+#endif
 
 #if ATOMIC_LONG_LOCK_FREE != 2
 #error "require atomic_long to be lock free"
