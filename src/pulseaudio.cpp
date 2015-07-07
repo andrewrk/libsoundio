@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Andrew Kelley
+ *
+ * This file is part of libsoundio, which is MIT licensed.
+ * See http://opensource.org/licenses/MIT
+ */
+
 #include "pulseaudio.hpp"
 #include "soundio.hpp"
 #include "atomics.hpp"
@@ -100,32 +107,6 @@ static void context_state_callback(pa_context *context, void *userdata) {
     }
 }
 
-static void destroy_current_devices_info(SoundIo *soundio) {
-    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    if (sipa->current_devices_info) {
-        for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1)
-            soundio_device_unref(sipa->current_devices_info->input_devices.at(i));
-        for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1)
-            soundio_device_unref(sipa->current_devices_info->output_devices.at(i));
-
-        destroy(sipa->current_devices_info);
-        sipa->current_devices_info = nullptr;
-    }
-}
-
-static void destroy_ready_devices_info(SoundIo *soundio) {
-    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    if (sipa->ready_devices_info) {
-        for (int i = 0; i < sipa->ready_devices_info->input_devices.length; i += 1)
-            soundio_device_unref(sipa->ready_devices_info->input_devices.at(i));
-        for (int i = 0; i < sipa->ready_devices_info->output_devices.length; i += 1)
-            soundio_device_unref(sipa->ready_devices_info->output_devices.at(i));
-        destroy(sipa->ready_devices_info);
-        sipa->ready_devices_info = nullptr;
-    }
-}
-
-
 static void destroy_pa(SoundIo *soundio) {
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
     if (!sipa)
@@ -134,8 +115,8 @@ static void destroy_pa(SoundIo *soundio) {
     if (sipa->main_loop)
         pa_threaded_mainloop_stop(sipa->main_loop);
 
-    destroy_current_devices_info(soundio);
-    destroy_ready_devices_info(soundio);
+    soundio_destroy_devices_info(sipa->current_devices_info);
+    soundio_destroy_devices_info(sipa->ready_devices_info);
 
     pa_context_disconnect(sipa->pulse_context);
     pa_context_unref(sipa->pulse_context);
@@ -259,7 +240,7 @@ static void finish_device_query(SoundIo *soundio) {
         }
     }
 
-    destroy_ready_devices_info(soundio);
+    soundio_destroy_devices_info(sipa->ready_devices_info);
     sipa->ready_devices_info = sipa->current_devices_info;
     sipa->current_devices_info = NULL;
     sipa->have_devices_flag = true;
@@ -351,7 +332,7 @@ static void scan_devices(SoundIo *soundio) {
     sipa->have_default_sink = false;
     sipa->have_source_list = false;
 
-    destroy_current_devices_info(soundio);
+    soundio_destroy_devices_info(sipa->current_devices_info);
     sipa->current_devices_info = create<SoundIoDevicesInfo>();
     if (!sipa->current_devices_info)
         soundio_panic("out of memory");
@@ -426,13 +407,7 @@ static void flush_events(SoundIo *soundio) {
     if (change)
         soundio->on_devices_change(soundio);
 
-    if (old_devices_info) {
-        for (int i = 0; i < old_devices_info->input_devices.length; i += 1)
-            soundio_device_unref(old_devices_info->input_devices.at(i));
-        for (int i = 0; i < old_devices_info->output_devices.length; i += 1)
-            soundio_device_unref(old_devices_info->output_devices.at(i));
-        destroy(old_devices_info);
-    }
+    soundio_destroy_devices_info(old_devices_info);
 
     block_until_have_devices(soundio);
 }
@@ -876,12 +851,6 @@ static void input_device_clear_buffer_pa(SoundIo *soundio,
     pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
-static void refresh_devices(SoundIo *soundio) {
-    block_until_ready(soundio);
-    soundio_flush_events(soundio);
-    block_until_have_devices(soundio);
-}
-
 int soundio_pulseaudio_init(SoundIo *soundio) {
     assert(!soundio->backend_data);
     SoundIoPulseAudio *sipa = create<SoundIoPulseAudio>();
@@ -942,7 +911,6 @@ int soundio_pulseaudio_init(SoundIo *soundio) {
 
     soundio->destroy = destroy_pa;
     soundio->flush_events = flush_events;
-    soundio->refresh_devices = refresh_devices;
     soundio->wait_events = wait_events;
     soundio->wakeup = wakeup;
 

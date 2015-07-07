@@ -90,6 +90,7 @@ enum SoundIoChannelLayoutId {
 enum SoundIoBackend {
     SoundIoBackendNone,
     SoundIoBackendPulseAudio,
+    SoundIoBackendAlsa,
     SoundIoBackendDummy,
 };
 
@@ -160,7 +161,6 @@ struct SoundIo {
     void (*flush_events)(struct SoundIo *);
     void (*wait_events)(struct SoundIo *);
     void (*wakeup)(struct SoundIo *);
-    void (*refresh_devices)(struct SoundIo *);
 
     int (*output_device_init)(struct SoundIo *, struct SoundIoOutputDevice *);
     void (*output_device_destroy)(struct SoundIo *, struct SoundIoOutputDevice *);

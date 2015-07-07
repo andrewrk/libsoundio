@@ -15,6 +15,10 @@
 #include "pulseaudio.hpp"
 #endif
 
+#ifdef SOUNDIO_HAVE_ALSA
+#include "alsa.hpp"
+#endif
+
 #include <string.h>
 #include <assert.h>
 
@@ -61,6 +65,7 @@ const char *soundio_backend_name(enum SoundIoBackend backend) {
     switch (backend) {
         case SoundIoBackendNone: return "(none)";
         case SoundIoBackendPulseAudio: return "PulseAudio";
+        case SoundIoBackendAlsa: return "ALSA";
         case SoundIoBackendDummy: return "Dummy";
     }
     soundio_panic("invalid backend enum value: %d", (int)backend);
@@ -104,6 +109,17 @@ int soundio_connect(struct SoundIo *soundio) {
     }
 #endif
 
+#ifdef SOUNDIO_HAVE_ALSA
+    soundio->current_backend = SoundIoBackendAlsa;
+    err = soundio_alsa_init(soundio);
+    if (!err)
+        return 0;
+    if (err != SoundIoErrorInitAudioBackend) {
+        soundio_disconnect(soundio);
+        return err;
+    }
+#endif
+
     soundio->current_backend = SoundIoBackendDummy;
     err = soundio_dummy_init(soundio);
     if (err) {
@@ -121,20 +137,13 @@ void soundio_disconnect(struct SoundIo *soundio) {
 
     soundio->current_backend = SoundIoBackendNone;
 
-    if (soundio->safe_devices_info) {
-        for (int i = 0; i < soundio->safe_devices_info->input_devices.length; i += 1)
-            soundio_device_unref(soundio->safe_devices_info->input_devices.at(i));
-        for (int i = 0; i < soundio->safe_devices_info->output_devices.length; i += 1)
-            soundio_device_unref(soundio->safe_devices_info->output_devices.at(i));
-        destroy(soundio->safe_devices_info);
-        soundio->safe_devices_info = nullptr;
-    }
+    soundio_destroy_devices_info(soundio->safe_devices_info);
+    soundio->safe_devices_info = nullptr;
 
     soundio->destroy = nullptr;
     soundio->flush_events = nullptr;
     soundio->wait_events = nullptr;
     soundio->wakeup = nullptr;
-    soundio->refresh_devices = nullptr;
 
     soundio->output_device_init = nullptr;
     soundio->output_device_destroy = nullptr;
@@ -199,9 +208,6 @@ struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int ind
     soundio_device_ref(device);
     return device;
 }
-
-void soundio_device_ref(struct SoundIoDevice *device);
-void soundio_device_unref(struct SoundIoDevice *device);
 
 // the name is the identifier for the device. UTF-8 encoded
 const char *soundio_device_name(const struct SoundIoDevice *device) {
@@ -386,4 +392,16 @@ void soundio_input_device_destroy(struct SoundIoInputDevice *input_device) {
 
     soundio_device_unref(input_device->device);
     destroy(input_device);
+}
+
+void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
+    if (!devices_info)
+        return;
+
+    for (int i = 0; i < devices_info->input_devices.length; i += 1)
+        soundio_device_unref(devices_info->input_devices.at(i));
+    for (int i = 0; i < devices_info->output_devices.length; i += 1)
+        soundio_device_unref(devices_info->output_devices.at(i));
+
+    destroy(devices_info);
 }

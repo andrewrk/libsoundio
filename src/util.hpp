@@ -84,6 +84,10 @@ void soundio_panic(const char *format, ...)
     __attribute__ ((noreturn))
     __attribute__ ((format (printf, 1, 2)));
 
+char *soundio_alloc_sprintf(int *len, const char *format, ...)
+    __attribute__ ((format (printf, 2, 3)));
+
+
 template <typename T, long n>
 constexpr long array_length(const T (&)[n]) {
     return n;

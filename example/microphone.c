@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     if (default_out_device_index < 0)
         panic("no output device found");
 
-    int default_in_device_index = soundio_get_default_output_device_index(soundio);
+    int default_in_device_index = soundio_get_default_input_device_index(soundio);
     if (default_in_device_index < 0)
         panic("no output device found");
 
@@ -64,12 +64,8 @@ int main(int argc, char **argv) {
     if (!in_device)
         panic("could not get input device: out of memory");
 
-    fprintf(stderr, "Input device: %s: %s\n",
-            soundio_device_name(in_device),
-            soundio_device_description(in_device));
-    fprintf(stderr, "Output device: %s: %s\n",
-            soundio_device_name(out_device),
-            soundio_device_description(out_device));
+    fprintf(stderr, "Input device: %s\n", soundio_device_description(in_device));
+    fprintf(stderr, "Output device: %s\n", soundio_device_description(out_device));
 
     const struct SoundIoChannelLayout *in_layout = soundio_device_channel_layout(in_device);
     const struct SoundIoChannelLayout *out_layout = soundio_device_channel_layout(out_device);

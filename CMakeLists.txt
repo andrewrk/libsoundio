@@ -79,6 +79,14 @@ if(SOUNDIO_HAVE_PULSEAUDIO)
         "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
     )
 endif()
+if(SOUNDIO_HAVE_ALSA)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
+    )
+    set(TEST_SOURCES ${TEST_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
+    )
+endif()
 
 
 # GTFO, -lstdc++ !!

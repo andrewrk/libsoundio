@@ -108,8 +108,6 @@ static void wakeup(SoundIo *soundio) {
     soundio_os_cond_signal(sid->cond, nullptr);
 }
 
-static void refresh_devices(SoundIo *soundio) { }
-
 static void output_device_destroy_dummy(SoundIo *soundio,
         SoundIoOutputDevice *output_device)
 {
@@ -216,39 +214,37 @@ static void output_device_clear_buffer_dummy(SoundIo *soundio,
 static int input_device_init_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device)
 {
-    // TODO
-    return 0;
+    soundio_panic("TODO");
 }
 
 static void input_device_destroy_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device)
 {
-    // TODO
+    soundio_panic("TODO");
 }
 
 static int input_device_start_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device)
 {
-    // TODO
-    return 0;
+    soundio_panic("TODO");
 }
 
 static void input_device_peek_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device, const char **data, int *frame_count)
 {
-    // TODO
+    soundio_panic("TODO");
 }
 
 static void input_device_drop_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device)
 {
-    // TODO
+    soundio_panic("TODO");
 }
 
 static void input_device_clear_buffer_dummy(SoundIo *soundio,
         SoundIoInputDevice *input_device)
 {
-    // TODO
+    soundio_panic("TODO");
 }
 
 int soundio_dummy_init(SoundIo *soundio) {
@@ -326,8 +322,7 @@ int soundio_dummy_init(SoundIo *soundio) {
         device->name = strdup("dummy-in");
         device->description = strdup("Dummy input device");
         if (!device->name || !device->description) {
-            free(device->name);
-            free(device->description);
+            soundio_device_unref(device);
             destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
@@ -349,7 +344,6 @@ int soundio_dummy_init(SoundIo *soundio) {
     soundio->flush_events = flush_events;
     soundio->wait_events = wait_events;
     soundio->wakeup = wakeup;
-    soundio->refresh_devices = refresh_devices;
 
     soundio->output_device_init = output_device_init_dummy;
     soundio->output_device_destroy = output_device_destroy_dummy;

@@ -19,4 +19,6 @@ struct SoundIoDevicesInfo {
     int default_input_index;
 };
 
+void soundio_destroy_devices_info(struct SoundIoDevicesInfo *devices_info);
+
 #endif
