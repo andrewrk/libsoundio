@@ -314,8 +314,10 @@ int soundio_input_device_create(struct SoundIoDevice *device,
 void soundio_input_device_destroy(struct SoundIoInputDevice *input_device);
 
 int soundio_input_device_start(struct SoundIoInputDevice *input_device);
+
 void soundio_input_device_peek(struct SoundIoInputDevice *input_device,
-        const char **data, int *frame_count);
+        const char **data, int *out_frame_count);
+// this will drop all of the frames from when you called soundio_input_device_peek
 void soundio_input_device_drop(struct SoundIoInputDevice *input_device);
 
 void soundio_input_device_clear_buffer(struct SoundIoInputDevice *input_device);

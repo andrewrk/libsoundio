@@ -10,7 +10,7 @@ exposed.
 
 **This library is a work-in-progress.**
 
-## Why libsoundio?
+## Alternatives
 
  * [PortAudio](http://www.portaudio.com/)
    - It does not support [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/).
@@ -97,6 +97,22 @@ cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/i686-w64-mingw32.static/share/c
 make
 ```
 
+#### Running the Tests
+
+```
+make test
+```
+
+For more detailed output:
+
+```
+make
+./unit_tests
+```
+
+To see test coverage, install lcov, run `make coverage` and then
+view `coverage/index.html` in a browser.
+
 ## Roadmap
 
  0. pipe record to playback example working with dummy linux, osx, windows
@@ -112,6 +128,8 @@ make
  0. -fvisibility=hidden and then explicitly export stuff
  0. Integrate into libgroove and test with Groove Basin
  0. Consider testing on FreeBSD
+ 0. look at microphone example and determine if fewer memcpys can be done
+    with the audio data
 
 ## Planned Uses for libsoundio
 

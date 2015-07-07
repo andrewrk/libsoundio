@@ -71,12 +71,23 @@ int main(int argc, char **argv) {
             soundio_device_name(out_device),
             soundio_device_description(out_device));
 
+    const struct SoundIoChannelLayout *in_layout = soundio_device_channel_layout(in_device);
+    const struct SoundIoChannelLayout *out_layout = soundio_device_channel_layout(out_device);
+
+    if (!soundio_channel_layout_equal(in_layout, out_layout))
+        panic("channel layouts not compatible");
+
+    if (soundio_device_sample_rate(in_device) != soundio_device_sample_rate(out_device))
+        panic("sample rates not compatible");
+
+    double latency = 0.1;
+
     struct SoundIoInputDevice *input_device;
-    soundio_input_device_create(in_device, SoundIoSampleFormatFloat, 0.1, NULL,
+    soundio_input_device_create(in_device, SoundIoSampleFormatFloat, latency, NULL,
             read_callback, &input_device);
 
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(out_device, SoundIoSampleFormatFloat, 0.1, NULL,
+    soundio_output_device_create(out_device, SoundIoSampleFormatFloat, latency, NULL,
             write_callback, underrun_callback, &output_device);
 
     if ((err = soundio_input_device_start(input_device)))
