@@ -75,7 +75,7 @@ make
 sudo make install
 ```
 
-### Building With MXE
+### Building for Windows
 
 You can build libsoundio with [mxe](http://mxe.cc/). Follow the
 [requirements](http://mxe.cc/#requirements) section to install the
@@ -115,6 +115,8 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
+ 0. ALSA `list_devices` should list default, dmix, etc.
+ 0. ALSA default devices are "default" and "default" respectively
  0. implement ALSA (Linux) backend, get examples working
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux

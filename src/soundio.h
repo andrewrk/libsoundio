@@ -120,6 +120,7 @@ struct SoundIoDevice {
     int default_sample_rate;
     enum SoundIoDevicePurpose purpose;
     int ref_count;
+    bool is_raw;
 };
 
 struct SoundIoOutputDevice {

@@ -70,8 +70,145 @@ static void destroy_alsa(SoundIo *soundio) {
     soundio->backend_data = nullptr;
 }
 
+static char * str_partition_on_char(char *str, char c) {
+    while (*str) {
+        if (*str == c) {
+            *str = 0;
+            return str + 1;
+        }
+        str += 1;
+    }
+    return nullptr;
+}
+
 static int refresh_devices(SoundIo *soundio) {
     SoundIoAlsa *sia = (SoundIoAlsa *)soundio->backend_data;
+
+    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
+    if (!devices_info)
+        return SoundIoErrorNoMem;
+
+    void **hints;
+    if (snd_device_name_hint(-1, "pcm", &hints) < 0) {
+        destroy(devices_info);
+        return SoundIoErrorNoMem;
+    }
+
+    for (void **hint_ptr = hints; *hint_ptr; hint_ptr += 1) {
+        char *name = snd_device_name_get_hint(*hint_ptr, "NAME");
+        // null - libsoundio has its own dummy backend. API clients should use
+        // that instead of alsa null device.
+        if (strcmp(name, "null") == 0 ||
+            // sysdefault is confusing - the name and description is identical
+            // to default, and my best guess for what it does is ignore ~/.asoundrc
+            // which is just an accident waiting to happen.
+            str_has_prefix(name, "sysdefault:") ||
+            // all these surround devices are clutter
+            str_has_prefix(name, "front:") ||
+            str_has_prefix(name, "surround21:") ||
+            str_has_prefix(name, "surround40:") ||
+            str_has_prefix(name, "surround41:") ||
+            str_has_prefix(name, "surround50:") ||
+            str_has_prefix(name, "surround51:") ||
+            str_has_prefix(name, "surround71:"))
+        {
+            free(name);
+            continue;
+        }
+
+        char *descr = snd_device_name_get_hint(*hint_ptr, "DESC");
+        char *descr1 = str_partition_on_char(descr, '\n');
+
+        char *io = snd_device_name_get_hint(*hint_ptr, "IOID");
+        bool is_playback;
+        bool is_capture;
+        if (io) {
+            if (strcmp(io, "Input") == 0) {
+                is_playback = false;
+                is_capture = true;
+            } else if (strcmp(io, "Output") == 0) {
+                is_playback = true;
+                is_capture = false;
+            } else {
+                soundio_panic("invalid io hint value");
+            }
+            free(io);
+        } else {
+            is_playback = true;
+            is_capture = true;
+        }
+
+        for (int stream_type_i = 0; stream_type_i < array_length(stream_types); stream_type_i += 1) {
+            snd_pcm_stream_t stream = stream_types[stream_type_i];
+            if (stream == SND_PCM_STREAM_PLAYBACK && !is_playback) continue;
+            if (stream == SND_PCM_STREAM_CAPTURE && !is_capture) continue;
+            if (stream == SND_PCM_STREAM_CAPTURE && descr1 &&
+                (strstr(descr1, "Output") || strstr(descr1, "output")))
+            {
+                continue;
+            }
+
+
+            SoundIoDevice *device = create<SoundIoDevice>();
+            if (!device) {
+                free(name);
+                free(descr);
+                destroy(devices_info);
+                snd_device_name_free_hint(hints);
+                return SoundIoErrorNoMem;
+            }
+            device->ref_count = 1;
+            device->soundio = soundio;
+            device->name = strdup(name);
+            device->description = descr1 ?
+                soundio_alloc_sprintf(nullptr, "%s: %s", descr, descr1) : strdup(descr);
+            device->is_raw = false;
+
+            if (!device->name || !device->description) {
+                soundio_device_unref(device);
+                free(name);
+                free(descr);
+                destroy(devices_info);
+                snd_device_name_free_hint(hints);
+                return SoundIoErrorNoMem;
+            }
+
+
+            // TODO: device->channel_layout
+            // TODO: device->default_sample_format
+            // TODO: device->default_latency
+            // TODO: device->default_sample_rate
+
+            SoundIoList<SoundIoDevice *> *device_list;
+            if (stream == SND_PCM_STREAM_PLAYBACK) {
+                device->purpose = SoundIoDevicePurposeOutput;
+                device_list = &devices_info->output_devices;
+                if (str_has_prefix(name, "default:"))
+                    devices_info->default_output_index = device_list->length;
+            } else {
+                assert(stream == SND_PCM_STREAM_CAPTURE);
+                device->purpose = SoundIoDevicePurposeInput;
+                device_list = &devices_info->input_devices;
+                if (str_has_prefix(name, "default:"))
+                    devices_info->default_input_index = device_list->length;
+            }
+
+            if (device_list->append(device)) {
+                soundio_device_unref(device);
+                free(name);
+                free(descr);
+                destroy(devices_info);
+                snd_device_name_free_hint(hints);
+                return SoundIoErrorNoMem;
+            }
+        }
+
+        free(name);
+        free(descr);
+    }
+
+    snd_device_name_free_hint(hints);
+
     int card_index = -1;
 
     if (snd_card_next(&card_index) < 0)
@@ -82,10 +219,6 @@ static int refresh_devices(SoundIo *soundio) {
 
     snd_pcm_info_t *pcm_info;
     snd_pcm_info_alloca(&pcm_info);
-
-    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
-    if (!devices_info)
-        return SoundIoErrorNoMem;
 
     while (card_index >= 0) {
         int err;
@@ -145,8 +278,9 @@ static int refresh_devices(SoundIo *soundio) {
                 }
                 device->ref_count = 1;
                 device->soundio = soundio;
-                device->name = soundio_alloc_sprintf(nullptr, "hw:%d,%d,%d", card_index, device_index, 0);
+                device->name = soundio_alloc_sprintf(nullptr, "hw:%d,%d", card_index, device_index);
                 device->description = soundio_alloc_sprintf(nullptr, "%s %s", card_name, device_name);
+                device->is_raw = true;
 
                 if (!device->name || !device->description) {
                     soundio_device_unref(device);

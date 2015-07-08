@@ -33,6 +33,7 @@ static void print_channel_layout(const struct SoundIoChannelLayout *layout) {
 static void print_device(struct SoundIoDevice *device, bool is_default) {
     const char *purpose_str;
     const char *default_str;
+    const char *raw_str;
     if (soundio_device_purpose(device) == SoundIoDevicePurposeOutput) {
         purpose_str = "playback";
         default_str = is_default ? " (default)" : "";
@@ -40,9 +41,10 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
         purpose_str = "recording";
         default_str = is_default ? " (default)" : "";
     }
+    raw_str = device->is_raw ? "(raw) " : "";
     const char *description = soundio_device_description(device);
     int sample_rate = soundio_device_sample_rate(device);
-    fprintf(stderr, "%s device: ", purpose_str);
+    fprintf(stderr, "%s%s device: ", raw_str, purpose_str);
     print_channel_layout(soundio_device_channel_layout(device));
     fprintf(stderr, " %d Hz %s%s\n", sample_rate, description, default_str);
 }
