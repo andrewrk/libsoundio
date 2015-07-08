@@ -30,7 +30,7 @@ static float seconds_offset = 0.0f;
 
 static void write_callback(struct SoundIoOutputDevice *output_device, int requested_frame_count) {
     //device->bytes_per_frame;
-    float float_sample_rate = output_device->device->default_sample_rate;
+    float float_sample_rate = output_device->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
 
     while (requested_frame_count > 0) {
@@ -90,8 +90,8 @@ int main(int argc, char **argv) {
             soundio_device_description(device));
 
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoSampleFormatFloat, 0.1, NULL,
-            write_callback, underrun_callback, &output_device);
+    soundio_output_device_create(device, SoundIoSampleFormatFloat, 48000,
+            0.1, NULL, write_callback, underrun_callback, &output_device);
 
     if ((err = soundio_output_device_start(output_device)))
         panic("unable to start device: %s", soundio_error_string(err));

@@ -115,9 +115,15 @@ struct SoundIoDevice {
     char *name;
     char *description;
     struct SoundIoChannelLayout channel_layout;
+
+    // these values might not actually matter. audio hardware has a set of
+    // {sample format, sample rate} that they support. you can't know
+    // whether something worked until you try it.
+    // these values can be unknown
     enum SoundIoSampleFormat default_sample_format;
-    double default_latency;
     int default_sample_rate;
+
+    double default_latency;
     enum SoundIoDevicePurpose purpose;
     int ref_count;
     bool is_raw;
@@ -127,6 +133,7 @@ struct SoundIoOutputDevice {
     void *backend_data;
     struct SoundIoDevice *device;
     enum SoundIoSampleFormat sample_format;
+    int sample_rate;
     double latency;
     int bytes_per_frame;
 
@@ -139,6 +146,7 @@ struct SoundIoInputDevice {
     void *backend_data;
     struct SoundIoDevice *device;
     enum SoundIoSampleFormat sample_format;
+    int sample_rate;
     double latency;
     int bytes_per_frame;
 
@@ -283,7 +291,7 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 // Output Devices
 
 int soundio_output_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format,
+        enum SoundIoSampleFormat sample_format, int sample_rate,
         double latency, void *userdata,
         void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
@@ -309,7 +317,8 @@ void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *output_devic
 // Input Devices
 
 int soundio_input_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, double latency, void *userdata,
+        enum SoundIoSampleFormat sample_format, int sample_rate,
+        double latency, void *userdata,
         void (*read_callback)(struct SoundIoInputDevice *),
         struct SoundIoInputDevice **out_input_device);
 void soundio_input_device_destroy(struct SoundIoInputDevice *input_device);

@@ -290,7 +290,7 @@ void soundio_output_device_write(struct SoundIoOutputDevice *output_device,
 
 
 int soundio_output_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format,
+        enum SoundIoSampleFormat sample_format, int sample_rate,
         double latency, void *userdata,
         void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
@@ -310,6 +310,7 @@ int soundio_output_device_create(struct SoundIoDevice *device,
     output_device->write_callback = write_callback;
     output_device->underrun_callback = underrun_callback;
     output_device->sample_format = sample_format;
+    output_device->sample_rate = sample_rate;
     output_device->latency = latency;
     output_device->bytes_per_frame = soundio_get_bytes_per_frame(sample_format,
             device->channel_layout.channel_count);
@@ -344,7 +345,8 @@ int soundio_output_device_start(struct SoundIoOutputDevice *output_device) {
 }
 
 int soundio_input_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, double latency, void *userdata,
+        enum SoundIoSampleFormat sample_format, int sample_rate,
+        double latency, void *userdata,
         void (*read_callback)(struct SoundIoInputDevice *),
         struct SoundIoInputDevice **out_input_device)
 {
@@ -362,6 +364,7 @@ int soundio_input_device_create(struct SoundIoDevice *device,
     sid->read_callback = read_callback;
     sid->sample_format = sample_format;
     sid->latency = latency;
+    sid->sample_rate = sample_rate;
     sid->bytes_per_frame = soundio_get_bytes_per_frame(sample_format,
             device->channel_layout.channel_count);
 

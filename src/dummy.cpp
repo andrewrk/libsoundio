@@ -35,13 +35,12 @@ struct SoundIoDummy {
 
 static void playback_thread_run(void *arg) {
     SoundIoOutputDevice *output_device = (SoundIoOutputDevice *)arg;
-    SoundIoDevice *device = output_device->device;
     SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
 
     double start_time = soundio_os_get_time();
     long frames_consumed = 0;
 
-    double time_per_frame = 1.0 / (double)device->default_sample_rate;
+    double time_per_frame = 1.0 / (double)output_device->sample_rate;
     while (opd->abort_flag.test_and_set()) {
         soundio_os_cond_timed_wait(opd->cond, nullptr, opd->period);
 
@@ -143,8 +142,7 @@ static int output_device_init_dummy(SoundIo *soundio,
     }
     output_device->backend_data = opd;
 
-    SoundIoDevice *device = output_device->device;
-    int buffer_frame_count = output_device->latency * device->default_sample_rate;
+    int buffer_frame_count = output_device->latency * output_device->sample_rate;
     opd->buffer_size = output_device->bytes_per_frame * buffer_frame_count;
     opd->period = output_device->latency * 0.5;
 

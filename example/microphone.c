@@ -79,11 +79,11 @@ int main(int argc, char **argv) {
     double latency = 0.1;
 
     struct SoundIoInputDevice *input_device;
-    soundio_input_device_create(in_device, SoundIoSampleFormatFloat, latency, NULL,
+    soundio_input_device_create(in_device, SoundIoSampleFormatFloat, 48000, latency, NULL,
             read_callback, &input_device);
 
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(out_device, SoundIoSampleFormatFloat, latency, NULL,
+    soundio_output_device_create(out_device, SoundIoSampleFormatFloat, 48000, latency, NULL,
             write_callback, underrun_callback, &output_device);
 
     if ((err = soundio_input_device_start(input_device)))

@@ -581,7 +581,7 @@ static int output_device_init_pa(SoundIo *soundio,
 
     pa_sample_spec sample_spec;
     sample_spec.format = to_pulseaudio_sample_format(output_device->sample_format);
-    sample_spec.rate = device->default_sample_rate;
+    sample_spec.rate = output_device->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
     pa_channel_map channel_map = to_pulseaudio_channel_map(&device->channel_layout);
 
@@ -595,7 +595,7 @@ static int output_device_init_pa(SoundIo *soundio,
     pa_stream_set_write_callback(opd->stream, playback_stream_write_callback, output_device);
     pa_stream_set_underflow_callback(opd->stream, playback_stream_underflow_callback, output_device);
 
-    int bytes_per_second = output_device->bytes_per_frame * device->default_sample_rate;
+    int bytes_per_second = output_device->bytes_per_frame * output_device->sample_rate;
     int buffer_length = output_device->bytes_per_frame *
         ceil(output_device->latency * bytes_per_second / (double)output_device->bytes_per_frame);
 
@@ -747,7 +747,7 @@ static int input_device_init_pa(SoundIo *soundio,
 
     pa_sample_spec sample_spec;
     sample_spec.format = to_pulseaudio_sample_format(input_device->sample_format);
-    sample_spec.rate = device->default_sample_rate;
+    sample_spec.rate = input_device->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
 
     pa_channel_map channel_map = to_pulseaudio_channel_map(&device->channel_layout);
@@ -764,7 +764,7 @@ static int input_device_init_pa(SoundIo *soundio,
     pa_stream_set_state_callback(stream, recording_stream_state_callback, input_device);
     pa_stream_set_read_callback(stream, recording_stream_read_callback, input_device);
 
-    int bytes_per_second = input_device->bytes_per_frame * device->default_sample_rate;
+    int bytes_per_second = input_device->bytes_per_frame * input_device->sample_rate;
     int buffer_length = input_device->bytes_per_frame *
         ceil(input_device->latency * bytes_per_second / (double)input_device->bytes_per_frame);
 
