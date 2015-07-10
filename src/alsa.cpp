@@ -190,6 +190,13 @@ static void test_fmt_mask(SoundIoDevice *device, const snd_pcm_format_mask_t *fm
     }
 }
 
+// TODO: look at http://www.alsa-project.org/alsa-doc/alsa-lib/_2test_2pcm_8c-example.html#a27
+// deterimine what do do about:
+//  * hw buffer size
+//  * hw period time
+//  * sw start threshold
+//  * sw avail min
+
 static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
     int err;
     snd_pcm_t *handle;

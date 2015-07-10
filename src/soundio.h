@@ -11,30 +11,6 @@
 #include "config.h"
 #include <stdbool.h>
 
-#if (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) || \
-    defined(__BIG_ENDIAN__) || \
-    defined(__ARMEB__) || \
-    defined(__THUMBEB__) || \
-    defined(__AARCH64EB__) || \
-    defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
-
-#define SOUNDIO_OS_BIG_ENDIAN
-
-#elif (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || \
-    defined(__LITTLE_ENDIAN__) || \
-    defined(__ARMEL__) || \
-    defined(__THUMBEL__) || \
-    defined(__AARCH64EL__) || \
-    defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) || \
-    defined(_WIN32)
-
-#define SOUNDIO_OS_LITTLE_ENDIAN
-
-#else
-#error unknown byte order
-#endif
-
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -180,6 +156,8 @@ enum SoundIoFormat {
 #define SoundIoFormatU32NE SoundIoFormatU32LE
 #define SoundIoFormatFloat32NE SoundIoFormatFloat32LE
 #define SoundIoFormatFloat64NE SoundIoFormatFloat64LE
+#else
+#error unknown byte order
 #endif
 
 struct SoundIoDevice {
