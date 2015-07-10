@@ -15,6 +15,8 @@
 
 static snd_pcm_stream_t stream_types[] = {SND_PCM_STREAM_PLAYBACK, SND_PCM_STREAM_CAPTURE};
 
+static const int MAX_SAMPLE_RATE = 48000;
+
 struct SoundIoAlsa {
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
@@ -79,6 +81,169 @@ static char * str_partition_on_char(char *str, char c) {
         str += 1;
     }
     return nullptr;
+}
+
+static snd_pcm_stream_t purpose_to_stream(SoundIoDevicePurpose purpose) {
+    switch (purpose) {
+        case SoundIoDevicePurposeOutput: return SND_PCM_STREAM_PLAYBACK;
+        case SoundIoDevicePurposeInput: return SND_PCM_STREAM_CAPTURE;
+    }
+    soundio_panic("invalid purpose");
+}
+
+static SoundIoChannelId from_alsa_chmap_pos(unsigned int pos) {
+    switch ((snd_pcm_chmap_position)pos) {
+        case SND_CHMAP_UNKNOWN: return SoundIoChannelIdInvalid;
+        case SND_CHMAP_NA:      return SoundIoChannelIdInvalid;
+        case SND_CHMAP_MONO:    return SoundIoChannelIdFrontCenter;
+        case SND_CHMAP_FL:      return SoundIoChannelIdFrontLeft; // front left
+        case SND_CHMAP_FR:      return SoundIoChannelIdFrontRight; // front right
+        case SND_CHMAP_RL:      return SoundIoChannelIdBackLeft; // rear left
+        case SND_CHMAP_RR:      return SoundIoChannelIdBackRight; // rear right
+        case SND_CHMAP_FC:      return SoundIoChannelIdFrontCenter; // front center
+        case SND_CHMAP_LFE:     return SoundIoChannelIdLfe; // LFE
+        case SND_CHMAP_SL:      return SoundIoChannelIdSideLeft; // side left
+        case SND_CHMAP_SR:      return SoundIoChannelIdSideRight; // side right
+        case SND_CHMAP_RC:      return SoundIoChannelIdBackCenter; // rear center
+        case SND_CHMAP_FLC:     return SoundIoChannelIdFrontLeftCenter; // front left center
+        case SND_CHMAP_FRC:     return SoundIoChannelIdFrontRightCenter; // front right center
+        case SND_CHMAP_RLC:     return SoundIoChannelIdBackLeftCenter; // rear left center
+        case SND_CHMAP_RRC:     return SoundIoChannelIdBackRightCenter; // rear right center
+        case SND_CHMAP_FLW:     return SoundIoChannelIdFrontLeftWide; // front left wide
+        case SND_CHMAP_FRW:     return SoundIoChannelIdFrontRightWide; // front right wide
+        case SND_CHMAP_FLH:     return SoundIoChannelIdFrontLeftHigh; // front left high
+        case SND_CHMAP_FCH:     return SoundIoChannelIdFrontCenterHigh; // front center high
+        case SND_CHMAP_FRH:     return SoundIoChannelIdFrontRightHigh; // front right high
+        case SND_CHMAP_TC:      return SoundIoChannelIdTopCenter; // top center
+        case SND_CHMAP_TFL:     return SoundIoChannelIdTopFrontLeft; // top front left
+        case SND_CHMAP_TFR:     return SoundIoChannelIdTopFrontRight; // top front right
+        case SND_CHMAP_TFC:     return SoundIoChannelIdTopFrontCenter; // top front center
+        case SND_CHMAP_TRL:     return SoundIoChannelIdTopBackLeft; // top rear left
+        case SND_CHMAP_TRR:     return SoundIoChannelIdTopBackRight; // top rear right
+        case SND_CHMAP_TRC:     return SoundIoChannelIdTopBackCenter; // top rear center
+        case SND_CHMAP_TFLC:    return SoundIoChannelIdTopFrontLeftCenter; // top front left center
+        case SND_CHMAP_TFRC:    return SoundIoChannelIdTopFrontRightCenter; // top front right center
+        case SND_CHMAP_TSL:     return SoundIoChannelIdTopSideLeft; // top side left
+        case SND_CHMAP_TSR:     return SoundIoChannelIdTopSideRight; // top side right
+        case SND_CHMAP_LLFE:    return SoundIoChannelIdLeftLfe; // left LFE
+        case SND_CHMAP_RLFE:    return SoundIoChannelIdRightLfe; // right LFE
+        case SND_CHMAP_BC:      return SoundIoChannelIdBottomCenter; // bottom center
+        case SND_CHMAP_BLC:     return SoundIoChannelIdBottomLeftCenter; // bottom left center
+        case SND_CHMAP_BRC:     return SoundIoChannelIdBottomRightCenter; // bottom right center
+    }
+    return SoundIoChannelIdInvalid;
+}
+
+static void get_channel_layout(SoundIoDevice *device, snd_pcm_chmap_t *chmap) {
+    int channel_count = min((unsigned int)SOUNDIO_MAX_CHANNELS, chmap->channels);
+    device->channel_layout.channel_count = channel_count;
+    device->channel_layout.name = nullptr;
+    for (int i = 0; i < channel_count; i += 1) {
+        device->channel_layout.channels[i] = from_alsa_chmap_pos(chmap->pos[i]);
+    }
+    soundio_channel_layout_detect_builtin(&device->channel_layout);
+}
+
+static void handle_channel_maps(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
+    if (!maps)
+        return;
+    snd_pcm_chmap_query_t **p;
+    snd_pcm_chmap_query_t *v;
+    snd_pcm_chmap_t *best = nullptr;
+    for (p = maps; (v = *p); p += 1) {
+        if (!best || v->map.channels > best->channels)
+            best = &v->map;
+    }
+    get_channel_layout(device, best);
+    snd_pcm_free_chmaps(maps);
+}
+
+static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
+    int err;
+    snd_pcm_t *handle;
+
+    snd_pcm_hw_params_t *hwparams;
+    snd_pcm_sw_params_t *swparams;
+
+    snd_pcm_hw_params_alloca(&hwparams);
+    snd_pcm_sw_params_alloca(&swparams);
+
+    snd_pcm_stream_t stream = purpose_to_stream(device->purpose);
+
+    if ((err = snd_pcm_open(&handle, device->name, stream, 0)) < 0) {
+        handle_channel_maps(device, maps);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_any(handle, hwparams)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // disable hardware resampling because we're trying to probe
+    if ((err = snd_pcm_hw_params_set_rate_resample(handle, hwparams, 0)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    unsigned int channel_count;
+    if ((err = snd_pcm_hw_params_set_channels_last(handle, hwparams, &channel_count)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    unsigned int min_sample_rate;
+    unsigned int max_sample_rate;
+    int min_dir;
+    int max_dir;
+
+    if ((err = snd_pcm_hw_params_get_rate_max(hwparams, &max_sample_rate, &max_dir)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+    if (max_dir < 0)
+        max_sample_rate -= 1;
+
+    if ((err = snd_pcm_hw_params_get_rate_min(hwparams, &min_sample_rate, &min_dir)) < 0) {
+        snd_pcm_close(handle);
+        return SoundIoErrorOpeningDevice;
+    }
+    if (min_dir > 0)
+        min_sample_rate += 1;
+
+
+
+    snd_pcm_chmap_t *chmap = snd_pcm_get_chmap(handle);
+    if (chmap) {
+        get_channel_layout(device, chmap);
+        free(chmap);
+    } else if (!maps) {
+        maps = snd_pcm_query_chmaps(handle);
+    }
+    handle_channel_maps(device, maps);
+
+
+    device->sample_rate_min = min_sample_rate;
+    device->sample_rate_min = max_sample_rate;
+    device->sample_rate_default =
+            (min_sample_rate <= MAX_SAMPLE_RATE &&
+            MAX_SAMPLE_RATE <= max_sample_rate) ? MAX_SAMPLE_RATE : max_sample_rate;
+
+
+    snd_pcm_close(handle);
+    return 0;
+
+            // TODO: device->default_sample_format
+            // TODO: device->default_latency
+}
+
+static inline bool str_has_prefix(const char *big_str, const char *prefix) {
+    return strncmp(big_str, prefix, strlen(prefix)) == 0;
 }
 
 static int refresh_devices(SoundIo *soundio) {
@@ -173,12 +338,6 @@ static int refresh_devices(SoundIo *soundio) {
                 return SoundIoErrorNoMem;
             }
 
-
-            // TODO: device->channel_layout
-            // TODO: device->default_sample_format
-            // TODO: device->default_latency
-            // TODO: device->default_sample_rate
-
             SoundIoList<SoundIoDevice *> *device_list;
             if (stream == SND_PCM_STREAM_PLAYBACK) {
                 device->purpose = SoundIoDevicePurposeOutput;
@@ -192,6 +351,8 @@ static int refresh_devices(SoundIo *soundio) {
                 if (str_has_prefix(name, "default:"))
                     devices_info->default_input_index = device_list->length;
             }
+
+            probe_device(device, nullptr);
 
             if (device_list->append(device)) {
                 soundio_device_unref(device);
@@ -289,11 +450,6 @@ static int refresh_devices(SoundIo *soundio) {
                     return SoundIoErrorNoMem;
                 }
 
-                // TODO: device->channel_layout
-                // TODO: device->default_sample_format
-                // TODO: device->default_latency
-                // TODO: device->default_sample_rate
-
                 SoundIoList<SoundIoDevice *> *device_list;
                 if (stream == SND_PCM_STREAM_PLAYBACK) {
                     device->purpose = SoundIoDevicePurposeOutput;
@@ -303,6 +459,9 @@ static int refresh_devices(SoundIo *soundio) {
                     device->purpose = SoundIoDevicePurposeInput;
                     device_list = &devices_info->input_devices;
                 }
+
+                snd_pcm_chmap_query_t **maps = snd_pcm_query_chmaps_from_hw(card_index, device_index, -1, stream);
+                probe_device(device, maps);
 
                 if (device_list->append(device)) {
                     soundio_device_unref(device);

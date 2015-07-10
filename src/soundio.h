@@ -32,11 +32,11 @@ enum SoundIoChannelId {
     SoundIoChannelIdFrontLeft,
     SoundIoChannelIdFrontRight,
     SoundIoChannelIdFrontCenter,
-    SoundIoChannelIdLowFrequency,
+    SoundIoChannelIdLfe,
     SoundIoChannelIdBackLeft,
     SoundIoChannelIdBackRight,
-    SoundIoChannelIdFrontLeftOfCenter,
-    SoundIoChannelIdFrontRightOfCenter,
+    SoundIoChannelIdFrontLeftCenter,
+    SoundIoChannelIdFrontRightCenter,
     SoundIoChannelIdBackCenter,
     SoundIoChannelIdSideLeft,
     SoundIoChannelIdSideRight,
@@ -47,6 +47,23 @@ enum SoundIoChannelId {
     SoundIoChannelIdTopBackLeft,
     SoundIoChannelIdTopBackCenter,
     SoundIoChannelIdTopBackRight,
+
+    SoundIoChannelIdBackLeftCenter,
+    SoundIoChannelIdBackRightCenter,
+    SoundIoChannelIdFrontLeftWide,
+    SoundIoChannelIdFrontRightWide,
+    SoundIoChannelIdFrontLeftHigh,
+    SoundIoChannelIdFrontCenterHigh,
+    SoundIoChannelIdFrontRightHigh,
+    SoundIoChannelIdTopFrontLeftCenter,
+    SoundIoChannelIdTopFrontRightCenter,
+    SoundIoChannelIdTopSideLeft,
+    SoundIoChannelIdTopSideRight,
+    SoundIoChannelIdLeftLfe,
+    SoundIoChannelIdRightLfe,
+    SoundIoChannelIdBottomCenter,
+    SoundIoChannelIdBottomLeftCenter,
+    SoundIoChannelIdBottomRightCenter,
 
     SoundIoChannelIdCount,
 };
@@ -121,7 +138,10 @@ struct SoundIoDevice {
     // whether something worked until you try it.
     // these values can be unknown
     enum SoundIoSampleFormat default_sample_format;
-    int default_sample_rate;
+
+    int sample_rate_min;
+    int sample_rate_max;
+    int sample_rate_default;
 
     double default_latency;
     enum SoundIoDevicePurpose purpose;
@@ -231,6 +251,10 @@ void soundio_debug_print_channel_layout(const struct SoundIoChannelLayout *layou
 
 int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel);
+
+// merely populates the name field of layout if it matches a builtin one.
+// returns whether it found a match
+bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout);
 
 
 

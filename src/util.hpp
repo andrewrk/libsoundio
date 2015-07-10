@@ -103,9 +103,4 @@ template <typename T>
 static inline T min(T a, T b) {
     return (a <= b) ? a : b;
 }
-
-static inline bool str_has_prefix(const char *big_str, const char *prefix) {
-    return strncmp(big_str, prefix, strlen(prefix)) == 0;
-}
-
 #endif

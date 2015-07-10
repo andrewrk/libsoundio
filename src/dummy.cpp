@@ -297,7 +297,7 @@ int soundio_dummy_init(SoundIo *soundio) {
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
         device->default_sample_format = SoundIoSampleFormatFloat;
         device->default_latency = 0.01;
-        device->default_sample_rate = 48000;
+        device->sample_rate_default = 48000;
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (soundio->safe_devices_info->output_devices.append(device)) {
@@ -327,7 +327,7 @@ int soundio_dummy_init(SoundIo *soundio) {
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
         device->default_sample_format = SoundIoSampleFormatFloat;
         device->default_latency = 0.01;
-        device->default_sample_rate = 48000;
+        device->sample_rate_default = 48000;
         device->purpose = SoundIoDevicePurposeInput;
 
         if (soundio->safe_devices_info->input_devices.append(device)) {

@@ -228,7 +228,7 @@ const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct So
 }
 
 int soundio_device_sample_rate(const struct SoundIoDevice *device) {
-    return device->default_sample_rate;
+    return device->sample_rate_default;
 }
 
 void soundio_device_unref(struct SoundIoDevice *device) {

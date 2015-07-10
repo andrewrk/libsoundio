@@ -161,9 +161,9 @@ static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     case PA_CHANNEL_POSITION_REAR_CENTER: return SoundIoChannelIdBackCenter;
     case PA_CHANNEL_POSITION_REAR_LEFT: return SoundIoChannelIdBackLeft;
     case PA_CHANNEL_POSITION_REAR_RIGHT: return SoundIoChannelIdBackRight;
-    case PA_CHANNEL_POSITION_LFE: return SoundIoChannelIdLowFrequency;
-    case PA_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER: return SoundIoChannelIdFrontLeftOfCenter;
-    case PA_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER: return SoundIoChannelIdFrontRightOfCenter;
+    case PA_CHANNEL_POSITION_LFE: return SoundIoChannelIdLfe;
+    case PA_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER: return SoundIoChannelIdFrontLeftCenter;
+    case PA_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER: return SoundIoChannelIdFrontRightCenter;
     case PA_CHANNEL_POSITION_SIDE_LEFT: return SoundIoChannelIdSideLeft;
     case PA_CHANNEL_POSITION_SIDE_RIGHT: return SoundIoChannelIdSideRight;
     case PA_CHANNEL_POSITION_TOP_CENTER: return SoundIoChannelIdTopCenter;
@@ -268,7 +268,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
-        device->default_sample_rate = sample_rate_from_pulseaudio(info->sample_spec);
+        device->sample_rate_default = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (sipa->current_devices_info->output_devices.append(device))
@@ -297,7 +297,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
-        device->default_sample_rate = sample_rate_from_pulseaudio(info->sample_spec);
+        device->sample_rate_default = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeInput;
 
         if (sipa->current_devices_info->input_devices.append(device))
@@ -445,47 +445,46 @@ static pa_sample_format_t to_pulseaudio_sample_format(SoundIoSampleFormat sample
 
 static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_id) {
     switch (channel_id) {
-    case SoundIoChannelIdInvalid:
+    case SoundIoChannelIdFrontLeft: return PA_CHANNEL_POSITION_FRONT_LEFT;
+    case SoundIoChannelIdFrontRight: return PA_CHANNEL_POSITION_FRONT_RIGHT;
+    case SoundIoChannelIdFrontCenter: return PA_CHANNEL_POSITION_FRONT_CENTER;
+    case SoundIoChannelIdLfe: return PA_CHANNEL_POSITION_LFE;
+    case SoundIoChannelIdBackLeft: return PA_CHANNEL_POSITION_REAR_LEFT;
+    case SoundIoChannelIdBackRight: return PA_CHANNEL_POSITION_REAR_RIGHT;
+    case SoundIoChannelIdFrontLeftCenter: return PA_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER;
+    case SoundIoChannelIdFrontRightCenter: return PA_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER;
+    case SoundIoChannelIdBackCenter: return PA_CHANNEL_POSITION_REAR_CENTER;
+    case SoundIoChannelIdSideLeft: return PA_CHANNEL_POSITION_SIDE_LEFT;
+    case SoundIoChannelIdSideRight: return PA_CHANNEL_POSITION_SIDE_RIGHT;
+    case SoundIoChannelIdTopCenter: return PA_CHANNEL_POSITION_TOP_CENTER;
+    case SoundIoChannelIdTopFrontLeft: return PA_CHANNEL_POSITION_TOP_FRONT_LEFT;
+    case SoundIoChannelIdTopFrontCenter: return PA_CHANNEL_POSITION_TOP_FRONT_CENTER;
+    case SoundIoChannelIdTopFrontRight: return PA_CHANNEL_POSITION_TOP_FRONT_RIGHT;
+    case SoundIoChannelIdTopBackLeft: return PA_CHANNEL_POSITION_TOP_REAR_LEFT;
+    case SoundIoChannelIdTopBackCenter: return PA_CHANNEL_POSITION_TOP_REAR_CENTER;
+    case SoundIoChannelIdTopBackRight: return PA_CHANNEL_POSITION_TOP_REAR_RIGHT;
+
     case SoundIoChannelIdCount:
-        soundio_panic("invalid channel id");
-    case SoundIoChannelIdFrontLeft:
-        return PA_CHANNEL_POSITION_FRONT_LEFT;
-    case SoundIoChannelIdFrontRight:
-        return PA_CHANNEL_POSITION_FRONT_RIGHT;
-    case SoundIoChannelIdFrontCenter:
-        return PA_CHANNEL_POSITION_FRONT_CENTER;
-    case SoundIoChannelIdLowFrequency:
-        return PA_CHANNEL_POSITION_LFE;
-    case SoundIoChannelIdBackLeft:
-        return PA_CHANNEL_POSITION_REAR_LEFT;
-    case SoundIoChannelIdBackRight:
-        return PA_CHANNEL_POSITION_REAR_RIGHT;
-    case SoundIoChannelIdFrontLeftOfCenter:
-        return PA_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER;
-    case SoundIoChannelIdFrontRightOfCenter:
-        return PA_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER;
-    case SoundIoChannelIdBackCenter:
-        return PA_CHANNEL_POSITION_REAR_CENTER;
-    case SoundIoChannelIdSideLeft:
-        return PA_CHANNEL_POSITION_SIDE_LEFT;
-    case SoundIoChannelIdSideRight:
-        return PA_CHANNEL_POSITION_SIDE_RIGHT;
-    case SoundIoChannelIdTopCenter:
-        return PA_CHANNEL_POSITION_TOP_CENTER;
-    case SoundIoChannelIdTopFrontLeft:
-        return PA_CHANNEL_POSITION_TOP_FRONT_LEFT;
-    case SoundIoChannelIdTopFrontCenter:
-        return PA_CHANNEL_POSITION_TOP_FRONT_CENTER;
-    case SoundIoChannelIdTopFrontRight:
-        return PA_CHANNEL_POSITION_TOP_FRONT_RIGHT;
-    case SoundIoChannelIdTopBackLeft:
-        return PA_CHANNEL_POSITION_TOP_REAR_LEFT;
-    case SoundIoChannelIdTopBackCenter:
-        return PA_CHANNEL_POSITION_TOP_REAR_CENTER;
-    case SoundIoChannelIdTopBackRight:
-        return PA_CHANNEL_POSITION_TOP_REAR_RIGHT;
+    case SoundIoChannelIdInvalid:
+    case SoundIoChannelIdBackLeftCenter:
+    case SoundIoChannelIdBackRightCenter:
+    case SoundIoChannelIdFrontLeftWide:
+    case SoundIoChannelIdFrontRightWide:
+    case SoundIoChannelIdFrontLeftHigh:
+    case SoundIoChannelIdFrontCenterHigh:
+    case SoundIoChannelIdFrontRightHigh:
+    case SoundIoChannelIdTopFrontLeftCenter:
+    case SoundIoChannelIdTopFrontRightCenter:
+    case SoundIoChannelIdTopSideLeft:
+    case SoundIoChannelIdTopSideRight:
+    case SoundIoChannelIdLeftLfe:
+    case SoundIoChannelIdRightLfe:
+    case SoundIoChannelIdBottomCenter:
+    case SoundIoChannelIdBottomLeftCenter:
+    case SoundIoChannelIdBottomRightCenter:
+        return PA_CHANNEL_POSITION_INVALID;
     }
-    soundio_panic("invalid channel id");
+    return PA_CHANNEL_POSITION_INVALID;
 }
 
 static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *channel_layout) {

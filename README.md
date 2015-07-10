@@ -137,6 +137,7 @@ view `coverage/index.html` in a browser.
     - pulseaudio has peek() drop() which sucks, but what if libsoundio lets you
       specify how much to peek() and if you don't peek all of it, save the
       unused to a buffer for you.
+ 0. add len arguments to APIs that have char *
 
 ## Planned Uses for libsoundio
 
