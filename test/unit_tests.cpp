@@ -34,8 +34,6 @@ static void test_create_out_stream(void) {
     assert(default_out_device_index >= 0);
     struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);
     assert(device);
-    soundio_device_name(device);
-    soundio_device_description(device);
     struct SoundIoOutStream *out_stream;
     soundio_out_stream_create(device, SoundIoFormatFloat32NE, 48000, 0.1, NULL,
             write_callback, underrun_callback, &out_stream);

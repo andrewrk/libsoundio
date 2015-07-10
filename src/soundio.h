@@ -186,7 +186,7 @@ struct SoundIoDevice {
     struct SoundIo *soundio;
 
     // `name` uniquely identifies this device. `description` is user-friendly
-    // text to describe the device.
+    // text to describe the device. These fields are UTF-8 encoded.
     char *name;
     char *description;
 
@@ -391,14 +391,6 @@ int soundio_get_default_output_device_index(struct SoundIo *soundio);
 
 void soundio_device_ref(struct SoundIoDevice *device);
 void soundio_device_unref(struct SoundIoDevice *device);
-
-// the name is the identifier for the device. UTF-8 encoded
-const char *soundio_device_name(const struct SoundIoDevice *device);
-
-// UTF-8 encoded
-const char *soundio_device_description(const struct SoundIoDevice *device);
-
-const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct SoundIoDevice *device);
 
 bool soundio_device_equal(
         const struct SoundIoDevice *a,

@@ -85,9 +85,7 @@ int main(int argc, char **argv) {
     if (!device)
         panic("could not get output device: out of memory");
 
-    fprintf(stderr, "Output device: %s: %s\n",
-            soundio_device_name(device),
-            soundio_device_description(device));
+    fprintf(stderr, "Output device: %s: %s\n", device->name, device->description);
 
     struct SoundIoOutStream *out_stream;
     soundio_out_stream_create(device, SoundIoFormatFloat32NE, 48000,

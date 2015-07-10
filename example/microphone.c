@@ -64,13 +64,10 @@ int main(int argc, char **argv) {
     if (!in_device)
         panic("could not get input device: out of memory");
 
-    fprintf(stderr, "Input device: %s\n", soundio_device_description(in_device));
-    fprintf(stderr, "Output device: %s\n", soundio_device_description(out_device));
+    fprintf(stderr, "Input device: %s\n", in_device->description);
+    fprintf(stderr, "Output device: %s\n", out_device->description);
 
-    const struct SoundIoChannelLayout *in_layout = soundio_device_channel_layout(in_device);
-    const struct SoundIoChannelLayout *out_layout = soundio_device_channel_layout(out_device);
-
-    if (!soundio_channel_layout_equal(in_layout, out_layout))
+    if (!soundio_channel_layout_equal(&in_device->channel_layout, &out_device->channel_layout))
         panic("channel layouts not compatible");
 
     double latency = 0.1;
