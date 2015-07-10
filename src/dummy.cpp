@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-struct SoundIoOutputDeviceDummy {
+struct SoundIoOutStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
@@ -23,7 +23,7 @@ struct SoundIoOutputDeviceDummy {
     struct SoundIoRingBuffer ring_buffer;
 };
 
-struct SoundIoInputDeviceDummy {
+struct SoundIoInStreamDummy {
     // TODO
 };
 
@@ -34,40 +34,40 @@ struct SoundIoDummy {
 };
 
 static void playback_thread_run(void *arg) {
-    SoundIoOutputDevice *output_device = (SoundIoOutputDevice *)arg;
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
+    SoundIoOutStream *out_stream = (SoundIoOutStream *)arg;
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
 
     double start_time = soundio_os_get_time();
     long frames_consumed = 0;
 
-    double time_per_frame = 1.0 / (double)output_device->sample_rate;
-    while (opd->abort_flag.test_and_set()) {
-        soundio_os_cond_timed_wait(opd->cond, nullptr, opd->period);
+    double time_per_frame = 1.0 / (double)out_stream->sample_rate;
+    while (osd->abort_flag.test_and_set()) {
+        soundio_os_cond_timed_wait(osd->cond, nullptr, osd->period);
 
         double now = soundio_os_get_time();
         double total_time = now - start_time;
         long total_frames = total_time / time_per_frame;
         int frames_to_kill = total_frames - frames_consumed;
-        int fill_count = soundio_ring_buffer_fill_count(&opd->ring_buffer);
-        int frames_in_buffer = fill_count / output_device->bytes_per_frame;
+        int fill_count = soundio_ring_buffer_fill_count(&osd->ring_buffer);
+        int frames_in_buffer = fill_count / out_stream->bytes_per_frame;
         int read_count = min(frames_to_kill, frames_in_buffer);
         int frames_left = frames_to_kill - read_count;
-        int byte_count = read_count * output_device->bytes_per_frame;
-        soundio_ring_buffer_advance_read_ptr(&opd->ring_buffer, byte_count);
+        int byte_count = read_count * out_stream->bytes_per_frame;
+        soundio_ring_buffer_advance_read_ptr(&osd->ring_buffer, byte_count);
         frames_consumed += read_count;
 
         if (frames_left > 0) {
-            output_device->underrun_callback(output_device);
+            out_stream->underrun_callback(out_stream);
         } else if (read_count > 0) {
-            output_device->write_callback(output_device, read_count);
+            out_stream->write_callback(out_stream, read_count);
         }
     }
 }
 
 /*
 static void recording_thread_run(void *arg) {
-    SoundIoInputDevice *input_device = (SoundIoInputDevice *)arg;
-    SoundIoDevice *device = input_device->device;
+    SoundIoInStream *in_stream = (SoundIoInStream *)arg;
+    SoundIoDevice *device = in_stream->device;
     SoundIo *soundio = device->soundio;
     // TODO
 }
@@ -107,140 +107,140 @@ static void wakeup(SoundIo *soundio) {
     soundio_os_cond_signal(sid->cond, nullptr);
 }
 
-static void output_device_destroy_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_destroy_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
-    if (!opd)
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
+    if (!osd)
         return;
 
-    if (opd->thread) {
-        if (opd->thread) {
-            opd->abort_flag.clear();
-            soundio_os_cond_signal(opd->cond, nullptr);
-            soundio_os_thread_destroy(opd->thread);
-            opd->thread = nullptr;
+    if (osd->thread) {
+        if (osd->thread) {
+            osd->abort_flag.clear();
+            soundio_os_cond_signal(osd->cond, nullptr);
+            soundio_os_thread_destroy(osd->thread);
+            osd->thread = nullptr;
         }
     }
-    soundio_os_cond_destroy(opd->cond);
-    opd->cond = nullptr;
+    soundio_os_cond_destroy(osd->cond);
+    osd->cond = nullptr;
 
-    soundio_ring_buffer_deinit(&opd->ring_buffer);
+    soundio_ring_buffer_deinit(&osd->ring_buffer);
 
-    destroy(opd);
-    output_device->backend_data = nullptr;
+    destroy(osd);
+    out_stream->backend_data = nullptr;
 }
 
-static int output_device_init_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_init_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
 
-    SoundIoOutputDeviceDummy *opd = create<SoundIoOutputDeviceDummy>();
-    if (!opd) {
-        output_device_destroy_dummy(soundio, output_device);
+    SoundIoOutStreamDummy *osd = create<SoundIoOutStreamDummy>();
+    if (!osd) {
+        out_stream_destroy_dummy(soundio, out_stream);
         return SoundIoErrorNoMem;
     }
-    output_device->backend_data = opd;
+    out_stream->backend_data = osd;
 
-    int buffer_frame_count = output_device->latency * output_device->sample_rate;
-    opd->buffer_size = output_device->bytes_per_frame * buffer_frame_count;
-    opd->period = output_device->latency * 0.5;
+    int buffer_frame_count = out_stream->latency * out_stream->sample_rate;
+    osd->buffer_size = out_stream->bytes_per_frame * buffer_frame_count;
+    osd->period = out_stream->latency * 0.5;
 
-    soundio_ring_buffer_init(&opd->ring_buffer, opd->buffer_size);
+    soundio_ring_buffer_init(&osd->ring_buffer, osd->buffer_size);
 
-    opd->cond = soundio_os_cond_create();
-    if (!opd->cond) {
-        output_device_destroy_dummy(soundio, output_device);
+    osd->cond = soundio_os_cond_create();
+    if (!osd->cond) {
+        out_stream_destroy_dummy(soundio, out_stream);
         return SoundIoErrorNoMem;
     }
 
     return 0;
 }
 
-static int output_device_start_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_start_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
 
-    soundio_output_device_fill_with_silence(output_device);
-    assert(soundio_ring_buffer_fill_count(&opd->ring_buffer) == opd->buffer_size);
+    soundio_out_stream_fill_with_silence(out_stream);
+    assert(soundio_ring_buffer_fill_count(&osd->ring_buffer) == osd->buffer_size);
 
-    opd->abort_flag.test_and_set();
+    osd->abort_flag.test_and_set();
     int err;
-    if ((err = soundio_os_thread_create(playback_thread_run, output_device, true, &opd->thread))) {
+    if ((err = soundio_os_thread_create(playback_thread_run, out_stream, true, &osd->thread))) {
         return err;
     }
 
     return 0;
 }
 
-static int output_device_free_count_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_free_count_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
-    int fill_count = soundio_ring_buffer_fill_count(&opd->ring_buffer);
-    int bytes_free_count = opd->buffer_size - fill_count;
-    return bytes_free_count / output_device->bytes_per_frame;
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
+    int fill_count = soundio_ring_buffer_fill_count(&osd->ring_buffer);
+    int bytes_free_count = osd->buffer_size - fill_count;
+    return bytes_free_count / out_stream->bytes_per_frame;
 }
 
-static void output_device_begin_write_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char **data, int *frame_count)
+static void out_stream_begin_write_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char **data, int *frame_count)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
 
-    int byte_count = *frame_count * output_device->bytes_per_frame;
-    assert(byte_count <= opd->buffer_size);
-    *data = opd->ring_buffer.address;
+    int byte_count = *frame_count * out_stream->bytes_per_frame;
+    assert(byte_count <= osd->buffer_size);
+    *data = osd->ring_buffer.address;
 }
 
-static void output_device_write_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char *data, int frame_count)
+static void out_stream_write_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char *data, int frame_count)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
-    assert(data == opd->ring_buffer.address);
-    int byte_count = frame_count * output_device->bytes_per_frame;
-    soundio_ring_buffer_advance_write_ptr(&opd->ring_buffer, byte_count);
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
+    assert(data == osd->ring_buffer.address);
+    int byte_count = frame_count * out_stream->bytes_per_frame;
+    soundio_ring_buffer_advance_write_ptr(&osd->ring_buffer, byte_count);
 }
 
-static void output_device_clear_buffer_dummy(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_clear_buffer_dummy(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDeviceDummy *opd = (SoundIoOutputDeviceDummy *)output_device->backend_data;
-    soundio_ring_buffer_clear(&opd->ring_buffer);
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)out_stream->backend_data;
+    soundio_ring_buffer_clear(&osd->ring_buffer);
 }
 
-static int input_device_init_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
-{
-    soundio_panic("TODO");
-}
-
-static void input_device_destroy_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static int in_stream_init_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static int input_device_start_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_destroy_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_peek_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device, const char **data, int *frame_count)
+static int in_stream_start_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_drop_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_peek_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream, const char **data, int *frame_count)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_clear_buffer_dummy(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_drop_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream)
+{
+    soundio_panic("TODO");
+}
+
+static void in_stream_clear_buffer_dummy(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
@@ -385,20 +385,20 @@ int soundio_dummy_init(SoundIo *soundio) {
     soundio->wait_events = wait_events;
     soundio->wakeup = wakeup;
 
-    soundio->output_device_init = output_device_init_dummy;
-    soundio->output_device_destroy = output_device_destroy_dummy;
-    soundio->output_device_start = output_device_start_dummy;
-    soundio->output_device_free_count = output_device_free_count_dummy;
-    soundio->output_device_begin_write = output_device_begin_write_dummy;
-    soundio->output_device_write = output_device_write_dummy;
-    soundio->output_device_clear_buffer = output_device_clear_buffer_dummy;
+    soundio->out_stream_init = out_stream_init_dummy;
+    soundio->out_stream_destroy = out_stream_destroy_dummy;
+    soundio->out_stream_start = out_stream_start_dummy;
+    soundio->out_stream_free_count = out_stream_free_count_dummy;
+    soundio->out_stream_begin_write = out_stream_begin_write_dummy;
+    soundio->out_stream_write = out_stream_write_dummy;
+    soundio->out_stream_clear_buffer = out_stream_clear_buffer_dummy;
 
-    soundio->input_device_init = input_device_init_dummy;
-    soundio->input_device_destroy = input_device_destroy_dummy;
-    soundio->input_device_start = input_device_start_dummy;
-    soundio->input_device_peek = input_device_peek_dummy;
-    soundio->input_device_drop = input_device_drop_dummy;
-    soundio->input_device_clear_buffer = input_device_clear_buffer_dummy;
+    soundio->in_stream_init = in_stream_init_dummy;
+    soundio->in_stream_destroy = in_stream_destroy_dummy;
+    soundio->in_stream_start = in_stream_start_dummy;
+    soundio->in_stream_peek = in_stream_peek_dummy;
+    soundio->in_stream_drop = in_stream_drop_dummy;
+    soundio->in_stream_clear_buffer = in_stream_clear_buffer_dummy;
 
     return 0;
 }

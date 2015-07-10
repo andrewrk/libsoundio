@@ -25,18 +25,18 @@ static void panic(const char *format, ...) {
     abort();
 }
 
-static void read_callback(struct SoundIoInputDevice *input_device) {
+static void read_callback(struct SoundIoInStream *in_stream) {
     fprintf(stderr, "read_callback\n");
 }
 
-static void write_callback(struct SoundIoOutputDevice *output_device, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *out_stream, int requested_frame_count) {
     fprintf(stderr, "write_callback\n");
 }
 
-static void underrun_callback(struct SoundIoOutputDevice *output_device) {
+static void underrun_callback(struct SoundIoOutStream *out_stream) {
     static int count = 0;
     fprintf(stderr, "underrun %d\n", count++);
-    soundio_output_device_fill_with_silence(output_device);
+    soundio_out_stream_fill_with_silence(out_stream);
 }
 
 int main(int argc, char **argv) {
@@ -75,25 +75,25 @@ int main(int argc, char **argv) {
 
     double latency = 0.1;
 
-    struct SoundIoInputDevice *input_device;
-    soundio_input_device_create(in_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
-            read_callback, &input_device);
+    struct SoundIoInStream *in_stream;
+    soundio_in_stream_create(in_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
+            read_callback, &in_stream);
 
-    struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(out_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
-            write_callback, underrun_callback, &output_device);
+    struct SoundIoOutStream *out_stream;
+    soundio_out_stream_create(out_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
+            write_callback, underrun_callback, &out_stream);
 
-    if ((err = soundio_input_device_start(input_device)))
+    if ((err = soundio_in_stream_start(in_stream)))
         panic("unable to start input device: %s", soundio_strerror(err));
 
-    if ((err = soundio_output_device_start(output_device)))
+    if ((err = soundio_out_stream_start(out_stream)))
         panic("unable to start output device: %s", soundio_strerror(err));
 
     for (;;)
         soundio_wait_events(soundio);
 
-    soundio_output_device_destroy(output_device);
-    soundio_input_device_destroy(input_device);
+    soundio_out_stream_destroy(out_stream);
+    soundio_in_stream_destroy(in_stream);
     soundio_device_unref(in_device);
     soundio_device_unref(out_device);
     soundio_destroy(soundio);

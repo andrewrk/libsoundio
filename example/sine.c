@@ -28,20 +28,20 @@ static void panic(const char *format, ...) {
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
 
-static void write_callback(struct SoundIoOutputDevice *output_device, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *out_stream, int requested_frame_count) {
     //device->bytes_per_frame;
-    float float_sample_rate = output_device->sample_rate;
+    float float_sample_rate = out_stream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
 
     while (requested_frame_count > 0) {
         char *data;
         int frame_count = requested_frame_count;
-        soundio_output_device_begin_write(output_device, &data, &frame_count);
+        soundio_out_stream_begin_write(out_stream, &data, &frame_count);
 
         // clear everything to 0
-        memset(data, 0, frame_count * output_device->bytes_per_frame);
+        memset(data, 0, frame_count * out_stream->bytes_per_frame);
 
-        const struct SoundIoChannelLayout *channel_layout = &output_device->device->channel_layout;
+        const struct SoundIoChannelLayout *channel_layout = &out_stream->device->channel_layout;
 
         float *ptr = (float *)data;
 
@@ -57,13 +57,13 @@ static void write_callback(struct SoundIoOutputDevice *output_device, int reques
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        soundio_output_device_write(output_device, data, frame_count);
+        soundio_out_stream_write(out_stream, data, frame_count);
         requested_frame_count -= frame_count;
     }
 
 }
 
-static void underrun_callback(struct SoundIoOutputDevice *device) {
+static void underrun_callback(struct SoundIoOutStream *device) {
     static int count = 0;
     fprintf(stderr, "underrun %d\n", count++);
 }
@@ -89,17 +89,17 @@ int main(int argc, char **argv) {
             soundio_device_name(device),
             soundio_device_description(device));
 
-    struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoFormatFloat32NE, 48000,
-            0.1, NULL, write_callback, underrun_callback, &output_device);
+    struct SoundIoOutStream *out_stream;
+    soundio_out_stream_create(device, SoundIoFormatFloat32NE, 48000,
+            0.1, NULL, write_callback, underrun_callback, &out_stream);
 
-    if ((err = soundio_output_device_start(output_device)))
+    if ((err = soundio_out_stream_start(out_stream)))
         panic("unable to start device: %s", soundio_strerror(err));
 
     for (;;)
         soundio_wait_events(soundio);
 
-    soundio_output_device_destroy(output_device);
+    soundio_out_stream_destroy(out_stream);
     soundio_device_unref(device);
     soundio_destroy(soundio);
     return 0;

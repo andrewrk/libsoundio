@@ -172,20 +172,20 @@ void soundio_disconnect(struct SoundIo *soundio) {
     soundio->wait_events = nullptr;
     soundio->wakeup = nullptr;
 
-    soundio->output_device_init = nullptr;
-    soundio->output_device_destroy = nullptr;
-    soundio->output_device_start = nullptr;
-    soundio->output_device_free_count = nullptr;
-    soundio->output_device_begin_write = nullptr;
-    soundio->output_device_write = nullptr;
-    soundio->output_device_clear_buffer = nullptr;
+    soundio->out_stream_init = nullptr;
+    soundio->out_stream_destroy = nullptr;
+    soundio->out_stream_start = nullptr;
+    soundio->out_stream_free_count = nullptr;
+    soundio->out_stream_begin_write = nullptr;
+    soundio->out_stream_write = nullptr;
+    soundio->out_stream_clear_buffer = nullptr;
 
-    soundio->input_device_init = nullptr;
-    soundio->input_device_destroy = nullptr;
-    soundio->input_device_start = nullptr;
-    soundio->input_device_peek = nullptr;
-    soundio->input_device_drop = nullptr;
-    soundio->input_device_clear_buffer = nullptr;
+    soundio->in_stream_init = nullptr;
+    soundio->in_stream_destroy = nullptr;
+    soundio->in_stream_start = nullptr;
+    soundio->in_stream_peek = nullptr;
+    soundio->in_stream_drop = nullptr;
+    soundio->in_stream_clear_buffer = nullptr;
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {
@@ -281,104 +281,104 @@ void soundio_wakeup(struct SoundIo *soundio) {
     soundio->wakeup(soundio);
 }
 
-void soundio_output_device_fill_with_silence(struct SoundIoOutputDevice *output_device) {
+void soundio_out_stream_fill_with_silence(struct SoundIoOutStream *out_stream) {
     char *buffer;
-    int requested_frame_count = soundio_output_device_free_count(output_device);
+    int requested_frame_count = soundio_out_stream_free_count(out_stream);
     while (requested_frame_count > 0) {
         int frame_count = requested_frame_count;
-        soundio_output_device_begin_write(output_device, &buffer, &frame_count);
-        memset(buffer, 0, frame_count * output_device->bytes_per_frame);
-        soundio_output_device_write(output_device, buffer, frame_count);
+        soundio_out_stream_begin_write(out_stream, &buffer, &frame_count);
+        memset(buffer, 0, frame_count * out_stream->bytes_per_frame);
+        soundio_out_stream_write(out_stream, buffer, frame_count);
         requested_frame_count -= frame_count;
     }
 }
 
-int soundio_output_device_free_count(struct SoundIoOutputDevice *output_device) {
-    SoundIo *soundio = output_device->device->soundio;
-    return soundio->output_device_free_count(soundio, output_device);
+int soundio_out_stream_free_count(struct SoundIoOutStream *out_stream) {
+    SoundIo *soundio = out_stream->device->soundio;
+    return soundio->out_stream_free_count(soundio, out_stream);
 }
 
-void soundio_output_device_begin_write(struct SoundIoOutputDevice *output_device,
+void soundio_out_stream_begin_write(struct SoundIoOutStream *out_stream,
         char **data, int *frame_count)
 {
-    SoundIo *soundio = output_device->device->soundio;
-    soundio->output_device_begin_write(soundio, output_device, data, frame_count);
+    SoundIo *soundio = out_stream->device->soundio;
+    soundio->out_stream_begin_write(soundio, out_stream, data, frame_count);
 }
 
-void soundio_output_device_write(struct SoundIoOutputDevice *output_device,
+void soundio_out_stream_write(struct SoundIoOutStream *out_stream,
         char *data, int frame_count)
 {
-    SoundIo *soundio = output_device->device->soundio;
-    soundio->output_device_write(soundio, output_device, data, frame_count);
+    SoundIo *soundio = out_stream->device->soundio;
+    soundio->out_stream_write(soundio, out_stream, data, frame_count);
 }
 
 
-int soundio_output_device_create(struct SoundIoDevice *device,
+int soundio_out_stream_create(struct SoundIoDevice *device,
         enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
-        void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
-        void (*underrun_callback)(struct SoundIoOutputDevice *),
-        struct SoundIoOutputDevice **out_output_device)
+        void (*write_callback)(struct SoundIoOutStream *, int frame_count),
+        void (*underrun_callback)(struct SoundIoOutStream *),
+        struct SoundIoOutStream **out_out_stream)
 {
-    *out_output_device = nullptr;
+    *out_out_stream = nullptr;
 
-    SoundIoOutputDevice *output_device = create<SoundIoOutputDevice>();
-    if (!output_device) {
-        soundio_output_device_destroy(output_device);
+    SoundIoOutStream *out_stream = create<SoundIoOutStream>();
+    if (!out_stream) {
+        soundio_out_stream_destroy(out_stream);
         return SoundIoErrorNoMem;
     }
 
     soundio_device_ref(device);
-    output_device->device = device;
-    output_device->userdata = userdata;
-    output_device->write_callback = write_callback;
-    output_device->underrun_callback = underrun_callback;
-    output_device->format = format;
-    output_device->sample_rate = sample_rate;
-    output_device->latency = latency;
-    output_device->bytes_per_frame = soundio_get_bytes_per_frame(format,
+    out_stream->device = device;
+    out_stream->userdata = userdata;
+    out_stream->write_callback = write_callback;
+    out_stream->underrun_callback = underrun_callback;
+    out_stream->format = format;
+    out_stream->sample_rate = sample_rate;
+    out_stream->latency = latency;
+    out_stream->bytes_per_frame = soundio_get_bytes_per_frame(format,
             device->channel_layout.channel_count);
 
     SoundIo *soundio = device->soundio;
-    int err = soundio->output_device_init(soundio, output_device);
+    int err = soundio->out_stream_init(soundio, out_stream);
     if (err) {
-        soundio_output_device_destroy(output_device);
+        soundio_out_stream_destroy(out_stream);
         return err;
     }
 
-    *out_output_device = output_device;
+    *out_out_stream = out_stream;
     return 0;
 }
 
-void soundio_output_device_destroy(SoundIoOutputDevice *output_device) {
-    if (!output_device)
+void soundio_out_stream_destroy(SoundIoOutStream *out_stream) {
+    if (!out_stream)
         return;
 
-    SoundIo *soundio = output_device->device->soundio;
+    SoundIo *soundio = out_stream->device->soundio;
 
-    if (soundio->output_device_destroy)
-        soundio->output_device_destroy(soundio, output_device);
+    if (soundio->out_stream_destroy)
+        soundio->out_stream_destroy(soundio, out_stream);
 
-    soundio_device_unref(output_device->device);
-    destroy(output_device);
+    soundio_device_unref(out_stream->device);
+    destroy(out_stream);
 }
 
-int soundio_output_device_start(struct SoundIoOutputDevice *output_device) {
-    SoundIo *soundio = output_device->device->soundio;
-    return soundio->output_device_start(soundio, output_device);
+int soundio_out_stream_start(struct SoundIoOutStream *out_stream) {
+    SoundIo *soundio = out_stream->device->soundio;
+    return soundio->out_stream_start(soundio, out_stream);
 }
 
-int soundio_input_device_create(struct SoundIoDevice *device,
+int soundio_in_stream_create(struct SoundIoDevice *device,
         enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
-        void (*read_callback)(struct SoundIoInputDevice *),
-        struct SoundIoInputDevice **out_input_device)
+        void (*read_callback)(struct SoundIoInStream *),
+        struct SoundIoInStream **out_in_stream)
 {
-    *out_input_device = nullptr;
+    *out_in_stream = nullptr;
 
-    SoundIoInputDevice *sid = create<SoundIoInputDevice>();
+    SoundIoInStream *sid = create<SoundIoInStream>();
     if (!sid) {
-        soundio_input_device_destroy(sid);
+        soundio_in_stream_destroy(sid);
         return SoundIoErrorNoMem;
     }
 
@@ -393,32 +393,32 @@ int soundio_input_device_create(struct SoundIoDevice *device,
             device->channel_layout.channel_count);
 
     SoundIo *soundio = device->soundio;
-    int err = soundio->input_device_init(soundio, sid);
+    int err = soundio->in_stream_init(soundio, sid);
     if (err) {
-        soundio_input_device_destroy(sid);
+        soundio_in_stream_destroy(sid);
         return err;
     }
 
-    *out_input_device = sid;
+    *out_in_stream = sid;
     return 0;
 }
 
-int soundio_input_device_start(struct SoundIoInputDevice *input_device) {
-    SoundIo *soundio = input_device->device->soundio;
-    return soundio->input_device_start(soundio, input_device);
+int soundio_in_stream_start(struct SoundIoInStream *in_stream) {
+    SoundIo *soundio = in_stream->device->soundio;
+    return soundio->in_stream_start(soundio, in_stream);
 }
 
-void soundio_input_device_destroy(struct SoundIoInputDevice *input_device) {
-    if (!input_device)
+void soundio_in_stream_destroy(struct SoundIoInStream *in_stream) {
+    if (!in_stream)
         return;
 
-    SoundIo *soundio = input_device->device->soundio;
+    SoundIo *soundio = in_stream->device->soundio;
 
-    if (soundio->input_device_destroy)
-        soundio->input_device_destroy(soundio, input_device);
+    if (soundio->in_stream_destroy)
+        soundio->in_stream_destroy(soundio, in_stream);
 
-    soundio_device_unref(input_device->device);
-    destroy(input_device);
+    soundio_device_unref(in_stream->device);
+    destroy(in_stream);
 }
 
 void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {

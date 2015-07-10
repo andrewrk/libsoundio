@@ -14,13 +14,13 @@
 
 #include <pulse/pulseaudio.h>
 
-struct SoundIoOutputDevicePulseAudio {
+struct SoundIoOutStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
 };
 
-struct SoundIoInputDevicePulseAudio {
+struct SoundIoInStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
@@ -524,17 +524,17 @@ static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *chan
 }
 
 static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
-    SoundIoOutputDevice *output_device = (SoundIoOutputDevice*) userdata;
-    SoundIo *soundio = output_device->device->soundio;
+    SoundIoOutStream *out_stream = (SoundIoOutStream*) userdata;
+    SoundIo *soundio = out_stream->device->soundio;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
         case PA_STREAM_READY:
-            opd->stream_ready = true;
+            ospa->stream_ready = true;
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
@@ -544,26 +544,26 @@ static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
 }
 
 static void playback_stream_underflow_callback(pa_stream *stream, void *userdata) {
-    SoundIoOutputDevice *output_device = (SoundIoOutputDevice*)userdata;
-    output_device->underrun_callback(output_device);
+    SoundIoOutStream *out_stream = (SoundIoOutStream*)userdata;
+    out_stream->underrun_callback(out_stream);
 }
 
 
 static void playback_stream_write_callback(pa_stream *stream, size_t nbytes, void *userdata) {
-    SoundIoOutputDevice *output_device = (SoundIoOutputDevice*)(userdata);
-    int frame_count = ((int)nbytes) / output_device->bytes_per_frame;
-    output_device->write_callback(output_device, frame_count);
+    SoundIoOutStream *out_stream = (SoundIoOutStream*)(userdata);
+    int frame_count = ((int)nbytes) / out_stream->bytes_per_frame;
+    out_stream->write_callback(out_stream, frame_count);
 }
 
-static void output_device_destroy_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_destroy_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
-    if (!opd)
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
+    if (!ospa)
         return;
 
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = opd->stream;
+    pa_stream *stream = ospa->stream;
     if (stream) {
         pa_threaded_mainloop_lock(sipa->main_loop);
 
@@ -576,127 +576,127 @@ static void output_device_destroy_pa(SoundIo *soundio,
 
         pa_threaded_mainloop_unlock(sipa->main_loop);
 
-        opd->stream = nullptr;
+        ospa->stream = nullptr;
     }
 
-    destroy(opd);
-    output_device->backend_data = nullptr;
+    destroy(ospa);
+    out_stream->backend_data = nullptr;
 }
 
-static int output_device_init_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_init_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDevicePulseAudio *opd = create<SoundIoOutputDevicePulseAudio>();
-    if (!opd) {
-        output_device_destroy_pa(soundio, output_device);
+    SoundIoOutStreamPulseAudio *ospa = create<SoundIoOutStreamPulseAudio>();
+    if (!ospa) {
+        out_stream_destroy_pa(soundio, out_stream);
         return SoundIoErrorNoMem;
     }
-    output_device->backend_data = opd;
+    out_stream->backend_data = ospa;
 
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    SoundIoDevice *device = output_device->device; 
-    opd->stream_ready = false;
+    SoundIoDevice *device = out_stream->device; 
+    ospa->stream_ready = false;
 
     assert(sipa->pulse_context);
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
     pa_sample_spec sample_spec;
-    sample_spec.format = to_pulseaudio_format(output_device->format);
-    sample_spec.rate = output_device->sample_rate;
+    sample_spec.format = to_pulseaudio_format(out_stream->format);
+    sample_spec.rate = out_stream->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
     pa_channel_map channel_map = to_pulseaudio_channel_map(&device->channel_layout);
 
-    opd->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
-    if (!opd->stream) {
+    ospa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
+    if (!ospa->stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
-        output_device_destroy_pa(soundio, output_device);
+        out_stream_destroy_pa(soundio, out_stream);
         return SoundIoErrorNoMem;
     }
-    pa_stream_set_state_callback(opd->stream, playback_stream_state_callback, output_device);
-    pa_stream_set_write_callback(opd->stream, playback_stream_write_callback, output_device);
-    pa_stream_set_underflow_callback(opd->stream, playback_stream_underflow_callback, output_device);
+    pa_stream_set_state_callback(ospa->stream, playback_stream_state_callback, out_stream);
+    pa_stream_set_write_callback(ospa->stream, playback_stream_write_callback, out_stream);
+    pa_stream_set_underflow_callback(ospa->stream, playback_stream_underflow_callback, out_stream);
 
-    int bytes_per_second = output_device->bytes_per_frame * output_device->sample_rate;
-    int buffer_length = output_device->bytes_per_frame *
-        ceil(output_device->latency * bytes_per_second / (double)output_device->bytes_per_frame);
+    int bytes_per_second = out_stream->bytes_per_frame * out_stream->sample_rate;
+    int buffer_length = out_stream->bytes_per_frame *
+        ceil(out_stream->latency * bytes_per_second / (double)out_stream->bytes_per_frame);
 
-    opd->buffer_attr.maxlength = buffer_length;
-    opd->buffer_attr.tlength = buffer_length;
-    opd->buffer_attr.prebuf = 0;
-    opd->buffer_attr.minreq = UINT32_MAX;
-    opd->buffer_attr.fragsize = UINT32_MAX;
+    ospa->buffer_attr.maxlength = buffer_length;
+    ospa->buffer_attr.tlength = buffer_length;
+    ospa->buffer_attr.prebuf = 0;
+    ospa->buffer_attr.minreq = UINT32_MAX;
+    ospa->buffer_attr.fragsize = UINT32_MAX;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
 }
 
-static int output_device_start_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_start_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
 
-    int err = pa_stream_connect_playback(opd->stream,
-            output_device->device->name, &opd->buffer_attr,
+    int err = pa_stream_connect_playback(ospa->stream,
+            out_stream->device->name, &ospa->buffer_attr,
             PA_STREAM_ADJUST_LATENCY, nullptr, nullptr);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorOpeningDevice;
     }
 
-    while (!opd->stream_ready)
+    while (!ospa->stream_ready)
         pa_threaded_mainloop_wait(sipa->main_loop);
 
-    soundio_output_device_fill_with_silence(output_device);
+    soundio_out_stream_fill_with_silence(out_stream);
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
 }
 
-static int output_device_free_count_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_free_count_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
-    return pa_stream_writable_size(opd->stream) / output_device->bytes_per_frame;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
+    return pa_stream_writable_size(ospa->stream) / out_stream->bytes_per_frame;
 }
 
 
-static void output_device_begin_write_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char **data, int *frame_count)
+static void out_stream_begin_write_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char **data, int *frame_count)
 {
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = opd->stream;
-    size_t byte_count = *frame_count * output_device->bytes_per_frame;
+    pa_stream *stream = ospa->stream;
+    size_t byte_count = *frame_count * out_stream->bytes_per_frame;
     if (pa_stream_begin_write(stream, (void**)data, &byte_count))
         soundio_panic("pa_stream_begin_write error: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
 
-    *frame_count = byte_count / output_device->bytes_per_frame;
+    *frame_count = byte_count / out_stream->bytes_per_frame;
 }
 
-static void output_device_write_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char *data, int frame_count)
+static void out_stream_write_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char *data, int frame_count)
 {
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = opd->stream;
-    size_t byte_count = frame_count * output_device->bytes_per_frame;
+    pa_stream *stream = ospa->stream;
+    size_t byte_count = frame_count * out_stream->bytes_per_frame;
     if (pa_stream_write(stream, data, byte_count, NULL, 0, PA_SEEK_RELATIVE))
         soundio_panic("pa_stream_write error: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
 }
 
-static void output_device_clear_buffer_pa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_clear_buffer_pa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
-    SoundIoOutputDevicePulseAudio *opd = (SoundIoOutputDevicePulseAudio *)output_device->backend_data;
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)out_stream->backend_data;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = opd->stream;
+    pa_stream *stream = ospa->stream;
     pa_threaded_mainloop_lock(sipa->main_loop);
     pa_operation *op = pa_stream_flush(stream, NULL, NULL);
     if (!op)
@@ -706,15 +706,15 @@ static void output_device_clear_buffer_pa(SoundIo *soundio,
 }
 
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
-    SoundIoInputDevice *input_device = (SoundIoInputDevice*)userdata;
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
+    SoundIoInStream *in_stream = (SoundIoInStream*)userdata;
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
         case PA_STREAM_READY:
-            ord->stream_ready = true;
+            ispa->stream_ready = true;
             break;
         case PA_STREAM_FAILED:
             soundio_panic("pulseaudio stream error: %s",
@@ -724,19 +724,19 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
 }
 
 static void recording_stream_read_callback(pa_stream *stream, size_t nbytes, void *userdata) {
-    SoundIoInputDevice *input_device = (SoundIoInputDevice*)userdata;
-    input_device->read_callback(input_device);
+    SoundIoInStream *in_stream = (SoundIoInStream*)userdata;
+    in_stream->read_callback(in_stream);
 }
 
-static void input_device_destroy_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_destroy_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
-    if (!ord)
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
+    if (!ispa)
         return;
 
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    pa_stream *stream = ord->stream;
+    pa_stream *stream = ispa->stream;
     if (stream) {
         pa_threaded_mainloop_lock(sipa->main_loop);
 
@@ -747,70 +747,70 @@ static void input_device_destroy_pa(SoundIo *soundio,
 
         pa_threaded_mainloop_unlock(sipa->main_loop);
 
-        ord->stream = nullptr;
+        ispa->stream = nullptr;
     }
 }
 
-static int input_device_init_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static int in_stream_init_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
-    SoundIoInputDevicePulseAudio *ord = create<SoundIoInputDevicePulseAudio>();
-    if (!ord) {
-        input_device_destroy_pa(soundio, input_device);
+    SoundIoInStreamPulseAudio *ispa = create<SoundIoInStreamPulseAudio>();
+    if (!ispa) {
+        in_stream_destroy_pa(soundio, in_stream);
         return SoundIoErrorNoMem;
     }
-    input_device->backend_data = ord;
+    in_stream->backend_data = ispa;
 
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
-    SoundIoDevice *device = input_device->device;
-    ord->stream_ready = false;
+    SoundIoDevice *device = in_stream->device;
+    ispa->stream_ready = false;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
     pa_sample_spec sample_spec;
-    sample_spec.format = to_pulseaudio_format(input_device->format);
-    sample_spec.rate = input_device->sample_rate;
+    sample_spec.format = to_pulseaudio_format(in_stream->format);
+    sample_spec.rate = in_stream->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
 
     pa_channel_map channel_map = to_pulseaudio_channel_map(&device->channel_layout);
 
-    ord->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
-    if (!input_device) {
+    ispa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
+    if (!in_stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
-        input_device_destroy_pa(soundio, input_device);
+        in_stream_destroy_pa(soundio, in_stream);
         return SoundIoErrorNoMem;
     }
 
-    pa_stream *stream = ord->stream;
+    pa_stream *stream = ispa->stream;
 
-    pa_stream_set_state_callback(stream, recording_stream_state_callback, input_device);
-    pa_stream_set_read_callback(stream, recording_stream_read_callback, input_device);
+    pa_stream_set_state_callback(stream, recording_stream_state_callback, in_stream);
+    pa_stream_set_read_callback(stream, recording_stream_read_callback, in_stream);
 
-    int bytes_per_second = input_device->bytes_per_frame * input_device->sample_rate;
-    int buffer_length = input_device->bytes_per_frame *
-        ceil(input_device->latency * bytes_per_second / (double)input_device->bytes_per_frame);
+    int bytes_per_second = in_stream->bytes_per_frame * in_stream->sample_rate;
+    int buffer_length = in_stream->bytes_per_frame *
+        ceil(in_stream->latency * bytes_per_second / (double)in_stream->bytes_per_frame);
 
-    ord->buffer_attr.maxlength = UINT32_MAX;
-    ord->buffer_attr.tlength = UINT32_MAX;
-    ord->buffer_attr.prebuf = 0;
-    ord->buffer_attr.minreq = UINT32_MAX;
-    ord->buffer_attr.fragsize = buffer_length;
+    ispa->buffer_attr.maxlength = UINT32_MAX;
+    ispa->buffer_attr.tlength = UINT32_MAX;
+    ispa->buffer_attr.prebuf = 0;
+    ispa->buffer_attr.minreq = UINT32_MAX;
+    ispa->buffer_attr.fragsize = buffer_length;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
 }
 
-static int input_device_start_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static int in_stream_start_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    int err = pa_stream_connect_record(ord->stream,
-            input_device->device->name,
-            &ord->buffer_attr, PA_STREAM_ADJUST_LATENCY);
+    int err = pa_stream_connect_record(ispa->stream,
+            in_stream->device->name,
+            &ispa->buffer_attr, PA_STREAM_ADJUST_LATENCY);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorOpeningDevice;
@@ -820,39 +820,39 @@ static int input_device_start_pa(SoundIo *soundio,
     return 0;
 }
 
-static void input_device_peek_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device, const char **data, int *frame_count)
+static void in_stream_peek_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream, const char **data, int *frame_count)
 {
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
-    pa_stream *stream = ord->stream;
-    if (ord->stream_ready) {
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
+    pa_stream *stream = ispa->stream;
+    if (ispa->stream_ready) {
         size_t nbytes;
         if (pa_stream_peek(stream, (const void **)data, &nbytes))
             soundio_panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
-        *frame_count = ((int)nbytes) / input_device->bytes_per_frame;
+        *frame_count = ((int)nbytes) / in_stream->bytes_per_frame;
     } else {
         *data = nullptr;
         *frame_count = 0;
     }
 }
 
-static void input_device_drop_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_drop_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
-    pa_stream *stream = ord->stream;
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
+    pa_stream *stream = ispa->stream;
     if (pa_stream_drop(stream))
         soundio_panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
 }
 
-static void input_device_clear_buffer_pa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_clear_buffer_pa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
-    SoundIoInputDevicePulseAudio *ord = (SoundIoInputDevicePulseAudio *)input_device->backend_data;
-    if (!ord->stream_ready)
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)in_stream->backend_data;
+    if (!ispa->stream_ready)
         return;
 
-    pa_stream *stream = ord->stream;
+    pa_stream *stream = ispa->stream;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)soundio->backend_data;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
@@ -936,20 +936,20 @@ int soundio_pulseaudio_init(SoundIo *soundio) {
     soundio->wait_events = wait_events;
     soundio->wakeup = wakeup;
 
-    soundio->output_device_init = output_device_init_pa;
-    soundio->output_device_destroy = output_device_destroy_pa;
-    soundio->output_device_start = output_device_start_pa;
-    soundio->output_device_free_count = output_device_free_count_pa;
-    soundio->output_device_begin_write = output_device_begin_write_pa;
-    soundio->output_device_write = output_device_write_pa;
-    soundio->output_device_clear_buffer = output_device_clear_buffer_pa;
+    soundio->out_stream_init = out_stream_init_pa;
+    soundio->out_stream_destroy = out_stream_destroy_pa;
+    soundio->out_stream_start = out_stream_start_pa;
+    soundio->out_stream_free_count = out_stream_free_count_pa;
+    soundio->out_stream_begin_write = out_stream_begin_write_pa;
+    soundio->out_stream_write = out_stream_write_pa;
+    soundio->out_stream_clear_buffer = out_stream_clear_buffer_pa;
 
-    soundio->input_device_init = input_device_init_pa;
-    soundio->input_device_destroy = input_device_destroy_pa;
-    soundio->input_device_start = input_device_start_pa;
-    soundio->input_device_peek = input_device_peek_pa;
-    soundio->input_device_drop = input_device_drop_pa;
-    soundio->input_device_clear_buffer = input_device_clear_buffer_pa;
+    soundio->in_stream_init = in_stream_init_pa;
+    soundio->in_stream_destroy = in_stream_destroy_pa;
+    soundio->in_stream_start = in_stream_start_pa;
+    soundio->in_stream_peek = in_stream_peek_pa;
+    soundio->in_stream_drop = in_stream_drop_pa;
+    soundio->in_stream_clear_buffer = in_stream_clear_buffer_pa;
 
     return 0;
 }

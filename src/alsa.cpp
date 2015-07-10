@@ -719,80 +719,80 @@ static void wakeup(SoundIo *soundio) {
     soundio_os_mutex_unlock(sia->mutex);
 }
 
-static void output_device_destroy_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_destroy_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     soundio_panic("TODO");
 }
 
-static int output_device_init_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_init_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     soundio_panic("TODO");
 }
 
-static int output_device_start_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_start_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     soundio_panic("TODO");
 }
 
-static int output_device_free_count_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static int out_stream_free_count_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     soundio_panic("TODO");
 }
 
-static void output_device_begin_write_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char **data, int *frame_count)
+static void out_stream_begin_write_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char **data, int *frame_count)
 {
     soundio_panic("TODO");
 }
 
-static void output_device_write_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device, char *data, int frame_count)
+static void out_stream_write_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream, char *data, int frame_count)
 {
     soundio_panic("TODO");
 }
 
-static void output_device_clear_buffer_alsa(SoundIo *soundio,
-        SoundIoOutputDevice *output_device)
+static void out_stream_clear_buffer_alsa(SoundIo *soundio,
+        SoundIoOutStream *out_stream)
 {
     soundio_panic("TODO");
 }
 
-static int input_device_init_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static int in_stream_init_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_destroy_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_destroy_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static int input_device_start_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static int in_stream_start_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_peek_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device, const char **data, int *frame_count)
+static void in_stream_peek_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream, const char **data, int *frame_count)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_drop_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_drop_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
 
-static void input_device_clear_buffer_alsa(SoundIo *soundio,
-        SoundIoInputDevice *input_device)
+static void in_stream_clear_buffer_alsa(SoundIo *soundio,
+        SoundIoInStream *in_stream)
 {
     soundio_panic("TODO");
 }
@@ -876,20 +876,20 @@ int soundio_alsa_init(SoundIo *soundio) {
     soundio->wait_events = wait_events;
     soundio->wakeup = wakeup;
 
-    soundio->output_device_init = output_device_init_alsa;
-    soundio->output_device_destroy = output_device_destroy_alsa;
-    soundio->output_device_start = output_device_start_alsa;
-    soundio->output_device_free_count = output_device_free_count_alsa;
-    soundio->output_device_begin_write = output_device_begin_write_alsa;
-    soundio->output_device_write = output_device_write_alsa;
-    soundio->output_device_clear_buffer = output_device_clear_buffer_alsa;
+    soundio->out_stream_init = out_stream_init_alsa;
+    soundio->out_stream_destroy = out_stream_destroy_alsa;
+    soundio->out_stream_start = out_stream_start_alsa;
+    soundio->out_stream_free_count = out_stream_free_count_alsa;
+    soundio->out_stream_begin_write = out_stream_begin_write_alsa;
+    soundio->out_stream_write = out_stream_write_alsa;
+    soundio->out_stream_clear_buffer = out_stream_clear_buffer_alsa;
 
-    soundio->input_device_init = input_device_init_alsa;
-    soundio->input_device_destroy = input_device_destroy_alsa;
-    soundio->input_device_start = input_device_start_alsa;
-    soundio->input_device_peek = input_device_peek_alsa;
-    soundio->input_device_drop = input_device_drop_alsa;
-    soundio->input_device_clear_buffer = input_device_clear_buffer_alsa;
+    soundio->in_stream_init = in_stream_init_alsa;
+    soundio->in_stream_destroy = in_stream_destroy_alsa;
+    soundio->in_stream_start = in_stream_start_alsa;
+    soundio->in_stream_peek = in_stream_peek_alsa;
+    soundio->in_stream_drop = in_stream_drop_alsa;
+    soundio->in_stream_clear_buffer = in_stream_clear_buffer_alsa;
 
     return 0;
 }
