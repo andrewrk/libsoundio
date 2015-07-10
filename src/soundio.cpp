@@ -22,7 +22,7 @@
 #include <string.h>
 #include <assert.h>
 
-const char *soundio_error_string(int error) {
+const char *soundio_strerror(int error) {
     switch ((enum SoundIoError)error) {
         case SoundIoErrorNone: return "(no error)";
         case SoundIoErrorNoMem: return "out of memory";
@@ -33,52 +33,56 @@ const char *soundio_error_string(int error) {
     soundio_panic("invalid error enum value: %d", error);
 }
 
-int soundio_get_bytes_per_sample(enum SoundIoSampleFormat sample_format) {
-    switch (sample_format) {
-    case SoundIoSampleFormatInvalid:    soundio_panic("invalid sample format");
-    case SoundIoSampleFormatU8:         return 1;
-    case SoundIoSampleFormatS8:         return 1;
-    case SoundIoSampleFormatS16LE:      return 2;
-    case SoundIoSampleFormatS16BE:      return 2;
-    case SoundIoSampleFormatU16LE:      return 2;
-    case SoundIoSampleFormatU16BE:      return 2;
-    case SoundIoSampleFormatS24LE:      return 4;
-    case SoundIoSampleFormatS24BE:      return 4;
-    case SoundIoSampleFormatU24LE:      return 4;
-    case SoundIoSampleFormatU24BE:      return 4;
-    case SoundIoSampleFormatS32LE:      return 4;
-    case SoundIoSampleFormatS32BE:      return 4;
-    case SoundIoSampleFormatU32LE:      return 4;
-    case SoundIoSampleFormatU32BE:      return 4;
-    case SoundIoSampleFormatFloat32LE:  return 4;
-    case SoundIoSampleFormatFloat32BE:  return 4;
-    case SoundIoSampleFormatFloat64LE:  return 8;
-    case SoundIoSampleFormatFloat64BE:  return 8;
+int soundio_get_bytes_per_sample(enum SoundIoFormat format) {
+    switch (format) {
+    case SoundIoFormatU8:         return 1;
+    case SoundIoFormatS8:         return 1;
+    case SoundIoFormatS16LE:      return 2;
+    case SoundIoFormatS16BE:      return 2;
+    case SoundIoFormatU16LE:      return 2;
+    case SoundIoFormatU16BE:      return 2;
+    case SoundIoFormatS24LE:      return 4;
+    case SoundIoFormatS24BE:      return 4;
+    case SoundIoFormatU24LE:      return 4;
+    case SoundIoFormatU24BE:      return 4;
+    case SoundIoFormatS32LE:      return 4;
+    case SoundIoFormatS32BE:      return 4;
+    case SoundIoFormatU32LE:      return 4;
+    case SoundIoFormatU32BE:      return 4;
+    case SoundIoFormatFloat32LE:  return 4;
+    case SoundIoFormatFloat32BE:  return 4;
+    case SoundIoFormatFloat64LE:  return 8;
+    case SoundIoFormatFloat64BE:  return 8;
+
+    case SoundIoFormatInvalid:
+        soundio_panic("invalid sample format");
     }
     soundio_panic("invalid sample format");
 }
 
-const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format) {
-    switch (sample_format) {
-    case SoundIoSampleFormatInvalid: return "(invalid sample format)";
-    case SoundIoSampleFormatU8:         return "signed 8-bit";
-    case SoundIoSampleFormatS8:         return "unsigned 8-bit";
-    case SoundIoSampleFormatS16LE:      return "signed 16-bit LE";
-    case SoundIoSampleFormatS16BE:      return "signed 16-bit BE";
-    case SoundIoSampleFormatU16LE:      return "unsigned 16-bit LE";
-    case SoundIoSampleFormatU16BE:      return "unsigned 16-bit LE";
-    case SoundIoSampleFormatS24LE:      return "signed 24-bit LE";
-    case SoundIoSampleFormatS24BE:      return "signed 24-bit BE";
-    case SoundIoSampleFormatU24LE:      return "unsigned 24-bit LE";
-    case SoundIoSampleFormatU24BE:      return "unsigned 24-bit BE";
-    case SoundIoSampleFormatS32LE:      return "signed 32-bit LE";
-    case SoundIoSampleFormatS32BE:      return "signed 32-bit BE";
-    case SoundIoSampleFormatU32LE:      return "unsigned 32-bit LE";
-    case SoundIoSampleFormatU32BE:      return "unsigned 32-bit BE";
-    case SoundIoSampleFormatFloat32LE:  return "float 32-bit LE";
-    case SoundIoSampleFormatFloat32BE:  return "float 32-bit BE";
-    case SoundIoSampleFormatFloat64LE:  return "float 64-bit LE";
-    case SoundIoSampleFormatFloat64BE:  return "float 64-bit BE";
+const char * soundio_format_string(enum SoundIoFormat format) {
+    switch (format) {
+    case SoundIoFormatU8:         return "signed 8-bit";
+    case SoundIoFormatS8:         return "unsigned 8-bit";
+    case SoundIoFormatS16LE:      return "signed 16-bit LE";
+    case SoundIoFormatS16BE:      return "signed 16-bit BE";
+    case SoundIoFormatU16LE:      return "unsigned 16-bit LE";
+    case SoundIoFormatU16BE:      return "unsigned 16-bit LE";
+    case SoundIoFormatS24LE:      return "signed 24-bit LE";
+    case SoundIoFormatS24BE:      return "signed 24-bit BE";
+    case SoundIoFormatU24LE:      return "unsigned 24-bit LE";
+    case SoundIoFormatU24BE:      return "unsigned 24-bit BE";
+    case SoundIoFormatS32LE:      return "signed 32-bit LE";
+    case SoundIoFormatS32BE:      return "signed 32-bit BE";
+    case SoundIoFormatU32LE:      return "unsigned 32-bit LE";
+    case SoundIoFormatU32BE:      return "unsigned 32-bit BE";
+    case SoundIoFormatFloat32LE:  return "float 32-bit LE";
+    case SoundIoFormatFloat32BE:  return "float 32-bit BE";
+    case SoundIoFormatFloat64LE:  return "float 64-bit LE";
+    case SoundIoFormatFloat64BE:  return "float 64-bit BE";
+
+    case SoundIoFormatInvalid:
+        return "(invalid sample format)";
     }
     return "(invalid sample format)";
 }
@@ -250,10 +254,6 @@ const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct So
     return &device->channel_layout;
 }
 
-int soundio_device_sample_rate(const struct SoundIoDevice *device) {
-    return device->sample_rate_default;
-}
-
 void soundio_device_unref(struct SoundIoDevice *device) {
     if (!device)
         return;
@@ -264,6 +264,7 @@ void soundio_device_unref(struct SoundIoDevice *device) {
     if (device->ref_count == 0) {
         free(device->name);
         free(device->description);
+        deallocate(device->formats, device->format_count);
         destroy(device);
     }
 }
@@ -313,7 +314,7 @@ void soundio_output_device_write(struct SoundIoOutputDevice *output_device,
 
 
 int soundio_output_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, int sample_rate,
+        enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
         void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
@@ -332,10 +333,10 @@ int soundio_output_device_create(struct SoundIoDevice *device,
     output_device->userdata = userdata;
     output_device->write_callback = write_callback;
     output_device->underrun_callback = underrun_callback;
-    output_device->sample_format = sample_format;
+    output_device->format = format;
     output_device->sample_rate = sample_rate;
     output_device->latency = latency;
-    output_device->bytes_per_frame = soundio_get_bytes_per_frame(sample_format,
+    output_device->bytes_per_frame = soundio_get_bytes_per_frame(format,
             device->channel_layout.channel_count);
 
     SoundIo *soundio = device->soundio;
@@ -368,7 +369,7 @@ int soundio_output_device_start(struct SoundIoOutputDevice *output_device) {
 }
 
 int soundio_input_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, int sample_rate,
+        enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
         void (*read_callback)(struct SoundIoInputDevice *),
         struct SoundIoInputDevice **out_input_device)
@@ -385,10 +386,10 @@ int soundio_input_device_create(struct SoundIoDevice *device,
     sid->device = device;
     sid->userdata = userdata;
     sid->read_callback = read_callback;
-    sid->sample_format = sample_format;
+    sid->format = format;
     sid->latency = latency;
     sid->sample_rate = sample_rate;
-    sid->bytes_per_frame = soundio_get_bytes_per_frame(sample_format,
+    sid->bytes_per_frame = soundio_get_bytes_per_frame(format,
             device->channel_layout.channel_count);
 
     SoundIo *soundio = device->soundio;

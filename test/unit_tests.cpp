@@ -11,7 +11,7 @@
 
 static inline void ok_or_panic(int err) {
     if (err)
-        soundio_panic("%s", soundio_error_string(err));
+        soundio_panic("%s", soundio_strerror(err));
 }
 
 static void test_os_get_time(void) {
@@ -37,7 +37,7 @@ static void test_create_output_device(void) {
     soundio_device_name(device);
     soundio_device_description(device);
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoSampleFormatFloat32NE, 48000, 0.1, NULL,
+    soundio_output_device_create(device, SoundIoFormatFloat32NE, 48000, 0.1, NULL,
             write_callback, underrun_callback, &output_device);
     soundio_output_device_destroy(output_device);
     soundio_device_unref(device);

@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
 
     int err;
     if ((err = soundio_connect(soundio)))
-        panic("error connecting: %s", soundio_error_string(err));
+        panic("error connecting: %s", soundio_strerror(err));
 
     int default_out_device_index = soundio_get_default_output_device_index(soundio);
     if (default_out_device_index < 0)
@@ -90,11 +90,11 @@ int main(int argc, char **argv) {
             soundio_device_description(device));
 
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoSampleFormatFloat32NE, 48000,
+    soundio_output_device_create(device, SoundIoFormatFloat32NE, 48000,
             0.1, NULL, write_callback, underrun_callback, &output_device);
 
     if ((err = soundio_output_device_start(output_device)))
-        panic("unable to start device: %s", soundio_error_string(err));
+        panic("unable to start device: %s", soundio_strerror(err));
 
     for (;;)
         soundio_wait_events(soundio);

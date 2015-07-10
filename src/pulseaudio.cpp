@@ -139,17 +139,17 @@ static double usec_to_sec(pa_usec_t usec) {
 }
 
 
-static SoundIoSampleFormat sample_format_from_pulseaudio(pa_sample_spec sample_spec) {
+static SoundIoFormat format_from_pulseaudio(pa_sample_spec sample_spec) {
     switch (sample_spec.format) {
-    case PA_SAMPLE_U8:          return SoundIoSampleFormatU8;
-    case PA_SAMPLE_S16LE:       return SoundIoSampleFormatS16LE;
-    case PA_SAMPLE_S16BE:       return SoundIoSampleFormatS16BE;
-    case PA_SAMPLE_FLOAT32LE:   return SoundIoSampleFormatFloat32LE;
-    case PA_SAMPLE_FLOAT32BE:   return SoundIoSampleFormatFloat32BE;
-    case PA_SAMPLE_S32LE:       return SoundIoSampleFormatS32LE;
-    case PA_SAMPLE_S32BE:       return SoundIoSampleFormatS32BE;
-    case PA_SAMPLE_S24_32LE:    return SoundIoSampleFormatS24LE;
-    case PA_SAMPLE_S24_32BE:    return SoundIoSampleFormatS24BE;
+    case PA_SAMPLE_U8:          return SoundIoFormatU8;
+    case PA_SAMPLE_S16LE:       return SoundIoFormatS16LE;
+    case PA_SAMPLE_S16BE:       return SoundIoFormatS16BE;
+    case PA_SAMPLE_FLOAT32LE:   return SoundIoFormatFloat32LE;
+    case PA_SAMPLE_FLOAT32BE:   return SoundIoFormatFloat32BE;
+    case PA_SAMPLE_S32LE:       return SoundIoFormatS32LE;
+    case PA_SAMPLE_S32BE:       return SoundIoFormatS32BE;
+    case PA_SAMPLE_S24_32LE:    return SoundIoFormatS24LE;
+    case PA_SAMPLE_S24_32BE:    return SoundIoFormatS24BE;
 
     case PA_SAMPLE_MAX:
     case PA_SAMPLE_INVALID:
@@ -157,9 +157,9 @@ static SoundIoSampleFormat sample_format_from_pulseaudio(pa_sample_spec sample_s
     case PA_SAMPLE_ULAW:
     case PA_SAMPLE_S24LE:
     case PA_SAMPLE_S24BE:
-        return SoundIoSampleFormatInvalid;
+        return SoundIoFormatInvalid;
     }
-    return SoundIoSampleFormatInvalid;
+    return SoundIoFormatInvalid;
 }
 
 static int sample_rate_from_pulseaudio(pa_sample_spec sample_spec) {
@@ -280,9 +280,10 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         if (!device->name || !device->description)
             soundio_panic("out of memory");
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
-        device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
+        // TODO determine the list of supported formats and the min and max sample rate
+        device->current_format = format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
-        device->sample_rate_default = sample_rate_from_pulseaudio(info->sample_spec);
+        device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (sipa->current_devices_info->output_devices.append(device))
@@ -309,9 +310,10 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         if (!device->name || !device->description)
             soundio_panic("out of memory");
         set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
-        device->default_sample_format = sample_format_from_pulseaudio(info->sample_spec);
+        // TODO determine the list of supported formats and the min and max sample rate
+        device->current_format = format_from_pulseaudio(info->sample_spec);
         device->default_latency = usec_to_sec(info->configured_latency);
-        device->sample_rate_default = sample_rate_from_pulseaudio(info->sample_spec);
+        device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeInput;
 
         if (sipa->current_devices_info->input_devices.append(device))
@@ -437,28 +439,28 @@ static void wakeup(SoundIo *soundio) {
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
 
-static pa_sample_format_t to_pulseaudio_sample_format(SoundIoSampleFormat sample_format) {
-    switch (sample_format) {
-    case SoundIoSampleFormatU8:         return PA_SAMPLE_U8;
-    case SoundIoSampleFormatS16LE:      return PA_SAMPLE_S16LE;
-    case SoundIoSampleFormatS16BE:      return PA_SAMPLE_S16BE;
-    case SoundIoSampleFormatS24LE:      return PA_SAMPLE_S24_32LE;
-    case SoundIoSampleFormatS24BE:      return PA_SAMPLE_S24_32BE;
-    case SoundIoSampleFormatS32LE:      return PA_SAMPLE_S32LE;
-    case SoundIoSampleFormatS32BE:      return PA_SAMPLE_S32BE;
-    case SoundIoSampleFormatFloat32LE:  return PA_SAMPLE_FLOAT32LE;
-    case SoundIoSampleFormatFloat32BE:  return PA_SAMPLE_FLOAT32BE;
+static pa_sample_format_t to_pulseaudio_format(SoundIoFormat format) {
+    switch (format) {
+    case SoundIoFormatU8:         return PA_SAMPLE_U8;
+    case SoundIoFormatS16LE:      return PA_SAMPLE_S16LE;
+    case SoundIoFormatS16BE:      return PA_SAMPLE_S16BE;
+    case SoundIoFormatS24LE:      return PA_SAMPLE_S24_32LE;
+    case SoundIoFormatS24BE:      return PA_SAMPLE_S24_32BE;
+    case SoundIoFormatS32LE:      return PA_SAMPLE_S32LE;
+    case SoundIoFormatS32BE:      return PA_SAMPLE_S32BE;
+    case SoundIoFormatFloat32LE:  return PA_SAMPLE_FLOAT32LE;
+    case SoundIoFormatFloat32BE:  return PA_SAMPLE_FLOAT32BE;
 
-    case SoundIoSampleFormatInvalid:
-    case SoundIoSampleFormatS8:
-    case SoundIoSampleFormatU16LE:
-    case SoundIoSampleFormatU16BE:
-    case SoundIoSampleFormatU24LE:
-    case SoundIoSampleFormatU24BE:
-    case SoundIoSampleFormatU32LE:
-    case SoundIoSampleFormatU32BE:
-    case SoundIoSampleFormatFloat64LE:
-    case SoundIoSampleFormatFloat64BE:
+    case SoundIoFormatInvalid:
+    case SoundIoFormatS8:
+    case SoundIoFormatU16LE:
+    case SoundIoFormatU16BE:
+    case SoundIoFormatU24LE:
+    case SoundIoFormatU24BE:
+    case SoundIoFormatU32LE:
+    case SoundIoFormatU32BE:
+    case SoundIoFormatFloat64LE:
+    case SoundIoFormatFloat64BE:
         return PA_SAMPLE_INVALID;
     }
     return PA_SAMPLE_INVALID;
@@ -600,7 +602,7 @@ static int output_device_init_pa(SoundIo *soundio,
     pa_threaded_mainloop_lock(sipa->main_loop);
 
     pa_sample_spec sample_spec;
-    sample_spec.format = to_pulseaudio_sample_format(output_device->sample_format);
+    sample_spec.format = to_pulseaudio_format(output_device->format);
     sample_spec.rate = output_device->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
     pa_channel_map channel_map = to_pulseaudio_channel_map(&device->channel_layout);
@@ -766,7 +768,7 @@ static int input_device_init_pa(SoundIo *soundio,
     pa_threaded_mainloop_lock(sipa->main_loop);
 
     pa_sample_spec sample_spec;
-    sample_spec.format = to_pulseaudio_sample_format(input_device->sample_format);
+    sample_spec.format = to_pulseaudio_format(input_device->format);
     sample_spec.rate = input_device->sample_rate;
     sample_spec.channels = device->channel_layout.channel_count;
 

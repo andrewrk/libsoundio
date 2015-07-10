@@ -43,10 +43,15 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
     }
     raw_str = device->is_raw ? "(raw) " : "";
     const char *description = soundio_device_description(device);
-    int sample_rate = soundio_device_sample_rate(device);
+    int sample_rate = device->sample_rate_max;
     fprintf(stderr, "%s%s device: ", raw_str, purpose_str);
-    print_channel_layout(soundio_device_channel_layout(device));
-    fprintf(stderr, " %d Hz %s%s\n", sample_rate, description, default_str);
+    if (device->probe_error) {
+        fprintf(stderr, "[%s] %s%s\n", soundio_strerror(device->probe_error),
+                description, default_str);
+    } else {
+        print_channel_layout(soundio_device_channel_layout(device));
+        fprintf(stderr, " %d Hz %s%s\n", sample_rate, description, default_str);
+    }
 }
 
 static int list_devices(struct SoundIo *soundio) {
@@ -97,7 +102,7 @@ int main(int argc, char **argv) {
 
     int err;
     if ((err = soundio_connect(soundio))) {
-        fprintf(stderr, "%s\n", soundio_error_string(err));
+        fprintf(stderr, "%s\n", soundio_strerror(err));
         return err;
     }
 

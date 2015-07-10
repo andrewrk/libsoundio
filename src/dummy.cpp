@@ -245,6 +245,34 @@ static void input_device_clear_buffer_dummy(SoundIo *soundio,
     soundio_panic("TODO");
 }
 
+static int set_all_device_formats(SoundIoDevice *device) {
+    device->format_count = 18;
+    device->formats = allocate<SoundIoFormat>(device->format_count);
+    if (!device->formats)
+        return SoundIoErrorNoMem;
+
+    device->formats[0] = SoundIoFormatS8;
+    device->formats[1] = SoundIoFormatU8;
+    device->formats[2] = SoundIoFormatS16LE;
+    device->formats[3] = SoundIoFormatS16BE;
+    device->formats[4] = SoundIoFormatU16LE;
+    device->formats[5] = SoundIoFormatU16BE;
+    device->formats[6] = SoundIoFormatS24LE;
+    device->formats[7] = SoundIoFormatS24BE;
+    device->formats[8] = SoundIoFormatU24LE;
+    device->formats[9] = SoundIoFormatU24BE;
+    device->formats[10] = SoundIoFormatS32LE;
+    device->formats[11] = SoundIoFormatS32BE;
+    device->formats[12] = SoundIoFormatU32LE;
+    device->formats[13] = SoundIoFormatU32BE;
+    device->formats[14] = SoundIoFormatFloat32LE;
+    device->formats[15] = SoundIoFormatFloat32BE;
+    device->formats[16] = SoundIoFormatFloat64LE;
+    device->formats[17] = SoundIoFormatFloat64BE;
+
+    return 0;
+}
+
 int soundio_dummy_init(SoundIo *soundio) {
     assert(!soundio->backend_data);
     SoundIoDummy *sid = create<SoundIoDummy>();
@@ -287,17 +315,24 @@ int soundio_dummy_init(SoundIo *soundio) {
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup("dummy-out");
-        device->description = strdup("Dummy output device");
+        device->description = strdup("Dummy Output Device");
         if (!device->name || !device->description) {
-            free(device->name);
-            free(device->description);
+            soundio_device_unref(device);
             destroy_dummy(soundio);
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
-        device->default_sample_format = SoundIoSampleFormatFloat32NE;
+        int err;
+        if ((err = set_all_device_formats(device))) {
+            soundio_device_unref(device);
+            destroy_dummy(soundio);
+            return err;
+        }
+
         device->default_latency = 0.01;
-        device->sample_rate_default = 48000;
+        device->sample_rate_min = 2;
+        device->sample_rate_max = 5644800;
+        device->sample_rate_current = 48000;
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (soundio->safe_devices_info->output_devices.append(device)) {
@@ -325,9 +360,16 @@ int soundio_dummy_init(SoundIo *soundio) {
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
-        device->default_sample_format = SoundIoSampleFormatFloat32NE;
+        int err;
+        if ((err = set_all_device_formats(device))) {
+            soundio_device_unref(device);
+            destroy_dummy(soundio);
+            return err;
+        }
         device->default_latency = 0.01;
-        device->sample_rate_default = 48000;
+        device->sample_rate_min = 2;
+        device->sample_rate_max = 5644800;
+        device->sample_rate_current = 48000;
         device->purpose = SoundIoDevicePurposeInput;
 
         if (soundio->safe_devices_info->input_devices.append(device)) {

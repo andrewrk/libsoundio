@@ -140,74 +140,115 @@ enum SoundIoDevicePurpose {
     SoundIoDevicePurposeOutput,
 };
 
-enum SoundIoSampleFormat {
-    SoundIoSampleFormatInvalid,
-    SoundIoSampleFormatU8,          // Signed 8 bit
-    SoundIoSampleFormatS8,          // Unsigned 8 bit
-    SoundIoSampleFormatS16LE,       // Signed 16 bit Little Endian
-    SoundIoSampleFormatS16BE,       // Signed 16 bit Big Endian
-    SoundIoSampleFormatU16LE,       // Unsigned 16 bit Little Endian
-    SoundIoSampleFormatU16BE,       // Unsigned 16 bit Little Endian
-    SoundIoSampleFormatS24LE,       // Signed 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoSampleFormatS24BE,       // Signed 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoSampleFormatU24LE,       // Unsigned 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoSampleFormatU24BE,       // Unsigned 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoSampleFormatS32LE,       // Signed 32 bit Little Endian
-    SoundIoSampleFormatS32BE,       // Signed 32 bit Big Endian
-    SoundIoSampleFormatU32LE,       // Unsigned 32 bit Little Endian
-    SoundIoSampleFormatU32BE,       // Unsigned 32 bit Big Endian
-    SoundIoSampleFormatFloat32LE,   // Float 32 bit Little Endian, Range -1.0 to 1.0
-    SoundIoSampleFormatFloat32BE,   // Float 32 bit Big Endian, Range -1.0 to 1.0
-    SoundIoSampleFormatFloat64LE,   // Float 64 bit Little Endian, Range -1.0 to 1.0
-    SoundIoSampleFormatFloat64BE,   // Float 64 bit Big Endian, Range -1.0 to 1.0
+enum SoundIoFormat {
+    SoundIoFormatInvalid,
+    SoundIoFormatS8,          // Signed 8 bit
+    SoundIoFormatU8,          // Unsigned 8 bit
+    SoundIoFormatS16LE,       // Signed 16 bit Little Endian
+    SoundIoFormatS16BE,       // Signed 16 bit Big Endian
+    SoundIoFormatU16LE,       // Unsigned 16 bit Little Endian
+    SoundIoFormatU16BE,       // Unsigned 16 bit Little Endian
+    SoundIoFormatS24LE,       // Signed 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatS24BE,       // Signed 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatU24LE,       // Unsigned 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatU24BE,       // Unsigned 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatS32LE,       // Signed 32 bit Little Endian
+    SoundIoFormatS32BE,       // Signed 32 bit Big Endian
+    SoundIoFormatU32LE,       // Unsigned 32 bit Little Endian
+    SoundIoFormatU32BE,       // Unsigned 32 bit Big Endian
+    SoundIoFormatFloat32LE,   // Float 32 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat32BE,   // Float 32 bit Big Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64LE,   // Float 64 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64BE,   // Float 64 bit Big Endian, Range -1.0 to 1.0
 };
 
 #if defined(SOUNDIO_OS_BIG_ENDIAN)
-#define SoundIoSampleFormatS16NE SoundIoSampleFormatS16BE
-#define SoundIoSampleFormatU16NE SoundIoSampleFormatU16BE
-#define SoundIoSampleFormatS24NE SoundIoSampleFormatS24BE
-#define SoundIoSampleFormatU24NE SoundIoSampleFormatU24BE
-#define SoundIoSampleFormatS32NE SoundIoSampleFormatS32BE
-#define SoundIoSampleFormatU32NE SoundIoSampleFormatU32BE
-#define SoundIoSampleFormatFloat32NE SoundIoSampleFormatFloat32BE
-#define SoundIoSampleFormatFloat64NE SoundIoSampleFormatFloat64BE
+#define SoundIoFormatS16NE SoundIoFormatS16BE
+#define SoundIoFormatU16NE SoundIoFormatU16BE
+#define SoundIoFormatS24NE SoundIoFormatS24BE
+#define SoundIoFormatU24NE SoundIoFormatU24BE
+#define SoundIoFormatS32NE SoundIoFormatS32BE
+#define SoundIoFormatU32NE SoundIoFormatU32BE
+#define SoundIoFormatFloat32NE SoundIoFormatFloat32BE
+#define SoundIoFormatFloat64NE SoundIoFormatFloat64BE
 #elif defined(SOUNDIO_OS_LITTLE_ENDIAN)
-#define SoundIoSampleFormatS16NE SoundIoSampleFormatS16LE
-#define SoundIoSampleFormatU16NE SoundIoSampleFormatU16LE
-#define SoundIoSampleFormatS24NE SoundIoSampleFormatS24LE
-#define SoundIoSampleFormatU24NE SoundIoSampleFormatU24LE
-#define SoundIoSampleFormatS32NE SoundIoSampleFormatS32LE
-#define SoundIoSampleFormatU32NE SoundIoSampleFormatU32LE
-#define SoundIoSampleFormatFloat32NE SoundIoSampleFormatFloat32LE
-#define SoundIoSampleFormatFloat64NE SoundIoSampleFormatFloat64LE
+#define SoundIoFormatS16NE SoundIoFormatS16LE
+#define SoundIoFormatU16NE SoundIoFormatU16LE
+#define SoundIoFormatS24NE SoundIoFormatS24LE
+#define SoundIoFormatU24NE SoundIoFormatU24LE
+#define SoundIoFormatS32NE SoundIoFormatS32LE
+#define SoundIoFormatU32NE SoundIoFormatU32LE
+#define SoundIoFormatFloat32NE SoundIoFormatFloat32LE
+#define SoundIoFormatFloat64NE SoundIoFormatFloat64LE
 #endif
 
 struct SoundIoDevice {
     struct SoundIo *soundio;
+
+    // `name` uniquely identifies this device. `description` is user-friendly
+    // text to describe the device.
     char *name;
     char *description;
+
+    // If this information is missing due to a `probe_error`, the number of
+    // channels will be zero.
     struct SoundIoChannelLayout channel_layout;
 
-    // these values might not actually matter. audio hardware has a set of
-    // {sample format, sample rate} that they support. you can't know
-    // whether something worked until you try it.
-    // these values can be unknown
-    enum SoundIoSampleFormat default_sample_format;
+    // A device is either a raw device or it is a virtual device that is
+    // provided by a software mixing service such as dmix or PulseAudio (see
+    // `is_raw`). If it is a raw device, `current_format` is meaningless;
+    // the device has no current format until you open it. On the other hand,
+    // if it is a virtual device, `current_format` describes the destination
+    // sample format that your audio will be converted to. Or, if you're the
+    // lucky first application to open the device, you might cause the
+    // `current_format` to change to your format. Generally, you want to
+    // ignore `current_format` and use whatever format is most convenient
+    // for you which is supported by the device, because when you are the only
+    // application left, the mixer might decide to switch `current_format` to
+    // yours. You can learn the supported formats via `formats` and
+    // `format_count`. If this information is missing due to a probe error,
+    // `formats` will be `NULL`. If `current_format` is unavailable, it will be
+    // set to `SoundIoFormatInvalid`.
+    enum SoundIoFormat *formats;
+    int format_count;
+    enum SoundIoFormat current_format;
 
+    // Sample rate is handled very similar to sample format; see those docs.
+    // If sample rate information is missing due to a probe error, the field
+    // will be set to zero.
     int sample_rate_min;
     int sample_rate_max;
-    int sample_rate_default;
+    int sample_rate_current;
 
     double default_latency;
+
+    // Tells whether this device is an input device or an output device.
     enum SoundIoDevicePurpose purpose;
-    int ref_count;
+
+    // raw means that you are directly opening the hardware device and not
+    // going through a proxy such as dmix or PulseAudio. When you open a raw
+    // device, other applications on the computer are not able to
+    // simultaneously access the device. Raw devices do not perform automatic
+    // resampling and thus tend to have fewer formats available.
     bool is_raw;
+
+    // Devices are reference counted. See `soundio_device_ref` and
+    // `soundio_device_unref`.
+    int ref_count;
+
+    // This is set to a SoundIoError representing the result of the device
+    // probe. Ideally this will be SoundIoErrorNone in which case all the
+    // fields of the device will be populated. If there is an error code here
+    // then information about formats, sample rates, and channel layouts might
+    // be missing.
+    int probe_error;
 };
 
+// TODO rename this to SoundIoOutStream
 struct SoundIoOutputDevice {
     void *backend_data;
     struct SoundIoDevice *device;
-    enum SoundIoSampleFormat sample_format;
+    enum SoundIoFormat format;
     int sample_rate;
     double latency;
     int bytes_per_frame;
@@ -217,10 +258,11 @@ struct SoundIoOutputDevice {
     void (*write_callback)(struct SoundIoOutputDevice *, int frame_count);
 };
 
+// TODO rename this to SoundIoInStream
 struct SoundIoInputDevice {
     void *backend_data;
     struct SoundIoDevice *device;
-    enum SoundIoSampleFormat sample_format;
+    enum SoundIoFormat format;
     int sample_rate;
     double latency;
     int bytes_per_frame;
@@ -276,7 +318,7 @@ void soundio_destroy(struct SoundIo *soundio);
 int soundio_connect(struct SoundIo *soundio);
 void soundio_disconnect(struct SoundIo *soundio);
 
-const char *soundio_error_string(int error);
+const char *soundio_strerror(int error);
 const char *soundio_backend_name(enum SoundIoBackend backend);
 
 // when you call this, the on_devices_change and on_events_signal callbacks
@@ -315,19 +357,19 @@ bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout);
 
 // Sample Formats
 
-int soundio_get_bytes_per_sample(enum SoundIoSampleFormat sample_format);
+int soundio_get_bytes_per_sample(enum SoundIoFormat format);
 
-static inline int soundio_get_bytes_per_frame(enum SoundIoSampleFormat sample_format, int channel_count) {
-    return soundio_get_bytes_per_sample(sample_format) * channel_count;
+static inline int soundio_get_bytes_per_frame(enum SoundIoFormat format, int channel_count) {
+    return soundio_get_bytes_per_sample(format) * channel_count;
 }
 
-static inline int soundio_get_bytes_per_second(enum SoundIoSampleFormat sample_format,
+static inline int soundio_get_bytes_per_second(enum SoundIoFormat format,
         int channel_count, int sample_rate)
 {
-    return soundio_get_bytes_per_frame(sample_format, channel_count) * sample_rate;
+    return soundio_get_bytes_per_frame(format, channel_count) * sample_rate;
 }
 
-const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format);
+const char * soundio_format_string(enum SoundIoFormat format);
 
 
 
@@ -359,7 +401,6 @@ const char *soundio_device_name(const struct SoundIoDevice *device);
 const char *soundio_device_description(const struct SoundIoDevice *device);
 
 const struct SoundIoChannelLayout *soundio_device_channel_layout(const struct SoundIoDevice *device);
-int soundio_device_sample_rate(const struct SoundIoDevice *device);
 
 bool soundio_device_equal(
         const struct SoundIoDevice *a,
@@ -371,7 +412,7 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 // Output Devices
 
 int soundio_output_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, int sample_rate,
+        enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
         void (*write_callback)(struct SoundIoOutputDevice *, int frame_count),
         void (*underrun_callback)(struct SoundIoOutputDevice *),
@@ -397,7 +438,7 @@ void soundio_output_device_clear_buffer(struct SoundIoOutputDevice *output_devic
 // Input Devices
 
 int soundio_input_device_create(struct SoundIoDevice *device,
-        enum SoundIoSampleFormat sample_format, int sample_rate,
+        enum SoundIoFormat format, int sample_rate,
         double latency, void *userdata,
         void (*read_callback)(struct SoundIoInputDevice *),
         struct SoundIoInputDevice **out_input_device);
