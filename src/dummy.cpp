@@ -295,7 +295,7 @@ int soundio_dummy_init(SoundIo *soundio) {
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
-        device->default_sample_format = SoundIoSampleFormatFloat;
+        device->default_sample_format = SoundIoSampleFormatFloat32NE;
         device->default_latency = 0.01;
         device->sample_rate_default = 48000;
         device->purpose = SoundIoDevicePurposeOutput;
@@ -325,7 +325,7 @@ int soundio_dummy_init(SoundIo *soundio) {
             return SoundIoErrorNoMem;
         }
         device->channel_layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
-        device->default_sample_format = SoundIoSampleFormatFloat;
+        device->default_sample_format = SoundIoSampleFormatFloat32NE;
         device->default_latency = 0.01;
         device->sample_rate_default = 48000;
         device->purpose = SoundIoDevicePurposeInput;

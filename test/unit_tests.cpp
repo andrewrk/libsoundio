@@ -37,7 +37,7 @@ static void test_create_output_device(void) {
     soundio_device_name(device);
     soundio_device_description(device);
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoSampleFormatFloat, 48000, 0.1, NULL,
+    soundio_output_device_create(device, SoundIoSampleFormatFloat32NE, 48000, 0.1, NULL,
             write_callback, underrun_callback, &output_device);
     soundio_output_device_destroy(output_device);
     soundio_device_unref(device);

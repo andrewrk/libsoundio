@@ -11,7 +11,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-
 // safe to call from any thread(s) multiple times, but
 // must be called at least once before calling any other os functions
 void soundio_os_init(void);

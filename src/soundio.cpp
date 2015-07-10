@@ -35,30 +35,53 @@ const char *soundio_error_string(int error) {
 
 int soundio_get_bytes_per_sample(enum SoundIoSampleFormat sample_format) {
     switch (sample_format) {
-    case SoundIoSampleFormatUInt8: return 1;
-    case SoundIoSampleFormatInt16: return 2;
-    case SoundIoSampleFormatInt24: return 3;
-    case SoundIoSampleFormatInt32: return 4;
-    case SoundIoSampleFormatFloat: return 4;
-    case SoundIoSampleFormatDouble: return 8;
-    case SoundIoSampleFormatInvalid: soundio_panic("invalid sample format");
+    case SoundIoSampleFormatInvalid:    soundio_panic("invalid sample format");
+    case SoundIoSampleFormatU8:         return 1;
+    case SoundIoSampleFormatS8:         return 1;
+    case SoundIoSampleFormatS16LE:      return 2;
+    case SoundIoSampleFormatS16BE:      return 2;
+    case SoundIoSampleFormatU16LE:      return 2;
+    case SoundIoSampleFormatU16BE:      return 2;
+    case SoundIoSampleFormatS24LE:      return 4;
+    case SoundIoSampleFormatS24BE:      return 4;
+    case SoundIoSampleFormatU24LE:      return 4;
+    case SoundIoSampleFormatU24BE:      return 4;
+    case SoundIoSampleFormatS32LE:      return 4;
+    case SoundIoSampleFormatS32BE:      return 4;
+    case SoundIoSampleFormatU32LE:      return 4;
+    case SoundIoSampleFormatU32BE:      return 4;
+    case SoundIoSampleFormatFloat32LE:  return 4;
+    case SoundIoSampleFormatFloat32BE:  return 4;
+    case SoundIoSampleFormatFloat64LE:  return 8;
+    case SoundIoSampleFormatFloat64BE:  return 8;
     }
     soundio_panic("invalid sample format");
 }
 
 const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format) {
     switch (sample_format) {
-    case SoundIoSampleFormatUInt8: return "unsigned 8-bit integer";
-    case SoundIoSampleFormatInt16: return "signed 16-bit integer";
-    case SoundIoSampleFormatInt24: return "signed 24-bit integer";
-    case SoundIoSampleFormatInt32: return "signed 32-bit integer";
-    case SoundIoSampleFormatFloat: return "32-bit float";
-    case SoundIoSampleFormatDouble: return "64-bit float";
-    case SoundIoSampleFormatInvalid: return "invalid sample format";
+    case SoundIoSampleFormatInvalid: return "(invalid sample format)";
+    case SoundIoSampleFormatU8:         return "signed 8-bit";
+    case SoundIoSampleFormatS8:         return "unsigned 8-bit";
+    case SoundIoSampleFormatS16LE:      return "signed 16-bit LE";
+    case SoundIoSampleFormatS16BE:      return "signed 16-bit BE";
+    case SoundIoSampleFormatU16LE:      return "unsigned 16-bit LE";
+    case SoundIoSampleFormatU16BE:      return "unsigned 16-bit LE";
+    case SoundIoSampleFormatS24LE:      return "signed 24-bit LE";
+    case SoundIoSampleFormatS24BE:      return "signed 24-bit BE";
+    case SoundIoSampleFormatU24LE:      return "unsigned 24-bit LE";
+    case SoundIoSampleFormatU24BE:      return "unsigned 24-bit BE";
+    case SoundIoSampleFormatS32LE:      return "signed 32-bit LE";
+    case SoundIoSampleFormatS32BE:      return "signed 32-bit BE";
+    case SoundIoSampleFormatU32LE:      return "unsigned 32-bit LE";
+    case SoundIoSampleFormatU32BE:      return "unsigned 32-bit BE";
+    case SoundIoSampleFormatFloat32LE:  return "float 32-bit LE";
+    case SoundIoSampleFormatFloat32BE:  return "float 32-bit BE";
+    case SoundIoSampleFormatFloat64LE:  return "float 64-bit LE";
+    case SoundIoSampleFormatFloat64BE:  return "float 64-bit BE";
     }
-    soundio_panic("invalid sample format");
+    return "(invalid sample format)";
 }
-
 
 
 const char *soundio_backend_name(enum SoundIoBackend backend) {

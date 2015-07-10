@@ -11,6 +11,30 @@
 #include "config.h"
 #include <stdbool.h>
 
+#if (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) || \
+    defined(__BIG_ENDIAN__) || \
+    defined(__ARMEB__) || \
+    defined(__THUMBEB__) || \
+    defined(__AARCH64EB__) || \
+    defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
+
+#define SOUNDIO_OS_BIG_ENDIAN
+
+#elif (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || \
+    defined(__LITTLE_ENDIAN__) || \
+    defined(__ARMEL__) || \
+    defined(__THUMBEL__) || \
+    defined(__AARCH64EL__) || \
+    defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) || \
+    defined(_WIN32)
+
+#define SOUNDIO_OS_LITTLE_ENDIAN
+
+#else
+#error unknown byte order
+#endif
+
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -116,16 +140,47 @@ enum SoundIoDevicePurpose {
     SoundIoDevicePurposeOutput,
 };
 
-// always native-endian
 enum SoundIoSampleFormat {
-    SoundIoSampleFormatUInt8,
-    SoundIoSampleFormatInt16,
-    SoundIoSampleFormatInt24,
-    SoundIoSampleFormatInt32,
-    SoundIoSampleFormatFloat,
-    SoundIoSampleFormatDouble,
     SoundIoSampleFormatInvalid,
+    SoundIoSampleFormatU8,          // Signed 8 bit
+    SoundIoSampleFormatS8,          // Unsigned 8 bit
+    SoundIoSampleFormatS16LE,       // Signed 16 bit Little Endian
+    SoundIoSampleFormatS16BE,       // Signed 16 bit Big Endian
+    SoundIoSampleFormatU16LE,       // Unsigned 16 bit Little Endian
+    SoundIoSampleFormatU16BE,       // Unsigned 16 bit Little Endian
+    SoundIoSampleFormatS24LE,       // Signed 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoSampleFormatS24BE,       // Signed 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoSampleFormatU24LE,       // Unsigned 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoSampleFormatU24BE,       // Unsigned 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoSampleFormatS32LE,       // Signed 32 bit Little Endian
+    SoundIoSampleFormatS32BE,       // Signed 32 bit Big Endian
+    SoundIoSampleFormatU32LE,       // Unsigned 32 bit Little Endian
+    SoundIoSampleFormatU32BE,       // Unsigned 32 bit Big Endian
+    SoundIoSampleFormatFloat32LE,   // Float 32 bit Little Endian, Range -1.0 to 1.0
+    SoundIoSampleFormatFloat32BE,   // Float 32 bit Big Endian, Range -1.0 to 1.0
+    SoundIoSampleFormatFloat64LE,   // Float 64 bit Little Endian, Range -1.0 to 1.0
+    SoundIoSampleFormatFloat64BE,   // Float 64 bit Big Endian, Range -1.0 to 1.0
 };
+
+#if defined(SOUNDIO_OS_BIG_ENDIAN)
+#define SoundIoSampleFormatS16NE SoundIoSampleFormatS16BE
+#define SoundIoSampleFormatU16NE SoundIoSampleFormatU16BE
+#define SoundIoSampleFormatS24NE SoundIoSampleFormatS24BE
+#define SoundIoSampleFormatU24NE SoundIoSampleFormatU24BE
+#define SoundIoSampleFormatS32NE SoundIoSampleFormatS32BE
+#define SoundIoSampleFormatU32NE SoundIoSampleFormatU32BE
+#define SoundIoSampleFormatFloat32NE SoundIoSampleFormatFloat32BE
+#define SoundIoSampleFormatFloat64NE SoundIoSampleFormatFloat64BE
+#elif defined(SOUNDIO_OS_LITTLE_ENDIAN)
+#define SoundIoSampleFormatS16NE SoundIoSampleFormatS16LE
+#define SoundIoSampleFormatU16NE SoundIoSampleFormatU16LE
+#define SoundIoSampleFormatS24NE SoundIoSampleFormatS24LE
+#define SoundIoSampleFormatU24NE SoundIoSampleFormatU24LE
+#define SoundIoSampleFormatS32NE SoundIoSampleFormatS32LE
+#define SoundIoSampleFormatU32NE SoundIoSampleFormatU32LE
+#define SoundIoSampleFormatFloat32NE SoundIoSampleFormatFloat32LE
+#define SoundIoSampleFormatFloat64NE SoundIoSampleFormatFloat64LE
+#endif
 
 struct SoundIoDevice {
     struct SoundIo *soundio;
@@ -273,6 +328,7 @@ static inline int soundio_get_bytes_per_second(enum SoundIoSampleFormat sample_f
 }
 
 const char * soundio_sample_format_string(enum SoundIoSampleFormat sample_format);
+
 
 
 

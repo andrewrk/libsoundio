@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
             soundio_device_description(device));
 
     struct SoundIoOutputDevice *output_device;
-    soundio_output_device_create(device, SoundIoSampleFormatFloat, 48000,
+    soundio_output_device_create(device, SoundIoSampleFormatFloat32NE, 48000,
             0.1, NULL, write_callback, underrun_callback, &output_device);
 
     if ((err = soundio_output_device_start(output_device)))

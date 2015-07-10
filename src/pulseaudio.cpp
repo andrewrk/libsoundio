@@ -138,14 +138,28 @@ static double usec_to_sec(pa_usec_t usec) {
     return (double)usec / (double)PA_USEC_PER_SEC;
 }
 
+
 static SoundIoSampleFormat sample_format_from_pulseaudio(pa_sample_spec sample_spec) {
     switch (sample_spec.format) {
-    case PA_SAMPLE_U8:        return SoundIoSampleFormatUInt8;
-    case PA_SAMPLE_S16NE:     return SoundIoSampleFormatInt16;
-    case PA_SAMPLE_S32NE:     return SoundIoSampleFormatInt32;
-    case PA_SAMPLE_FLOAT32NE: return SoundIoSampleFormatFloat;
-    default:                  return SoundIoSampleFormatInvalid;
+    case PA_SAMPLE_U8:          return SoundIoSampleFormatU8;
+    case PA_SAMPLE_S16LE:       return SoundIoSampleFormatS16LE;
+    case PA_SAMPLE_S16BE:       return SoundIoSampleFormatS16BE;
+    case PA_SAMPLE_FLOAT32LE:   return SoundIoSampleFormatFloat32LE;
+    case PA_SAMPLE_FLOAT32BE:   return SoundIoSampleFormatFloat32BE;
+    case PA_SAMPLE_S32LE:       return SoundIoSampleFormatS32LE;
+    case PA_SAMPLE_S32BE:       return SoundIoSampleFormatS32BE;
+    case PA_SAMPLE_S24_32LE:    return SoundIoSampleFormatS24LE;
+    case PA_SAMPLE_S24_32BE:    return SoundIoSampleFormatS24BE;
+
+    case PA_SAMPLE_MAX:
+    case PA_SAMPLE_INVALID:
+    case PA_SAMPLE_ALAW:
+    case PA_SAMPLE_ULAW:
+    case PA_SAMPLE_S24LE:
+    case PA_SAMPLE_S24BE:
+        return SoundIoSampleFormatInvalid;
     }
+    return SoundIoSampleFormatInvalid;
 }
 
 static int sample_rate_from_pulseaudio(pa_sample_spec sample_spec) {
@@ -425,22 +439,29 @@ static void wakeup(SoundIo *soundio) {
 
 static pa_sample_format_t to_pulseaudio_sample_format(SoundIoSampleFormat sample_format) {
     switch (sample_format) {
-    case SoundIoSampleFormatUInt8:
-        return PA_SAMPLE_U8;
-    case SoundIoSampleFormatInt16:
-        return PA_SAMPLE_S16NE;
-    case SoundIoSampleFormatInt24:
-        return PA_SAMPLE_S24NE;
-    case SoundIoSampleFormatInt32:
-        return PA_SAMPLE_S32NE;
-    case SoundIoSampleFormatFloat:
-        return PA_SAMPLE_FLOAT32NE;
-    case SoundIoSampleFormatDouble:
-        soundio_panic("cannot use double sample format with pulseaudio");
+    case SoundIoSampleFormatU8:         return PA_SAMPLE_U8;
+    case SoundIoSampleFormatS16LE:      return PA_SAMPLE_S16LE;
+    case SoundIoSampleFormatS16BE:      return PA_SAMPLE_S16BE;
+    case SoundIoSampleFormatS24LE:      return PA_SAMPLE_S24_32LE;
+    case SoundIoSampleFormatS24BE:      return PA_SAMPLE_S24_32BE;
+    case SoundIoSampleFormatS32LE:      return PA_SAMPLE_S32LE;
+    case SoundIoSampleFormatS32BE:      return PA_SAMPLE_S32BE;
+    case SoundIoSampleFormatFloat32LE:  return PA_SAMPLE_FLOAT32LE;
+    case SoundIoSampleFormatFloat32BE:  return PA_SAMPLE_FLOAT32BE;
+
     case SoundIoSampleFormatInvalid:
-        soundio_panic("invalid sample format");
+    case SoundIoSampleFormatS8:
+    case SoundIoSampleFormatU16LE:
+    case SoundIoSampleFormatU16BE:
+    case SoundIoSampleFormatU24LE:
+    case SoundIoSampleFormatU24BE:
+    case SoundIoSampleFormatU32LE:
+    case SoundIoSampleFormatU32BE:
+    case SoundIoSampleFormatFloat64LE:
+    case SoundIoSampleFormatFloat64BE:
+        return PA_SAMPLE_INVALID;
     }
-    soundio_panic("invalid sample format");
+    return PA_SAMPLE_INVALID;
 }
 
 static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_id) {
