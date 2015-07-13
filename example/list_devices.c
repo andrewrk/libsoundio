@@ -27,7 +27,6 @@ static void print_channel_layout(const struct SoundIoChannelLayout *layout) {
             fprintf(stderr, ", %s", soundio_get_channel_name(layout->channels[i]));
         }
     }
-
 }
 
 static void print_device(struct SoundIoDevice *device, bool is_default) {
@@ -39,9 +38,18 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
     if (device->probe_error) {
         fprintf(stderr, "  probe error: %s\n", soundio_strerror(device->probe_error));
     } else {
-        fprintf(stderr, "  channel layout: ");
-        print_channel_layout(&device->channel_layout);
-        fprintf(stderr, "\n");
+        fprintf(stderr, "  channel layouts:\n");
+        for (int i = 0; i < device->layout_count; i += 1) {
+            fprintf(stderr, "    ");
+            print_channel_layout(&device->layouts[i]);
+            fprintf(stderr, "\n");
+        }
+        if (device->current_layout.channel_count > 0) {
+            fprintf(stderr, "  current layout: ");
+            print_channel_layout(&device->current_layout);
+            fprintf(stderr, "\n");
+        }
+
         fprintf(stderr, "  min sample rate: %d\n", device->sample_rate_min);
         fprintf(stderr, "  max sample rate: %d\n", device->sample_rate_max);
         if (device->sample_rate_current)

@@ -8,6 +8,6 @@
 #ifndef SOUNDIO_PULSEAUDIO_HPP
 #define SOUNDIO_PULSEAUDIO_HPP
 
-int soundio_pulseaudio_init(struct SoundIo *soundio);
+int soundio_pulseaudio_init(struct SoundIoPrivate *si);
 
 #endif

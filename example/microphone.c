@@ -25,18 +25,18 @@ static void panic(const char *format, ...) {
     abort();
 }
 
-static void read_callback(struct SoundIoInStream *in_stream) {
+static void read_callback(struct SoundIoInStream *instream) {
     fprintf(stderr, "read_callback\n");
 }
 
-static void write_callback(struct SoundIoOutStream *out_stream, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
     fprintf(stderr, "write_callback\n");
 }
 
-static void underrun_callback(struct SoundIoOutStream *out_stream) {
+static void underrun_callback(struct SoundIoOutStream *outstream) {
     static int count = 0;
     fprintf(stderr, "underrun %d\n", count++);
-    soundio_out_stream_fill_with_silence(out_stream);
+    soundio_outstream_fill_with_silence(outstream);
 }
 
 int main(int argc, char **argv) {
@@ -67,30 +67,50 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Input device: %s\n", in_device->description);
     fprintf(stderr, "Output device: %s\n", out_device->description);
 
-    if (!soundio_channel_layout_equal(&in_device->channel_layout, &out_device->channel_layout))
+    soundio_device_sort_channel_layouts(out_device);
+    const struct SoundIoChannelLayout *layout = soundio_best_matching_channel_layout(
+            out_device->layouts, out_device->layout_count,
+            in_device->layouts, in_device->layout_count);
+
+    if (!layout)
         panic("channel layouts not compatible");
 
-    double latency = 0.1;
+    struct SoundIoInStream *instream = soundio_instream_create(in_device);
+    if (!instream)
+        panic("out of memory");
+    instream->format = SoundIoFormatFloat32NE; // TODO pick compatible ones
+    instream->sample_rate = 48000; // TODO pick compatible ones
+    instream->layout = *layout;
+    instream->latency = 0.1;
+    instream->read_callback = read_callback;
 
-    struct SoundIoInStream *in_stream;
-    soundio_in_stream_create(in_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
-            read_callback, &in_stream);
+    if ((err = soundio_instream_open(instream)))
+        panic("unable to open input stream: %s", soundio_strerror(err));
 
-    struct SoundIoOutStream *out_stream;
-    soundio_out_stream_create(out_device, SoundIoFormatFloat32NE, 48000, latency, NULL,
-            write_callback, underrun_callback, &out_stream);
+    struct SoundIoOutStream *outstream = soundio_outstream_create(out_device);
+    if (!outstream)
+        panic("out of memory");
+    outstream->format = SoundIoFormatFloat32NE;
+    outstream->sample_rate = 48000;
+    outstream->layout = *layout;
+    outstream->latency = 0.1;
+    outstream->write_callback = write_callback;
+    outstream->underrun_callback = underrun_callback;
 
-    if ((err = soundio_in_stream_start(in_stream)))
+    if ((err = soundio_outstream_open(outstream)))
+        panic("unable to open output stream: %s", soundio_strerror(err));
+
+    if ((err = soundio_instream_start(instream)))
         panic("unable to start input device: %s", soundio_strerror(err));
 
-    if ((err = soundio_out_stream_start(out_stream)))
+    if ((err = soundio_outstream_start(outstream)))
         panic("unable to start output device: %s", soundio_strerror(err));
 
     for (;;)
         soundio_wait_events(soundio);
 
-    soundio_out_stream_destroy(out_stream);
-    soundio_in_stream_destroy(in_stream);
+    soundio_outstream_destroy(outstream);
+    soundio_instream_destroy(instream);
     soundio_device_unref(in_device);
     soundio_device_unref(out_device);
     soundio_destroy(soundio);

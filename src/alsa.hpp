@@ -8,7 +8,7 @@
 #ifndef SOUNDIO_ALSA_HPP
 #define SOUNDIO_ALSA_HPP
 
-int soundio_alsa_init(struct SoundIo *soundio);
+int soundio_alsa_init(struct SoundIoPrivate *si);
 
 #endif
 

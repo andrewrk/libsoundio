@@ -8,6 +8,6 @@
 #ifndef SOUNDIO_DUMMY_HPP
 #define SOUNDIO_DUMMY_HPP
 
-int soundio_dummy_init(struct SoundIo *soundio);
+int soundio_dummy_init(struct SoundIoPrivate *si);
 
 #endif

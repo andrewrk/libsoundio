@@ -26,7 +26,7 @@ static void test_os_get_time(void) {
 static void write_callback(struct SoundIoOutStream *device, int frame_count) { }
 static void underrun_callback(struct SoundIoOutStream *device) { }
 
-static void test_create_out_stream(void) {
+static void test_create_outstream(void) {
     struct SoundIo *soundio = soundio_create();
     assert(soundio);
     ok_or_panic(soundio_connect(soundio));
@@ -34,10 +34,17 @@ static void test_create_out_stream(void) {
     assert(default_out_device_index >= 0);
     struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);
     assert(device);
-    struct SoundIoOutStream *out_stream;
-    soundio_out_stream_create(device, SoundIoFormatFloat32NE, 48000, 0.1, NULL,
-            write_callback, underrun_callback, &out_stream);
-    soundio_out_stream_destroy(out_stream);
+    struct SoundIoOutStream *outstream = soundio_outstream_create(device);
+    outstream->format = SoundIoFormatFloat32NE;
+    outstream->sample_rate = 48000;
+    outstream->layout = device->layouts[0];
+    outstream->latency = 0.1;
+    outstream->write_callback = write_callback;
+    outstream->underrun_callback = underrun_callback;
+
+    ok_or_panic(soundio_outstream_open(outstream));
+
+    soundio_outstream_destroy(outstream);
     soundio_device_unref(device);
     soundio_destroy(soundio);
 }
@@ -161,7 +168,7 @@ struct Test {
 
 static struct Test tests[] = {
     {"os_get_time", test_os_get_time},
-    {"create output stream", test_create_out_stream},
+    {"create output stream", test_create_outstream},
     {"ring buffer basic", test_ring_buffer_basic},
     {"ring buffer threaded", test_ring_buffer_threaded},
     {NULL, NULL},

@@ -310,7 +310,6 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
 const char *soundio_get_channel_name(enum SoundIoChannelId id) {
     switch (id) {
     case SoundIoChannelIdInvalid: return "(Invalid Channel)";
-    case SoundIoChannelIdCount: return "(Invalid Channel)";
 
     case SoundIoChannelIdFrontLeft: return "Front Left";
     case SoundIoChannelIdFrontRight: return "Front Right";
@@ -405,5 +404,6 @@ bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout) 
             return true;
         }
     }
+    layout->name = nullptr;
     return false;
 }

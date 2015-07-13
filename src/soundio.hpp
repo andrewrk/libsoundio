@@ -19,6 +19,51 @@ struct SoundIoDevicesInfo {
     int default_input_index;
 };
 
+struct SoundIoOutStreamPrivate {
+    struct SoundIoOutStream pub;
+    void *backend_data;
+};
+
+struct SoundIoInStreamPrivate {
+    struct SoundIoInStream pub;
+    void *backend_data;
+};
+
+struct SoundIoPrivate {
+    struct SoundIo pub;
+
+    enum SoundIoBackend current_backend;
+
+    // safe to read without a mutex from a single thread
+    struct SoundIoDevicesInfo *safe_devices_info;
+
+    void *backend_data;
+    void (*destroy)(struct SoundIoPrivate *);
+    void (*flush_events)(struct SoundIoPrivate *);
+    void (*wait_events)(struct SoundIoPrivate *);
+    void (*wakeup)(struct SoundIoPrivate *);
+
+    int (*outstream_init)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    void (*outstream_destroy)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    int (*outstream_start)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    int (*outstream_free_count)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    void (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
+            char **data, int *frame_count);
+    void (*outstream_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
+            char *data, int frame_count);
+    void (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+
+
+    int (*instream_init)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    void (*instream_destroy)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    int (*instream_start)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    void (*instream_peek)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
+            const char **data, int *frame_count);
+    void (*instream_drop)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    void (*instream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+};
+
 void soundio_destroy_devices_info(struct SoundIoDevicesInfo *devices_info);
+
 
 #endif

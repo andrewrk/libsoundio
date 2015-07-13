@@ -14,7 +14,7 @@
 #ifdef __cplusplus
 extern "C"
 {
-#endif /* __cplusplus */
+#endif
 
 struct SoundIo;
 struct SoundIoDevicesInfo;
@@ -25,6 +25,8 @@ enum SoundIoError {
     SoundIoErrorInitAudioBackend,
     SoundIoErrorSystemResources,
     SoundIoErrorOpeningDevice,
+    SoundIoErrorInvalid,
+    SoundIoErrorBackendUnavailable,
 };
 
 enum SoundIoChannelId {
@@ -64,15 +66,6 @@ enum SoundIoChannelId {
     SoundIoChannelIdBottomCenter,
     SoundIoChannelIdBottomLeftCenter,
     SoundIoChannelIdBottomRightCenter,
-
-    SoundIoChannelIdCount,
-};
-
-#define SOUNDIO_MAX_CHANNELS 32
-struct SoundIoChannelLayout {
-    const char *name;
-    int channel_count;
-    enum SoundIoChannelId channels[SOUNDIO_MAX_CHANNELS];
 };
 
 enum SoundIoChannelLayoutId {
@@ -160,7 +153,17 @@ enum SoundIoFormat {
 #error unknown byte order
 #endif
 
+// The size of this struct is OK to use.
+#define SOUNDIO_MAX_CHANNELS 32
+struct SoundIoChannelLayout {
+    const char *name;
+    int channel_count;
+    enum SoundIoChannelId channels[SOUNDIO_MAX_CHANNELS];
+};
+
+// The size of this struct is not part of the API or ABI.
 struct SoundIoDevice {
+    // Read-only. Set automatically.
     struct SoundIo *soundio;
 
     // `name` uniquely identifies this device. `description` is user-friendly
@@ -168,9 +171,14 @@ struct SoundIoDevice {
     char *name;
     char *description;
 
-    // If this information is missing due to a `probe_error`, the number of
-    // channels will be zero.
-    struct SoundIoChannelLayout channel_layout;
+    // Channel layouts are handled similarly to sample format; see those docs.
+    // If this information is missing due to a `probe_error`, `layouts`
+    // will be NULL. It's OK to modify this data, for example calling
+    // soundio_sort_channel_layouts on it.
+    // Devices are guaranteed to have at least 1 channel layout.
+    struct SoundIoChannelLayout *layouts;
+    int layout_count;
+    struct SoundIoChannelLayout current_layout;
 
     // A device is either a raw device or it is a virtual device that is
     // provided by a software mixing service such as dmix or PulseAudio (see
@@ -187,6 +195,7 @@ struct SoundIoDevice {
     // `format_count`. If this information is missing due to a probe error,
     // `formats` will be `NULL`. If `current_format` is unavailable, it will be
     // set to `SoundIoFormatInvalid`.
+    // Devices are guaranteed to have at least 1 format available.
     enum SoundIoFormat *formats;
     int format_count;
     enum SoundIoFormat current_format;
@@ -194,6 +203,7 @@ struct SoundIoDevice {
     // Sample rate is handled very similar to sample format; see those docs.
     // If sample rate information is missing due to a probe error, the field
     // will be set to zero.
+    // Devices are guaranteed to have at least 1 sample rate available.
     int sample_rate_min;
     int sample_rate_max;
     int sample_rate_current;
@@ -222,66 +232,42 @@ struct SoundIoDevice {
     int probe_error;
 };
 
+// The size of this struct is not part of the API or ABI.
 struct SoundIoOutStream {
-    void *backend_data;
     struct SoundIoDevice *device;
     enum SoundIoFormat format;
     int sample_rate;
+    struct SoundIoChannelLayout layout;
     double latency;
-    int bytes_per_frame;
 
     void *userdata;
     void (*underrun_callback)(struct SoundIoOutStream *);
     void (*write_callback)(struct SoundIoOutStream *, int frame_count);
+
+    // computed automatically when you call soundio_outstream_open
+    int bytes_per_frame;
 };
 
+// The size of this struct is not part of the API or ABI.
 struct SoundIoInStream {
-    void *backend_data;
     struct SoundIoDevice *device;
     enum SoundIoFormat format;
     int sample_rate;
+    struct SoundIoChannelLayout layout;
     double latency;
-    int bytes_per_frame;
 
     void *userdata;
     void (*read_callback)(struct SoundIoInStream *);
+
+    // computed automatically when you call soundio_instream_open
+    int bytes_per_frame;
 };
 
+// The size of this struct is not part of the API or ABI.
 struct SoundIo {
-    enum SoundIoBackend current_backend;
-
-    // safe to read without a mutex from a single thread
-    struct SoundIoDevicesInfo *safe_devices_info;
-
     void *userdata;
     void (*on_devices_change)(struct SoundIo *);
     void (*on_events_signal)(struct SoundIo *);
-
-
-    void *backend_data;
-    void (*destroy)(struct SoundIo *);
-    void (*flush_events)(struct SoundIo *);
-    void (*wait_events)(struct SoundIo *);
-    void (*wakeup)(struct SoundIo *);
-
-    int (*out_stream_init)(struct SoundIo *, struct SoundIoOutStream *);
-    void (*out_stream_destroy)(struct SoundIo *, struct SoundIoOutStream *);
-    int (*out_stream_start)(struct SoundIo *, struct SoundIoOutStream *);
-    int (*out_stream_free_count)(struct SoundIo *, struct SoundIoOutStream *);
-    void (*out_stream_begin_write)(struct SoundIo *, struct SoundIoOutStream *,
-            char **data, int *frame_count);
-    void (*out_stream_write)(struct SoundIo *, struct SoundIoOutStream *,
-            char *data, int frame_count);
-    void (*out_stream_clear_buffer)(struct SoundIo *, struct SoundIoOutStream *);
-
-
-    int (*in_stream_init)(struct SoundIo *, struct SoundIoInStream *);
-    void (*in_stream_destroy)(struct SoundIo *, struct SoundIoInStream *);
-    int (*in_stream_start)(struct SoundIo *, struct SoundIoInStream *);
-    void (*in_stream_peek)(struct SoundIo *, struct SoundIoInStream *,
-            const char **data, int *frame_count);
-    void (*in_stream_drop)(struct SoundIo *, struct SoundIoInStream *);
-    void (*in_stream_clear_buffer)(struct SoundIo *, struct SoundIoInStream *);
 };
 
 // Main Context
@@ -291,11 +277,22 @@ struct SoundIo {
 struct SoundIo * soundio_create(void);
 void soundio_destroy(struct SoundIo *soundio);
 
+
+// Provided these backends were compiled in, this tries JACK, then PulseAudio,
+// then ALSA, then CoreAudio, then ASIO, then DirectSound, then OSS, then Dummy.
 int soundio_connect(struct SoundIo *soundio);
+// Instead of calling `soundio_connect` you may call this function to try a
+// specific backend.
+int soundio_connect_backend(struct SoundIo *soundio, enum SoundIoBackend backend);
 void soundio_disconnect(struct SoundIo *soundio);
 
 const char *soundio_strerror(int error);
 const char *soundio_backend_name(enum SoundIoBackend backend);
+
+// return the number of available backends
+int soundio_backend_count(struct SoundIo *soundio);
+// get the backend at the specified index (0 <= index < soundio_backend_count)
+enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 
 // when you call this, the on_devices_change and on_events_signal callbacks
 // might be called. This is the only time those functions will be called.
@@ -312,7 +309,10 @@ void soundio_wakeup(struct SoundIo *soundio);
 
 // Channel Layouts
 
-bool soundio_channel_layout_equal(const struct SoundIoChannelLayout *a,
+// Returns whether the channel count field and each channel id matches in
+// the supplied channel layouts.
+bool soundio_channel_layout_equal(
+        const struct SoundIoChannelLayout *a,
         const struct SoundIoChannelLayout *b);
 
 const char *soundio_get_channel_name(enum SoundIoChannelId id);
@@ -320,15 +320,25 @@ const char *soundio_get_channel_name(enum SoundIoChannelId id);
 int soundio_channel_layout_builtin_count(void);
 const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);
 
+// TODO remove this API or have it write to a `char *`?
 void soundio_debug_print_channel_layout(const struct SoundIoChannelLayout *layout);
 
 int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel);
 
-// merely populates the name field of layout if it matches a builtin one.
+// Populates the name field of layout if it matches a builtin one.
 // returns whether it found a match
 bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout);
 
+// Iterates over preferred_layouts. Returns the first channel layout in
+// preferred_layouts which matches one of the channel layouts in
+// available_layouts. Returns NULL if none matches.
+const struct SoundIoChannelLayout *soundio_best_matching_channel_layout(
+        const struct SoundIoChannelLayout *preferred_layouts, int preferred_layout_count,
+        const struct SoundIoChannelLayout *available_layouts, int available_layout_count);
+
+// Sorts by channel count, descending.
+void soundio_sort_channel_layouts(struct SoundIoChannelLayout *layouts, int layout_count);
 
 
 // Sample Formats
@@ -375,51 +385,52 @@ bool soundio_device_equal(
         const struct SoundIoDevice *b);
 enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device);
 
+// Sorts channel layouts by channel count, descending.
+void soundio_device_sort_channel_layouts(struct SoundIoDevice *device);
 
 
-// Output Devices
 
-int soundio_out_stream_create(struct SoundIoDevice *device,
-        enum SoundIoFormat format, int sample_rate,
-        double latency, void *userdata,
-        void (*write_callback)(struct SoundIoOutStream *, int frame_count),
-        void (*underrun_callback)(struct SoundIoOutStream *),
-        struct SoundIoOutStream **out_out_stream);
-void soundio_out_stream_destroy(struct SoundIoOutStream *out_stream);
+// Output Streams
+// allocates memory and sets defaults. Next you should fill out the struct fields
+// and then call soundio_outstream_open
+struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
 
-int soundio_out_stream_start(struct SoundIoOutStream *out_stream);
+int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
-void soundio_out_stream_fill_with_silence(struct SoundIoOutStream *out_stream);
+void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
+
+int soundio_outstream_start(struct SoundIoOutStream *outstream);
+
+void soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream);
 
 
 // number of frames available to write
-int soundio_out_stream_free_count(struct SoundIoOutStream *out_stream);
-void soundio_out_stream_begin_write(struct SoundIoOutStream *out_stream,
+int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
+void soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         char **data, int *frame_count);
-void soundio_out_stream_write(struct SoundIoOutStream *out_stream,
+void soundio_outstream_write(struct SoundIoOutStream *outstream,
         char *data, int frame_count);
 
-void soundio_out_stream_clear_buffer(struct SoundIoOutStream *out_stream);
+void soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
 
 
-// Input Devices
+// Input Streams
+// allocates memory and sets defaults. Next you should fill out the struct fields
+// and then call soundio_instream_open
+struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
+void soundio_instream_destroy(struct SoundIoInStream *instream);
 
-int soundio_in_stream_create(struct SoundIoDevice *device,
-        enum SoundIoFormat format, int sample_rate,
-        double latency, void *userdata,
-        void (*read_callback)(struct SoundIoInStream *),
-        struct SoundIoInStream **out_in_stream);
-void soundio_in_stream_destroy(struct SoundIoInStream *in_stream);
+int soundio_instream_open(struct SoundIoInStream *instream);
 
-int soundio_in_stream_start(struct SoundIoInStream *in_stream);
+int soundio_instream_start(struct SoundIoInStream *instream);
 
-void soundio_in_stream_peek(struct SoundIoInStream *in_stream,
+void soundio_instream_peek(struct SoundIoInStream *instream,
         const char **data, int *out_frame_count);
-// this will drop all of the frames from when you called soundio_in_stream_peek
-void soundio_in_stream_drop(struct SoundIoInStream *in_stream);
+// this will drop all of the frames from when you called soundio_instream_peek
+void soundio_instream_drop(struct SoundIoInStream *instream);
 
-void soundio_in_stream_clear_buffer(struct SoundIoInStream *in_stream);
+void soundio_instream_clear_buffer(struct SoundIoInStream *instream);
 
 
 // Ring Buffer
@@ -448,6 +459,6 @@ void soundio_ring_buffer_clear(struct SoundIoRingBuffer *ring_buffer);
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
 #endif
