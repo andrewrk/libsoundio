@@ -131,6 +131,9 @@ enum SoundIoFormat {
     SoundIoFormatFloat64BE,   // Float 64 bit Big Endian, Range -1.0 to 1.0
 };
 
+// For your convenience, Native Endian and Foreign Endian constants are defined
+// which point to the respective SoundIoFormat values.
+
 #if defined(SOUNDIO_OS_BIG_ENDIAN)
 #define SoundIoFormatS16NE SoundIoFormatS16BE
 #define SoundIoFormatU16NE SoundIoFormatU16BE
@@ -140,7 +143,18 @@ enum SoundIoFormat {
 #define SoundIoFormatU32NE SoundIoFormatU32BE
 #define SoundIoFormatFloat32NE SoundIoFormatFloat32BE
 #define SoundIoFormatFloat64NE SoundIoFormatFloat64BE
+
+#define SoundIoFormatS16FE SoundIoFormatS16LE
+#define SoundIoFormatU16FE SoundIoFormatU16LE
+#define SoundIoFormatS24FE SoundIoFormatS24LE
+#define SoundIoFormatU24FE SoundIoFormatU24LE
+#define SoundIoFormatS32FE SoundIoFormatS32LE
+#define SoundIoFormatU32FE SoundIoFormatU32LE
+#define SoundIoFormatFloat32FE SoundIoFormatFloat32LE
+#define SoundIoFormatFloat64FE SoundIoFormatFloat64LE
+
 #elif defined(SOUNDIO_OS_LITTLE_ENDIAN)
+
 #define SoundIoFormatS16NE SoundIoFormatS16LE
 #define SoundIoFormatU16NE SoundIoFormatU16LE
 #define SoundIoFormatS24NE SoundIoFormatS24LE
@@ -149,6 +163,16 @@ enum SoundIoFormat {
 #define SoundIoFormatU32NE SoundIoFormatU32LE
 #define SoundIoFormatFloat32NE SoundIoFormatFloat32LE
 #define SoundIoFormatFloat64NE SoundIoFormatFloat64LE
+
+#define SoundIoFormatS16FE SoundIoFormatS16BE
+#define SoundIoFormatU16FE SoundIoFormatU16BE
+#define SoundIoFormatS24FE SoundIoFormatS24BE
+#define SoundIoFormatU24FE SoundIoFormatU24BE
+#define SoundIoFormatS32FE SoundIoFormatS32BE
+#define SoundIoFormatU32FE SoundIoFormatU32BE
+#define SoundIoFormatFloat32FE SoundIoFormatFloat32BE
+#define SoundIoFormatFloat64FE SoundIoFormatFloat64BE
+
 #else
 #error unknown byte order
 #endif
@@ -387,6 +411,9 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 
 // Sorts channel layouts by channel count, descending.
 void soundio_device_sort_channel_layouts(struct SoundIoDevice *device);
+
+// Returns whether `format` is included in the devices supported formats.
+bool soundio_device_supports_format(struct SoundIoDevice *device, enum SoundIoFormat format);
 
 
 

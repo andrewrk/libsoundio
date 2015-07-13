@@ -535,3 +535,11 @@ void soundio_sort_channel_layouts(struct SoundIoChannelLayout *layouts, int layo
 void soundio_device_sort_channel_layouts(struct SoundIoDevice *device) {
     soundio_sort_channel_layouts(device->layouts, device->layout_count);
 }
+
+bool soundio_device_supports_format(struct SoundIoDevice *device, enum SoundIoFormat format) {
+    for (int i = 0; i < device->format_count; i += 1) {
+        if (device->formats[i] == format)
+            return true;
+    }
+    return false;
+}

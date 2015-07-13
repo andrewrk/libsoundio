@@ -27,9 +27,9 @@ static void panic(const char *format, ...) {
 
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
+static int target_sample_rate = 48000;
 
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
-    //device->bytes_per_frame;
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
 
@@ -89,7 +89,8 @@ int main(int argc, char **argv) {
 
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
-    outstream->sample_rate = 48000; // TODO let this be anything
+    outstream->sample_rate = (device->sample_rate_min <= target_sample_rate &&
+            target_sample_rate <= device->sample_rate_max) ? target_sample_rate : device->sample_rate_max;
     outstream->layout = device->layouts[0];
     outstream->latency = 0.1;
     outstream->write_callback = write_callback;

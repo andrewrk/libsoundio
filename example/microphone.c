@@ -13,6 +13,28 @@
 #include <string.h>
 #include <math.h>
 
+static enum SoundIoFormat prioritized_formats[] = {
+    SoundIoFormatFloat32NE,
+    SoundIoFormatFloat32FE,
+    SoundIoFormatS32NE,
+    SoundIoFormatS32FE,
+    SoundIoFormatS24NE,
+    SoundIoFormatS24FE,
+    SoundIoFormatS16NE,
+    SoundIoFormatS16FE,
+    SoundIoFormatFloat64NE,
+    SoundIoFormatFloat64FE,
+    SoundIoFormatU32NE,
+    SoundIoFormatU32FE,
+    SoundIoFormatU24NE,
+    SoundIoFormatU24FE,
+    SoundIoFormatU16NE,
+    SoundIoFormatU16FE,
+    SoundIoFormatS8,
+    SoundIoFormatU8,
+    SoundIoFormatInvalid,
+};
+
 __attribute__ ((cold))
 __attribute__ ((noreturn))
 __attribute__ ((format (printf, 1, 2)))
@@ -75,11 +97,29 @@ int main(int argc, char **argv) {
     if (!layout)
         panic("channel layouts not compatible");
 
+
+    int sample_rate = 48000;
+    if (in_device->sample_rate_max < sample_rate) sample_rate = in_device->sample_rate_max;
+    if (out_device->sample_rate_max < sample_rate) sample_rate = out_device->sample_rate_max;
+    if (in_device->sample_rate_min > sample_rate || out_device->sample_rate_min > sample_rate)
+        panic("incompatible sample rates");
+
+    enum SoundIoFormat *fmt;
+    for (fmt = prioritized_formats; *fmt != SoundIoFormatInvalid; fmt += 1) {
+        if (soundio_device_supports_format(in_device, *fmt) &&
+            soundio_device_supports_format(out_device, *fmt))
+        {
+            break;
+        }
+    }
+    if (*fmt == SoundIoFormatInvalid)
+        panic("incompatible sample formats");
+
     struct SoundIoInStream *instream = soundio_instream_create(in_device);
     if (!instream)
         panic("out of memory");
-    instream->format = SoundIoFormatFloat32NE; // TODO pick compatible ones
-    instream->sample_rate = 48000; // TODO pick compatible ones
+    instream->format = *fmt;
+    instream->sample_rate = sample_rate;
     instream->layout = *layout;
     instream->latency = 0.1;
     instream->read_callback = read_callback;
@@ -90,8 +130,8 @@ int main(int argc, char **argv) {
     struct SoundIoOutStream *outstream = soundio_outstream_create(out_device);
     if (!outstream)
         panic("out of memory");
-    outstream->format = SoundIoFormatFloat32NE;
-    outstream->sample_rate = 48000;
+    outstream->format = *fmt;
+    outstream->sample_rate = sample_rate;
     outstream->layout = *layout;
     outstream->latency = 0.1;
     outstream->write_callback = write_callback;
