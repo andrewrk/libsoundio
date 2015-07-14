@@ -185,6 +185,7 @@ struct SoundIoChannelLayout {
     enum SoundIoChannelId channels[SOUNDIO_MAX_CHANNELS];
 };
 
+
 // The size of this struct is not part of the API or ABI.
 struct SoundIoDevice {
     // Read-only. Set automatically.
@@ -232,7 +233,15 @@ struct SoundIoDevice {
     int sample_rate_max;
     int sample_rate_current;
 
-    double default_latency;
+    // Buffer duration in seconds.
+    double buffer_duration_min;
+    double buffer_duration_max;
+    double buffer_duration_current;
+
+    // How many slices it is possible to cut the buffer into.
+    int period_count_min;
+    int period_count_max;
+    int period_count_current;
 
     // Tells whether this device is an input device or an output device.
     enum SoundIoDevicePurpose purpose;
@@ -258,12 +267,34 @@ struct SoundIoDevice {
 
 // The size of this struct is not part of the API or ABI.
 struct SoundIoOutStream {
+    // Populated automatically when you call soundio_outstream_create.
     struct SoundIoDevice *device;
-    enum SoundIoFormat format;
-    int sample_rate;
-    struct SoundIoChannelLayout layout;
-    double latency;
 
+    // Defaults to SoundIoFormatFloat32NE, followed by the first one supported.
+    enum SoundIoFormat format;
+
+    // Defaults to 48000 (and then clamped into range).
+    int sample_rate;
+
+    // Defaults to Stereo, if available, followed by the first layout supported.
+    struct SoundIoChannelLayout layout;
+
+    // Buffer duration in seconds.
+    // (buffer_duration / period_count) is the latency; how much time it takes
+    // for a sample put in the buffer to get played.
+    // After you call soundio_outstream_open this value is replaced with the
+    // actual duration, as near to this value as possible.
+    // Defaults to 1 second (and then clamped into range).
+    double buffer_duration;
+
+    // How many slices the buffer is cut into. The IRQ will happen every
+    // (buffer_frame_count / period_count) frames.
+    // After you call soundio_outstream_open this value is replaced with the
+    // actual period count, as near to this value as possible.
+    // Defaults to 2 (and then clamped into range).
+    int period_count;
+
+    // Defaults to NULL.
     void *userdata;
     void (*underrun_callback)(struct SoundIoOutStream *);
     void (*write_callback)(struct SoundIoOutStream *, int frame_count);
@@ -274,11 +305,28 @@ struct SoundIoOutStream {
 
 // The size of this struct is not part of the API or ABI.
 struct SoundIoInStream {
+    // Populated automatically when you call soundio_outstream_create.
     struct SoundIoDevice *device;
+
+    // Defaults to SoundIoFormatFloat32NE, followed by the first one supported.
     enum SoundIoFormat format;
+
+    // Defaults to max(sample_rate_min, min(sample_rate_max, 48000))
     int sample_rate;
+
+    // Defaults to Stereo, if available, followed by the first layout supported.
     struct SoundIoChannelLayout layout;
-    double latency;
+
+    // Buffer duration in seconds. If the captured audio frames exceeds this
+    // before they are read, a buffer overrun occurs and the frames are lost.
+    // Defaults to 1 second (and then clamped into range).
+    double buffer_duration;
+
+    // How many slices the buffer is cut into. The IRQ will happen every
+    // (buffer_duration / period_count) seconds, and that is the latency of the
+    // captured audio. This value must be a power of 2.
+    // Defaults to 8.
+    int period_count;
 
     void *userdata;
     void (*read_callback)(struct SoundIoInStream *);
@@ -413,7 +461,13 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 void soundio_device_sort_channel_layouts(struct SoundIoDevice *device);
 
 // Returns whether `format` is included in the devices supported formats.
-bool soundio_device_supports_format(struct SoundIoDevice *device, enum SoundIoFormat format);
+bool soundio_device_supports_format(struct SoundIoDevice *device,
+        enum SoundIoFormat format);
+
+// Returns whether `layout` is included in the devices supported channel
+// layouts.
+bool soundio_device_supports_layout(struct SoundIoDevice *device,
+        const struct SoundIoChannelLayout *layout);
 
 
 

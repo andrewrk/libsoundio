@@ -103,4 +103,9 @@ template <typename T>
 static inline T min(T a, T b) {
     return (a <= b) ? a : b;
 }
+
+template<typename T>
+static inline T clamp(T min_value, T value, T max_value) {
+    return max(min(value, max_value), min_value);
+}
 #endif

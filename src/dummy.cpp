@@ -131,7 +131,7 @@ static void outstream_destroy_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate 
     os->backend_data = nullptr;
 }
 
-static int outstream_init_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = create<SoundIoOutStreamDummy>();
     if (!osd) {
@@ -140,9 +140,8 @@ static int outstream_init_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     }
     os->backend_data = osd;
 
-    int buffer_frame_count = outstream->latency * outstream->sample_rate;
-    osd->buffer_size = outstream->bytes_per_frame * buffer_frame_count;
-    osd->period = outstream->latency * 0.5;
+    osd->buffer_size = outstream->bytes_per_frame * outstream->buffer_duration;
+    osd->period = outstream->buffer_duration / (double)outstream->period_count;
 
     soundio_ring_buffer_init(&osd->ring_buffer, osd->buffer_size);
 
@@ -205,7 +204,7 @@ static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPri
     soundio_ring_buffer_clear(&osd->ring_buffer);
 }
 
-static int instream_init_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
 
@@ -237,24 +236,24 @@ static int set_all_device_formats(SoundIoDevice *device) {
     if (!device->formats)
         return SoundIoErrorNoMem;
 
-    device->formats[0] = SoundIoFormatS8;
-    device->formats[1] = SoundIoFormatU8;
-    device->formats[2] = SoundIoFormatS16LE;
-    device->formats[3] = SoundIoFormatS16BE;
-    device->formats[4] = SoundIoFormatU16LE;
-    device->formats[5] = SoundIoFormatU16BE;
-    device->formats[6] = SoundIoFormatS24LE;
-    device->formats[7] = SoundIoFormatS24BE;
-    device->formats[8] = SoundIoFormatU24LE;
-    device->formats[9] = SoundIoFormatU24BE;
-    device->formats[10] = SoundIoFormatS32LE;
-    device->formats[11] = SoundIoFormatS32BE;
-    device->formats[12] = SoundIoFormatU32LE;
-    device->formats[13] = SoundIoFormatU32BE;
-    device->formats[14] = SoundIoFormatFloat32LE;
-    device->formats[15] = SoundIoFormatFloat32BE;
-    device->formats[16] = SoundIoFormatFloat64LE;
-    device->formats[17] = SoundIoFormatFloat64BE;
+    device->formats[0] = SoundIoFormatFloat32NE;
+    device->formats[1] = SoundIoFormatFloat32FE;
+    device->formats[2] = SoundIoFormatS32NE;
+    device->formats[3] = SoundIoFormatS32FE;
+    device->formats[4] = SoundIoFormatU32NE;
+    device->formats[5] = SoundIoFormatU32FE;
+    device->formats[6] = SoundIoFormatS24NE;
+    device->formats[7] = SoundIoFormatS24FE;
+    device->formats[8] = SoundIoFormatU24NE;
+    device->formats[9] = SoundIoFormatU24FE;
+    device->formats[10] = SoundIoFormatFloat64NE;
+    device->formats[11] = SoundIoFormatFloat64FE;
+    device->formats[12] = SoundIoFormatS16NE;
+    device->formats[13] = SoundIoFormatS16FE;
+    device->formats[14] = SoundIoFormatU16NE;
+    device->formats[15] = SoundIoFormatU16FE;
+    device->formats[16] = SoundIoFormatS8;
+    device->formats[17] = SoundIoFormatU8;
 
     return 0;
 }
@@ -324,10 +323,15 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             return err;
         }
 
-        device->default_latency = 0.01;
+        device->buffer_duration_min = 0.01;
+        device->buffer_duration_max = 4;
+        device->buffer_duration_current = 0.1;
         device->sample_rate_min = 2;
         device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
+        device->period_count_min = 1;
+        device->period_count_max = 16;
+        device->period_count_current = 2;
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (si->safe_devices_info->output_devices.append(device)) {
@@ -370,10 +374,15 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             destroy_dummy(si);
             return err;
         }
-        device->default_latency = 0.01;
+        device->buffer_duration_min = 0.01;
+        device->buffer_duration_max = 4;
+        device->buffer_duration_current = 0.1;
         device->sample_rate_min = 2;
         device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
+        device->period_count_min = 1;
+        device->period_count_max = 16;
+        device->period_count_current = 2;
         device->purpose = SoundIoDevicePurposeInput;
 
         if (si->safe_devices_info->input_devices.append(device)) {
@@ -389,7 +398,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->wait_events = wait_events;
     si->wakeup = wakeup;
 
-    si->outstream_init = outstream_init_dummy;
+    si->outstream_open = outstream_open_dummy;
     si->outstream_destroy = outstream_destroy_dummy;
     si->outstream_start = outstream_start_dummy;
     si->outstream_free_count = outstream_free_count_dummy;
@@ -397,7 +406,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->outstream_write = outstream_write_dummy;
     si->outstream_clear_buffer = outstream_clear_buffer_dummy;
 
-    si->instream_init = instream_init_dummy;
+    si->instream_open = instream_open_dummy;
     si->instream_destroy = instream_destroy_dummy;
     si->instream_start = instream_start_dummy;
     si->instream_peek = instream_peek_dummy;

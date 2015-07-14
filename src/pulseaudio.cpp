@@ -134,9 +134,11 @@ static void destroy_pa(SoundIoPrivate *si) {
     si->backend_data = nullptr;
 }
 
+/* TODO
 static double usec_to_sec(pa_usec_t usec) {
     return (double)usec / (double)PA_USEC_PER_SEC;
 }
+*/
 
 
 static SoundIoFormat format_from_pulseaudio(pa_sample_spec sample_spec) {
@@ -162,9 +164,11 @@ static SoundIoFormat format_from_pulseaudio(pa_sample_spec sample_spec) {
     return SoundIoFormatInvalid;
 }
 
+/* TODO
 static int sample_rate_from_pulseaudio(pa_sample_spec sample_spec) {
     return sample_spec.rate;
 }
+*/
 
 /* TODO
 static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
@@ -287,8 +291,10 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         // TODO determine the channel layouts supported
         //TODO set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->current_format = format_from_pulseaudio(info->sample_spec);
-        device->default_latency = usec_to_sec(info->configured_latency);
-        device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
+        // TODO set min, max, current latency
+        //device->default_latency = usec_to_sec(info->configured_latency);
+        // TODO set min, max, current sample rate
+        //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (sipa->current_devices_info->output_devices.append(device))
@@ -319,8 +325,10 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         // TODO determine the channel layouts supported
         // TODO set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
         device->current_format = format_from_pulseaudio(info->sample_spec);
-        device->default_latency = usec_to_sec(info->configured_latency);
-        device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
+        // TODO set min, max, current latency
+        //device->default_latency = usec_to_sec(info->configured_latency);
+        // TODO set min, max, current sample rate
+        //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
         device->purpose = SoundIoDevicePurposeInput;
 
         if (sipa->current_devices_info->input_devices.append(device))
@@ -590,8 +598,9 @@ static void outstream_destroy_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os
     os->backend_data = nullptr;
 }
 
-static int outstream_init_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
+
     SoundIoOutStreamPulseAudio *ospa = create<SoundIoOutStreamPulseAudio>();
     if (!ospa) {
         outstream_destroy_pa(si, os);
@@ -626,7 +635,7 @@ static int outstream_init_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     int bytes_per_second = outstream->bytes_per_frame * outstream->sample_rate;
     int buffer_length = outstream->bytes_per_frame *
-        ceil(outstream->latency * bytes_per_second / (double)outstream->bytes_per_frame);
+        ceil(outstream->buffer_duration * bytes_per_second / (double)outstream->bytes_per_frame);
 
     ospa->buffer_attr.maxlength = buffer_length;
     ospa->buffer_attr.tlength = buffer_length;
@@ -757,7 +766,7 @@ static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *inst
     }
 }
 
-static int instream_init_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStream *instream = &is->pub;
     SoundIoInStreamPulseAudio *ispa = create<SoundIoInStreamPulseAudio>();
     if (!ispa) {
@@ -793,7 +802,7 @@ static int instream_init_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
     int buffer_length = instream->bytes_per_frame *
-        ceil(instream->latency * bytes_per_second / (double)instream->bytes_per_frame);
+        ceil(instream->buffer_duration * bytes_per_second / (double)instream->bytes_per_frame);
 
     ispa->buffer_attr.maxlength = UINT32_MAX;
     ispa->buffer_attr.tlength = UINT32_MAX;
@@ -937,7 +946,7 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->wait_events = wait_events;
     si->wakeup = wakeup;
 
-    si->outstream_init = outstream_init_pa;
+    si->outstream_open = outstream_open_pa;
     si->outstream_destroy = outstream_destroy_pa;
     si->outstream_start = outstream_start_pa;
     si->outstream_free_count = outstream_free_count_pa;
@@ -945,7 +954,7 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->outstream_write = outstream_write_pa;
     si->outstream_clear_buffer = outstream_clear_buffer_pa;
 
-    si->instream_init = instream_init_pa;
+    si->instream_open = instream_open_pa;
     si->instream_destroy = instream_destroy_pa;
     si->instream_start = instream_start_pa;
     si->instream_peek = instream_peek_pa;

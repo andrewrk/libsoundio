@@ -94,3 +94,20 @@
    ...
    fun:snd1_dlobj_cache_get
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:snd_pcm_hw_get_chmap
+   fun:snd_pcm_get_chmap
+   fun:snd1_pcm_direct_get_chmap
+   fun:snd_pcm_get_chmap
+   fun:snd1_pcm_generic_get_chmap
+   fun:snd_pcm_get_chmap
+   fun:snd1_pcm_generic_get_chmap
+   fun:snd_pcm_get_chmap
+   fun:snd1_pcm_generic_get_chmap
+   fun:snd_pcm_get_chmap
+   fun:snd_pcm_set_chmap
+}

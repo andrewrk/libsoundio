@@ -12,6 +12,7 @@
 
 #include <alsa/asoundlib.h>
 #include <sys/inotify.h>
+#include <math.h>
 
 static snd_pcm_stream_t stream_types[] = {SND_PCM_STREAM_PLAYBACK, SND_PCM_STREAM_CAPTURE};
 
@@ -31,7 +32,9 @@ struct SoundIoAlsa {
 };
 
 struct SoundIoOutStreamAlsa {
-
+    snd_pcm_t *handle;
+    snd_pcm_chmap_t *chmap;
+    int chmap_size;
 };
 
 static void wakeup_device_poll(SoundIoAlsa *sia) {
@@ -136,6 +139,47 @@ static SoundIoChannelId from_alsa_chmap_pos(unsigned int pos) {
     return SoundIoChannelIdInvalid;
 }
 
+static int to_alsa_chmap_pos(SoundIoChannelId channel_id) {
+    switch (channel_id) {
+        case SoundIoChannelIdFrontLeft:             return SND_CHMAP_FL;
+        case SoundIoChannelIdFrontRight:            return SND_CHMAP_FR;
+        case SoundIoChannelIdBackLeft:              return SND_CHMAP_RL;
+        case SoundIoChannelIdBackRight:             return SND_CHMAP_RR;
+        case SoundIoChannelIdFrontCenter:           return SND_CHMAP_FC;
+        case SoundIoChannelIdLfe:                   return SND_CHMAP_LFE;
+        case SoundIoChannelIdSideLeft:              return SND_CHMAP_SL;
+        case SoundIoChannelIdSideRight:             return SND_CHMAP_SR;
+        case SoundIoChannelIdBackCenter:            return SND_CHMAP_RC;
+        case SoundIoChannelIdFrontLeftCenter:       return SND_CHMAP_FLC;
+        case SoundIoChannelIdFrontRightCenter:      return SND_CHMAP_FRC;
+        case SoundIoChannelIdBackLeftCenter:        return SND_CHMAP_RLC;
+        case SoundIoChannelIdBackRightCenter:       return SND_CHMAP_RRC;
+        case SoundIoChannelIdFrontLeftWide:         return SND_CHMAP_FLW;
+        case SoundIoChannelIdFrontRightWide:        return SND_CHMAP_FRW;
+        case SoundIoChannelIdFrontLeftHigh:         return SND_CHMAP_FLH;
+        case SoundIoChannelIdFrontCenterHigh:       return SND_CHMAP_FCH;
+        case SoundIoChannelIdFrontRightHigh:        return SND_CHMAP_FRH;
+        case SoundIoChannelIdTopCenter:             return SND_CHMAP_TC;
+        case SoundIoChannelIdTopFrontLeft:          return SND_CHMAP_TFL;
+        case SoundIoChannelIdTopFrontRight:         return SND_CHMAP_TFR;
+        case SoundIoChannelIdTopFrontCenter:        return SND_CHMAP_TFC;
+        case SoundIoChannelIdTopBackLeft:           return SND_CHMAP_TRL;
+        case SoundIoChannelIdTopBackRight:          return SND_CHMAP_TRR;
+        case SoundIoChannelIdTopBackCenter:         return SND_CHMAP_TRC;
+        case SoundIoChannelIdTopFrontLeftCenter:    return SND_CHMAP_TFLC;
+        case SoundIoChannelIdTopFrontRightCenter:   return SND_CHMAP_TFRC;
+        case SoundIoChannelIdTopSideLeft:           return SND_CHMAP_TSL;
+        case SoundIoChannelIdTopSideRight:          return SND_CHMAP_TSR;
+        case SoundIoChannelIdLeftLfe:               return SND_CHMAP_LLFE;
+        case SoundIoChannelIdRightLfe:              return SND_CHMAP_RLFE;
+        case SoundIoChannelIdBottomCenter:          return SND_CHMAP_BC;
+        case SoundIoChannelIdBottomLeftCenter:      return SND_CHMAP_BLC;
+        case SoundIoChannelIdBottomRightCenter:     return SND_CHMAP_BRC;
+        case SoundIoChannelIdInvalid:               return SND_CHMAP_UNKNOWN;
+    }
+    return SND_CHMAP_UNKNOWN;
+}
+
 static void get_channel_layout(SoundIoChannelLayout *dest, snd_pcm_chmap_t *chmap) {
     int channel_count = min((unsigned int)SOUNDIO_MAX_CHANNELS, chmap->channels);
     dest->channel_count = channel_count;
@@ -209,15 +253,6 @@ static void test_fmt_mask(SoundIoDevice *device, const snd_pcm_format_mask_t *fm
     }
 }
 
-// TODO: look at http://www.alsa-project.org/alsa-doc/alsa-lib/_2test_2pcm_8c-example.html#a27
-// deterimine what do do about:
-//  * hw buffer size
-//  * hw period time
-//  * sw start threshold
-//  * sw avail min
-// TODO: device->default_latency
-
-
 // this function does not override device->formats, so if you want it to, deallocate and set it to NULL
 static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
         snd_pcm_hw_params_t *hwparams, int resample)
@@ -237,20 +272,67 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
     if ((err = snd_pcm_hw_params_set_channels_last(handle, hwparams, &channel_count)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    unsigned int min_sample_rate;
-    unsigned int max_sample_rate;
-    int min_dir;
-    int max_dir;
+    unsigned int num;
+    unsigned int den;
 
-    if ((err = snd_pcm_hw_params_get_rate_max(hwparams, &max_sample_rate, &max_dir)) < 0)
+    int dir = 0;
+    if ((err = snd_pcm_hw_params_set_rate_first(handle, hwparams, &num, &dir)) < 0)
         return SoundIoErrorOpeningDevice;
-    if (max_dir < 0)
-        max_sample_rate -= 1;
 
-    if ((err = snd_pcm_hw_params_get_rate_min(hwparams, &min_sample_rate, &min_dir)) < 0)
+    if ((err = snd_pcm_hw_params_get_rate_numden(hwparams, &num, &den)) < 0)
         return SoundIoErrorOpeningDevice;
-    if (min_dir > 0)
-        min_sample_rate += 1;
+
+    if (den != 1)
+        return SoundIoErrorOpeningDevice;
+
+    device->sample_rate_min = num;
+
+    dir = 0;
+    if ((err = snd_pcm_hw_params_set_rate_last(handle, hwparams, &num, &dir)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    if ((err = snd_pcm_hw_params_get_rate_numden(hwparams, &num, &den)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    if (den != 1)
+        return SoundIoErrorOpeningDevice;
+
+    device->sample_rate_max = num;
+
+    // Purposefully leave the parameters with the highest rate, highest channel count.
+
+    snd_pcm_uframes_t min_frames;
+    snd_pcm_uframes_t max_frames;
+    if ((err = snd_pcm_hw_params_get_buffer_size_min(hwparams, &min_frames)) < 0)
+        return SoundIoErrorOpeningDevice;
+    if ((err = snd_pcm_hw_params_get_buffer_size_max(hwparams, &max_frames)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    // divide the frame counts by the max sample rate
+    device->buffer_duration_min = ((double)min_frames) / (double)device->sample_rate_max;
+    device->buffer_duration_max = ((double)max_frames) / (double)device->sample_rate_max;
+
+    if ((err = snd_pcm_hw_params_set_periods_integer(handle, hwparams)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    dir = 0;
+    if ((err = snd_pcm_hw_params_get_periods_min(hwparams, &num, &dir)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    if (dir != 0)
+        return SoundIoErrorOpeningDevice;
+
+    device->period_count_min = num;
+
+    dir = 0;
+    if ((err = snd_pcm_hw_params_get_periods_max(hwparams, &num, &dir)) < 0)
+        return SoundIoErrorOpeningDevice;
+
+    if (dir != 0)
+        return SoundIoErrorOpeningDevice;
+
+    device->period_count_max = num;
+
 
     snd_pcm_format_mask_t *fmt_mask;
     snd_pcm_format_mask_alloca(&fmt_mask);
@@ -304,9 +386,6 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
         test_fmt_mask(device, fmt_mask, SoundIoFormatFloat64BE);
     }
 
-    device->sample_rate_min = min_sample_rate;
-    device->sample_rate_max = max_sample_rate;
-
     return 0;
 }
 
@@ -347,8 +426,15 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
     }
     maps = nullptr;
 
-    if (device->sample_rate_min == device->sample_rate_max && !device->is_raw) {
-        device->sample_rate_current = device->sample_rate_min;
+    if (!device->is_raw) {
+        if (device->sample_rate_min == device->sample_rate_max)
+            device->sample_rate_current = device->sample_rate_min;
+
+        if (device->buffer_duration_min == device->buffer_duration_max)
+            device->buffer_duration_current = device->buffer_duration_min;
+
+        if (device->period_count_min == device->period_count_max)
+            device->period_count_current = device->period_count_min;
 
         // now say that resampling is OK and see what the real min and max is.
         if ((err = probe_open_device(device, handle, hwparams, 1)) < 0) {
@@ -754,17 +840,136 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     if (!osa)
         return;
 
+    deallocate(osa->chmap, osa->chmap_size);
+
+    if (osa->handle)
+        snd_pcm_close(osa->handle);
+
     destroy(osa);
     os->backend_data = nullptr;
 }
 
-static int outstream_init_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+    SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = create<SoundIoOutStreamAlsa>();
     if (!osa) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorNoMem;
     }
     os->backend_data = osa;
+
+    osa->chmap_size = sizeof(int) + sizeof(int) * outstream->layout.channel_count;
+    osa->chmap = (snd_pcm_chmap_t *)allocate<char>(osa->chmap_size);
+    if (!osa->chmap) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorNoMem;
+    }
+
+    int err;
+
+    snd_pcm_hw_params_t *hwparams;
+    snd_pcm_hw_params_alloca(&hwparams);
+
+    snd_pcm_stream_t stream = purpose_to_stream(outstream->device->purpose);
+
+    if ((err = snd_pcm_open(&osa->handle, outstream->device->name, stream, 0)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_any(osa->handle, hwparams)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    int want_resample = !outstream->device->is_raw;
+    if ((err = snd_pcm_hw_params_set_rate_resample(osa->handle, hwparams, want_resample)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_channels(osa->handle, hwparams, outstream->layout.channel_count)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_rate(osa->handle, hwparams, outstream->sample_rate, 0)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_format(osa->handle, hwparams, to_alsa_fmt(outstream->format))) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+
+    snd_pcm_uframes_t buffer_size_frames = ceil(outstream->buffer_duration * (double)outstream->sample_rate);
+    if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &buffer_size_frames)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+    outstream->buffer_duration = ((double)buffer_size_frames) / (double)outstream->sample_rate;
+
+    unsigned int actual_periods_count = outstream->period_count;
+    if ((err = snd_pcm_hw_params_set_periods_near(osa->handle, hwparams, &actual_periods_count, nullptr)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+    outstream->period_count = actual_periods_count;
+
+
+    snd_pcm_uframes_t period_size;
+    if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, nullptr)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // write the hardware parameters to device
+    if ((err = snd_pcm_hw_params(osa->handle, hwparams)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // set channel map
+    osa->chmap->channels = outstream->layout.channel_count;
+    for (int i = 0; i < outstream->layout.channel_count; i += 1) {
+        osa->chmap->pos[i] = to_alsa_chmap_pos(outstream->layout.channels[i]);
+    }
+    if (snd_pcm_set_chmap(osa->handle, osa->chmap) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // get current swparams
+    snd_pcm_sw_params_t *swparams;
+    snd_pcm_sw_params_alloca(&swparams);
+
+    if ((err = snd_pcm_sw_params_current(osa->handle, swparams)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_sw_params_set_start_threshold(osa->handle, swparams, buffer_size_frames)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_sw_params_set_avail_min(osa->handle, swparams, period_size)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // write the software parameters to device
+    if ((err = snd_pcm_sw_params(osa->handle, swparams)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
 
     return 0;
 }
@@ -795,7 +1000,7 @@ static void outstream_clear_buffer_alsa(SoundIoPrivate *si,
     soundio_panic("TODO");
 }
 
-static int instream_init_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
 
@@ -900,7 +1105,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->wait_events = wait_events;
     si->wakeup = wakeup;
 
-    si->outstream_init = outstream_init_alsa;
+    si->outstream_open = outstream_open_alsa;
     si->outstream_destroy = outstream_destroy_alsa;
     si->outstream_start = outstream_start_alsa;
     si->outstream_free_count = outstream_free_count_alsa;
@@ -908,7 +1113,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->outstream_write = outstream_write_alsa;
     si->outstream_clear_buffer = outstream_clear_buffer_alsa;
 
-    si->instream_init = instream_init_alsa;
+    si->instream_open = instream_open_alsa;
     si->instream_destroy = instream_destroy_alsa;
     si->instream_start = instream_start_alsa;
     si->instream_peek = instream_peek_alsa;

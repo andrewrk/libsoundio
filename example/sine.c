@@ -27,8 +27,6 @@ static void panic(const char *format, ...) {
 
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
-static int target_sample_rate = 48000;
-
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
@@ -45,7 +43,6 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
 
         float *ptr = (float *)data;
 
-        // 69 is A 440
         float pitch = 440.0f;
         float radians_per_second = pitch * 2.0f * PI;
         for (int frame = 0; frame < frame_count; frame += 1) {
@@ -83,16 +80,12 @@ int main(int argc, char **argv) {
 
     struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);
     if (!device)
-        panic("could not get output device: out of memory");
+        panic("out of memory");
 
     fprintf(stderr, "Output device: %s: %s\n", device->name, device->description);
 
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
-    outstream->sample_rate = (device->sample_rate_min <= target_sample_rate &&
-            target_sample_rate <= device->sample_rate_max) ? target_sample_rate : device->sample_rate_max;
-    outstream->layout = device->layouts[0];
-    outstream->latency = 0.1;
     outstream->write_callback = write_callback;
     outstream->underrun_callback = underrun_callback;
 

@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
     instream->format = *fmt;
     instream->sample_rate = sample_rate;
     instream->layout = *layout;
-    instream->latency = 0.1;
+    instream->buffer_duration = 0.1;
     instream->read_callback = read_callback;
 
     if ((err = soundio_instream_open(instream)))
@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
     outstream->format = *fmt;
     outstream->sample_rate = sample_rate;
     outstream->layout = *layout;
-    outstream->latency = 0.1;
+    outstream->buffer_duration = 0.1;
     outstream->write_callback = write_callback;
     outstream->underrun_callback = underrun_callback;
 

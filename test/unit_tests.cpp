@@ -38,7 +38,7 @@ static void test_create_outstream(void) {
     outstream->format = SoundIoFormatFloat32NE;
     outstream->sample_rate = 48000;
     outstream->layout = device->layouts[0];
-    outstream->latency = 0.1;
+    outstream->buffer_duration = 0.1;
     outstream->write_callback = write_callback;
     outstream->underrun_callback = underrun_callback;
 

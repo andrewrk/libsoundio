@@ -208,7 +208,7 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->wait_events = nullptr;
     si->wakeup = nullptr;
 
-    si->outstream_init = nullptr;
+    si->outstream_open = nullptr;
     si->outstream_destroy = nullptr;
     si->outstream_start = nullptr;
     si->outstream_free_count = nullptr;
@@ -216,7 +216,7 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->outstream_write = nullptr;
     si->outstream_clear_buffer = nullptr;
 
-    si->instream_init = nullptr;
+    si->instream_open = nullptr;
     si->instream_destroy = nullptr;
     si->instream_start = nullptr;
     si->instream_peek = nullptr;
@@ -304,6 +304,7 @@ void soundio_device_unref(struct SoundIoDevice *device) {
         free(device->name);
         free(device->description);
         deallocate(device->formats, device->format_count);
+        deallocate(device->layouts, device->layout_count);
         destroy(device);
     }
 }
@@ -369,18 +370,28 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
     outstream->device = device;
     soundio_device_ref(device);
 
-    // TODO set defaults
+    const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+
+    outstream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
+        SoundIoFormatFloat32NE : device->formats[0];
+    outstream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
+    outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+    outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    outstream->period_count = clamp(device->period_count_min, 2, device->period_count_max);
 
     return outstream;
 }
 
 int soundio_outstream_open(struct SoundIoOutStream *outstream) {
+    if (outstream->format <= SoundIoFormatInvalid)
+        return SoundIoErrorInvalid;
+
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
 
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    return si->outstream_init(si, os);
+    return si->outstream_open(si, os);
 }
 
 void soundio_outstream_destroy(SoundIoOutStream *outstream) {
@@ -414,17 +425,26 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     instream->device = device;
     soundio_device_ref(device);
 
-    // TODO set defaults
+    const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+
+    instream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
+        SoundIoFormatFloat32NE : device->formats[0];
+    instream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
+    instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+    instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    instream->period_count = clamp(device->period_count_min, 8, device->period_count_max);
 
     return instream;
 }
 
 int soundio_instream_open(struct SoundIoInStream *instream) {
+    if (instream->format <= SoundIoFormatInvalid)
+        return SoundIoErrorInvalid;
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);
     SoundIo *soundio = instream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
-    return si->instream_init(si, is);
+    return si->instream_open(si, is);
 }
 
 int soundio_instream_start(struct SoundIoInStream *instream) {
@@ -539,6 +559,16 @@ void soundio_device_sort_channel_layouts(struct SoundIoDevice *device) {
 bool soundio_device_supports_format(struct SoundIoDevice *device, enum SoundIoFormat format) {
     for (int i = 0; i < device->format_count; i += 1) {
         if (device->formats[i] == format)
+            return true;
+    }
+    return false;
+}
+
+bool soundio_device_supports_layout(struct SoundIoDevice *device,
+        const struct SoundIoChannelLayout *layout)
+{
+    for (int i = 0; i < device->layout_count; i += 1) {
+        if (soundio_channel_layout_equal(&device->layouts[i], layout))
             return true;
     }
     return false;
