@@ -13,23 +13,25 @@ exposed.
 ## Alternatives
 
  * [PortAudio](http://www.portaudio.com/)
-   - It does not support [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/).
-   - It logs messages to stdio and you can't turn that off.
-   - It does not support channel layouts / channel maps.
-   - It is not written by me.
+   - Does not support [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/).
+   - Logs messages to stdio and you can't turn that off.
+   - Does not support channel layouts / channel maps.
+   - Does not support emitting an event when available devices change.
+   - Not written by me.
  * [rtaudio](https://www.music.mcgill.ca/~gary/rtaudio/)
    - It is not a C library.
    - It uses [exceptions](http://stackoverflow.com/questions/1736146/why-is-exception-handling-bad).
    - It does not support channel layouts / channel maps.
-   - It is not written by me.
+   - Does not support emitting an event when available devices change.
+   - Not written by me.
  * [SDL](https://www.libsdl.org/)
-   - It comes with a bunch of other baggage - display, windowing, input
-     handling, and lots more.
-   - It is not designed with real-time low latency audio in mind.
+   - Comes with baggage: display, windowing, input handling, and lots more.
+   - Not designed with real-time low latency audio in mind.
    - Listing audio devices is [broken](https://github.com/andrewrk/node-groove/issues/13).
-   - It does not support recording devices.
-   - It does not support channel layouts / channel maps.
-   - It is not written by me.
+   - Does not support recording devices.
+   - Does not support channel layouts / channel maps.
+   - Does not support emitting an event when available devices change.
+   - Not written by me.
 
 ## How It Works
 

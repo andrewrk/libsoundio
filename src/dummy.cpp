@@ -115,12 +115,10 @@ static void outstream_destroy_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate 
         return;
 
     if (osd->thread) {
-        if (osd->thread) {
-            osd->abort_flag.clear();
-            soundio_os_cond_signal(osd->cond, nullptr);
-            soundio_os_thread_destroy(osd->thread);
-            osd->thread = nullptr;
-        }
+        osd->abort_flag.clear();
+        soundio_os_cond_signal(osd->cond, nullptr);
+        soundio_os_thread_destroy(osd->thread);
+        osd->thread = nullptr;
     }
     soundio_os_cond_destroy(osd->cond);
     osd->cond = nullptr;
@@ -210,6 +208,10 @@ static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPri
     soundio_ring_buffer_clear(&osd->ring_buffer);
 }
 
+static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    soundio_panic("TODO");
+}
+
 static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
@@ -233,6 +235,10 @@ static void instream_drop_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) 
 }
 
 static void instream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    soundio_panic("TODO");
+}
+
+static int instream_pause_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
     soundio_panic("TODO");
 }
 
@@ -411,6 +417,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->outstream_begin_write = outstream_begin_write_dummy;
     si->outstream_write = outstream_write_dummy;
     si->outstream_clear_buffer = outstream_clear_buffer_dummy;
+    si->outstream_pause = outstream_pause_dummy;
 
     si->instream_open = instream_open_dummy;
     si->instream_destroy = instream_destroy_dummy;
@@ -418,6 +425,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->instream_peek = instream_peek_dummy;
     si->instream_drop = instream_drop_dummy;
     si->instream_clear_buffer = instream_clear_buffer_dummy;
+    si->instream_pause = instream_pause_dummy;
 
     return 0;
 }

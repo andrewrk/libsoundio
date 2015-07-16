@@ -304,7 +304,7 @@ struct SoundIoOutStream {
     // Defaults to `buffer_duration / 2` (and then clamped into range).
     double period_duration;
 
-    // Defaults to NULL.
+    // Defaults to NULL. Put whatever you want here.
     void *userdata;
     // `err` is SoundIoErrorUnderflow or SoundIoErrorStreaming.
     // SoundIoErrorUnderflow means that the sound device ran out of buffered
@@ -312,8 +312,7 @@ struct SoundIoOutStream {
     // SoundIoErrorStreaming is an unrecoverable error. The stream is in an
     // invalid state and must be destroyed.
     void (*error_callback)(struct SoundIoOutStream *, int err);
-    // `frame_count` is the number of requested frames to write.
-    void (*write_callback)(struct SoundIoOutStream *, int frame_count);
+    void (*write_callback)(struct SoundIoOutStream *, int requested_frame_count);
 
     // computed automatically when you call soundio_outstream_open
     int bytes_per_frame;
@@ -344,6 +343,7 @@ struct SoundIoInStream {
     // Defaults to `buffer_duration / 8`.
     double period_duration;
 
+    // Defaults to NULL. Put whatever you want here.
     void *userdata;
     void (*read_callback)(struct SoundIoInStream *);
 
@@ -354,6 +354,7 @@ struct SoundIoInStream {
 
 // The size of this struct is not part of the API or ABI.
 struct SoundIo {
+    // Defaults to NULL. Put whatever you want here.
     void *userdata;
     void (*on_devices_change)(struct SoundIo *);
     void (*on_events_signal)(struct SoundIo *);
@@ -380,7 +381,7 @@ const char *soundio_backend_name(enum SoundIoBackend backend);
 
 // return the number of available backends
 int soundio_backend_count(struct SoundIo *soundio);
-// get the backend at the specified index (0 <= index < soundio_backend_count)
+// get the available backend at the specified index (0 <= index < soundio_backend_count)
 enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 
 // when you call this, the on_devices_change and on_events_signal callbacks
@@ -515,6 +516,12 @@ int soundio_outstream_write(struct SoundIoOutStream *outstream, int frame_count)
 
 void soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
+// If the underyling device supports pausing, this pauses the stream and
+// prevents `write_callback` from being called. Otherwise this returns
+// `SoundIoErrorIncompatibleDevice`.
+int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
+
+
 
 
 // Input Streams
@@ -533,6 +540,11 @@ void soundio_instream_peek(struct SoundIoInStream *instream,
 void soundio_instream_drop(struct SoundIoInStream *instream);
 
 void soundio_instream_clear_buffer(struct SoundIoInStream *instream);
+
+// If the underyling device supports pausing, this pauses the stream and
+// prevents `read_callback` from being called. Otherwise this returns
+// `SoundIoErrorIncompatibleDevice`.
+int soundio_instream_pause(struct SoundIoInStream *instream, bool pause);
 
 
 // Ring Buffer

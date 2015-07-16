@@ -430,6 +430,13 @@ int soundio_outstream_start(struct SoundIoOutStream *outstream) {
     return si->outstream_start(si, os);
 }
 
+int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause) {
+    SoundIo *soundio = outstream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
+    return si->outstream_pause(si, os, pause);
+}
+
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     SoundIoInStreamPrivate *is = create<SoundIoInStreamPrivate>();
     if (!is)
@@ -488,6 +495,13 @@ void soundio_instream_destroy(struct SoundIoInStream *instream) {
 
     soundio_device_unref(instream->device);
     destroy(is);
+}
+
+int soundio_instream_pause(struct SoundIoInStream *instream, bool pause) {
+    SoundIo *soundio = instream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
+    return si->instream_pause(si, is, pause);
 }
 
 void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {

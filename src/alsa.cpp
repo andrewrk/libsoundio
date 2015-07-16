@@ -40,6 +40,10 @@ struct SoundIoOutStreamAlsa {
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
+struct SoundIoInStreamAlsa {
+    snd_pcm_t *handle;
+};
+
 static void wakeup_device_poll(SoundIoAlsa *sia) {
     ssize_t amt = write(sia->notify_pipe_fd[1], "a", 1);
     if (amt == -1) {
@@ -1013,9 +1017,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 
     // write the hardware parameters to device
     if ((err = snd_pcm_hw_params(osa->handle, hwparams)) < 0) {
-        //assert(err != -EINVAL);
         outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
+        return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
     }
 
     // set channel map
@@ -1050,7 +1053,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     // write the software parameters to device
     if ((err = snd_pcm_sw_params(osa->handle, swparams)) < 0) {
         outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
+        return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
     }
 
     if ((err = snd_async_add_pcm_handler(&osa->ahandler, osa->handle, async_direct_callback, os)) < 0) {
@@ -1122,6 +1125,14 @@ static void outstream_clear_buffer_alsa(SoundIoPrivate *si,
     soundio_panic("TODO");
 }
 
+static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *) os->backend_data;
+    int err;
+    if ((err = snd_pcm_pause(osa->handle, pause)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+    return 0;
+}
+
 static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
@@ -1146,6 +1157,14 @@ static void instream_drop_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
 static void instream_clear_buffer_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
+}
+
+static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
+    int err;
+    if ((err = snd_pcm_pause(isa->handle, pause)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+    return 0;
 }
 
 int soundio_alsa_init(SoundIoPrivate *si) {
@@ -1234,6 +1253,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->outstream_begin_write = outstream_begin_write_alsa;
     si->outstream_write = outstream_write_alsa;
     si->outstream_clear_buffer = outstream_clear_buffer_alsa;
+    si->outstream_pause = outstream_pause_alsa;
 
     si->instream_open = instream_open_alsa;
     si->instream_destroy = instream_destroy_alsa;
@@ -1241,6 +1261,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->instream_peek = instream_peek_alsa;
     si->instream_drop = instream_drop_alsa;
     si->instream_clear_buffer = instream_clear_buffer_alsa;
+    si->instream_pause = instream_pause_alsa;
 
     return 0;
 }

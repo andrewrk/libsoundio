@@ -734,6 +734,10 @@ static void outstream_clear_buffer_pa(SoundIoPrivate *si,
     pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
+static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, bool pause) {
+    soundio_panic("TODO");
+}
+
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
     SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)is->backend_data;
@@ -898,6 +902,10 @@ static void instream_clear_buffer_pa(SoundIoPrivate *si, SoundIoInStreamPrivate 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
+static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
+    soundio_panic("TODO");
+}
+
 int soundio_pulseaudio_init(SoundIoPrivate *si) {
     assert(!si->backend_data);
     SoundIoPulseAudio *sipa = create<SoundIoPulseAudio>();
@@ -968,6 +976,7 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->outstream_begin_write = outstream_begin_write_pa;
     si->outstream_write = outstream_write_pa;
     si->outstream_clear_buffer = outstream_clear_buffer_pa;
+    si->outstream_pause = outstream_pause_pa;
 
     si->instream_open = instream_open_pa;
     si->instream_destroy = instream_destroy_pa;
@@ -975,6 +984,7 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->instream_peek = instream_peek_pa;
     si->instream_drop = instream_drop_pa;
     si->instream_clear_buffer = instream_clear_buffer_pa;
+    si->instream_pause = instream_pause_pa;
 
     return 0;
 }
