@@ -30,39 +30,42 @@ static float seconds_offset = 0.0f;
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
+    int err;
 
-    while (requested_frame_count > 0) {
-        char *data;
-        int frame_count = requested_frame_count;
-        soundio_outstream_begin_write(outstream, &data, &frame_count);
+    int frame_count = requested_frame_count;
+    for (;;) {
+        struct SoundIoChannelArea *areas;
+        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
+            panic("%s", soundio_strerror(err));
 
-        // clear everything to 0
-        memset(data, 0, frame_count * outstream->bytes_per_frame);
+        if (!frame_count)
+            break;
 
         const struct SoundIoChannelLayout *layout = &outstream->layout;
-
-        float *ptr = (float *)data;
 
         float pitch = 440.0f;
         float radians_per_second = pitch * 2.0f * PI;
         for (int frame = 0; frame < frame_count; frame += 1) {
             float sample = sinf((seconds_offset + frame * seconds_per_frame) * radians_per_second);
             for (int channel = 0; channel < layout->channel_count; channel += 1) {
-                *ptr += sample;
-                ptr += 1;
+                float *ptr = (float*)(areas[channel].ptr + areas[channel].step * frame);
+                *ptr = sample;
             }
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        soundio_outstream_write(outstream, data, frame_count);
-        requested_frame_count -= frame_count;
+        if ((err = soundio_outstream_write(outstream, frame_count)))
+            panic("%s", soundio_strerror(err));
     }
-
 }
 
-static void underrun_callback(struct SoundIoOutStream *device) {
-    static int count = 0;
-    fprintf(stderr, "underrun %d\n", count++);
+static void error_callback(struct SoundIoOutStream *device, int err) {
+    if (err == SoundIoErrorUnderflow) {
+        static int count = 0;
+        fprintf(stderr, "underrun %d\n", count++);
+    } else {
+        panic("%s", soundio_strerror(err));
+    }
 }
 
 int main(int argc, char **argv) {
@@ -87,7 +90,7 @@ int main(int argc, char **argv) {
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
-    outstream->underrun_callback = underrun_callback;
+    outstream->error_callback = error_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open device: %s", soundio_strerror(err));

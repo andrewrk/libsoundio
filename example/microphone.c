@@ -55,10 +55,14 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     fprintf(stderr, "write_callback\n");
 }
 
-static void underrun_callback(struct SoundIoOutStream *outstream) {
-    static int count = 0;
-    fprintf(stderr, "underrun %d\n", count++);
-    soundio_outstream_fill_with_silence(outstream);
+static void error_callback(struct SoundIoOutStream *outstream, int err) {
+    if (err == SoundIoErrorUnderflow) {
+        static int count = 0;
+        fprintf(stderr, "underrun %d\n", count++);
+        soundio_outstream_fill_with_silence(outstream);
+    } else {
+        panic("error: %s", soundio_strerror(err));
+    }
 }
 
 int main(int argc, char **argv) {
@@ -135,7 +139,7 @@ int main(int argc, char **argv) {
     outstream->layout = *layout;
     outstream->buffer_duration = 0.1;
     outstream->write_callback = write_callback;
-    outstream->underrun_callback = underrun_callback;
+    outstream->error_callback = error_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));

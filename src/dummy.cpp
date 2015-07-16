@@ -21,6 +21,7 @@ struct SoundIoOutStreamDummy {
     int buffer_size;
     double period;
     struct SoundIoRingBuffer ring_buffer;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamDummy {
@@ -58,7 +59,7 @@ static void playback_thread_run(void *arg) {
         frames_consumed += read_count;
 
         if (frames_left > 0) {
-            outstream->underrun_callback(outstream);
+            outstream->error_callback(outstream, SoundIoErrorUnderflow);
         } else if (read_count > 0) {
             outstream->write_callback(outstream, read_count);
         }
@@ -178,25 +179,32 @@ static int outstream_free_count_dummy(SoundIoPrivate *soundio, SoundIoOutStreamP
     return bytes_free_count / outstream->bytes_per_frame;
 }
 
-static void outstream_begin_write_dummy(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, char **data, int *frame_count)
+static int outstream_begin_write_dummy(SoundIoPrivate *si,
+        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *frame_count)
 {
+    *out_areas = nullptr;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
 
     int byte_count = *frame_count * outstream->bytes_per_frame;
     assert(byte_count <= osd->buffer_size);
-    *data = osd->ring_buffer.address;
+
+    char *write_ptr = soundio_ring_buffer_write_ptr(&osd->ring_buffer);
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        osd->areas[ch].ptr = write_ptr + outstream->bytes_per_sample * ch;
+        osd->areas[ch].step = outstream->bytes_per_frame;
+    }
+
+    *out_areas = osd->areas;
+    return 0;
 }
 
-static void outstream_write_dummy(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, char *data, int frame_count)
-{
+static int outstream_write_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
     SoundIoOutStream *outstream = &os->pub;
-    assert(data == osd->ring_buffer.address);
     int byte_count = frame_count * outstream->bytes_per_frame;
     soundio_ring_buffer_advance_write_ptr(&osd->ring_buffer, byte_count);
+    return 0;
 }
 
 static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {

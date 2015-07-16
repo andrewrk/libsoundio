@@ -27,6 +27,9 @@ enum SoundIoError {
     SoundIoErrorOpeningDevice,
     SoundIoErrorInvalid,
     SoundIoErrorBackendUnavailable,
+    SoundIoErrorUnderflow,
+    SoundIoErrorStreaming,
+    SoundIoErrorIncompatibleDevice,
 };
 
 enum SoundIoChannelId {
@@ -178,13 +181,21 @@ enum SoundIoFormat {
 #endif
 
 // The size of this struct is OK to use.
-#define SOUNDIO_MAX_CHANNELS 32
+#define SOUNDIO_MAX_CHANNELS 24
 struct SoundIoChannelLayout {
     const char *name;
     int channel_count;
     enum SoundIoChannelId channels[SOUNDIO_MAX_CHANNELS];
 };
 
+// The size of this struct is not part of the API or ABI.
+struct SoundIoChannelArea {
+    // Base address of buffer.
+    char *ptr;
+    // How many bytes it takes to get from the beginning of one sample to
+    // the beginning of the next sample.
+    int step;
+};
 
 // The size of this struct is not part of the API or ABI.
 struct SoundIoDevice {
@@ -239,6 +250,7 @@ struct SoundIoDevice {
     double buffer_duration_current;
 
     // How many slices it is possible to cut the buffer into.
+    // TODO change this to duration units?
     int period_count_min;
     int period_count_max;
     int period_count_current;
@@ -296,11 +308,18 @@ struct SoundIoOutStream {
 
     // Defaults to NULL.
     void *userdata;
-    void (*underrun_callback)(struct SoundIoOutStream *);
+    // `err` is SoundIoErrorUnderflow or SoundIoErrorStreaming.
+    // SoundIoErrorUnderflow means that the sound device ran out of buffered
+    // audio data to play. You must write more data to the buffer to recover.
+    // SoundIoErrorStreaming is an unrecoverable error. The stream is in an
+    // invalid state and must be destroyed.
+    void (*error_callback)(struct SoundIoOutStream *, int err);
+    // `frame_count` is the number of requested frames to write.
     void (*write_callback)(struct SoundIoOutStream *, int frame_count);
 
     // computed automatically when you call soundio_outstream_open
     int bytes_per_frame;
+    int bytes_per_sample;
 };
 
 // The size of this struct is not part of the API or ABI.
@@ -333,6 +352,7 @@ struct SoundIoInStream {
 
     // computed automatically when you call soundio_instream_open
     int bytes_per_frame;
+    int bytes_per_sample;
 };
 
 // The size of this struct is not part of the API or ABI.
@@ -482,15 +502,22 @@ void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
 int soundio_outstream_start(struct SoundIoOutStream *outstream);
 
-void soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream);
+int soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream);
 
 
 // number of frames available to write
 int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
-void soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
-        char **data, int *frame_count);
-void soundio_outstream_write(struct SoundIoOutStream *outstream,
-        char *data, int frame_count);
+
+// Call this function when you are ready to begin writing to the device buffer.
+// `outstream` - (in) The output stream you want to write to.
+// `areas` - (out) The memory addresses you can write data to.
+// `frame_count` - (in/out) Provide the number of frames you want to write.
+// returned will be the number of frames you actually can write. If this number
+// is greater than zero, you must call this function again.
+int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
+        struct SoundIoChannelArea **areas, int *frame_count);
+
+int soundio_outstream_write(struct SoundIoOutStream *outstream, int frame_count);
 
 void soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 

@@ -18,6 +18,7 @@ struct SoundIoOutStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamPulseAudio {
@@ -562,7 +563,7 @@ static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
 
 static void playback_stream_underflow_callback(pa_stream *stream, void *userdata) {
     SoundIoOutStream *outstream = (SoundIoOutStream*)userdata;
-    outstream->underrun_callback(outstream);
+    outstream->error_callback(outstream, SoundIoErrorUnderflow);
 }
 
 
@@ -681,30 +682,38 @@ static int outstream_free_count_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
 }
 
 
-static void outstream_begin_write_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, char **data, int *frame_count)
+static int outstream_begin_write_pa(SoundIoPrivate *si,
+        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *frame_count)
 {
+    *out_areas = nullptr;
+
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
-    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
     pa_stream *stream = ospa->stream;
     size_t byte_count = *frame_count * outstream->bytes_per_frame;
-    if (pa_stream_begin_write(stream, (void**)data, &byte_count))
-        soundio_panic("pa_stream_begin_write error: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
+    char *data;
+    if (pa_stream_begin_write(stream, (void**)&data, &byte_count))
+        return SoundIoErrorStreaming;
+
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        ospa->areas[ch].ptr = data + outstream->bytes_per_sample * ch;
+        ospa->areas[ch].step = outstream->bytes_per_frame;
+    }
 
     *frame_count = byte_count / outstream->bytes_per_frame;
+    *out_areas = ospa->areas;
+
+    return 0;
 }
 
-static void outstream_write_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, char *data, int frame_count)
-{
+static int outstream_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
-    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
     pa_stream *stream = ospa->stream;
     size_t byte_count = frame_count * outstream->bytes_per_frame;
-    if (pa_stream_write(stream, data, byte_count, NULL, 0, PA_SEEK_RELATIVE))
-        soundio_panic("pa_stream_write error: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
+    if (pa_stream_write(stream, ospa->areas[0].ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
+        return SoundIoErrorStreaming;
+    return 0;
 }
 
 static void outstream_clear_buffer_pa(SoundIoPrivate *si,

@@ -24,7 +24,7 @@ static void test_os_get_time(void) {
 }
 
 static void write_callback(struct SoundIoOutStream *device, int frame_count) { }
-static void underrun_callback(struct SoundIoOutStream *device) { }
+static void error_callback(struct SoundIoOutStream *device, int err) { }
 
 static void test_create_outstream(void) {
     struct SoundIo *soundio = soundio_create();
@@ -40,7 +40,7 @@ static void test_create_outstream(void) {
     outstream->layout = device->layouts[0];
     outstream->buffer_duration = 0.1;
     outstream->write_callback = write_callback;
-    outstream->underrun_callback = underrun_callback;
+    outstream->error_callback = error_callback;
 
     ok_or_panic(soundio_outstream_open(outstream));
 
