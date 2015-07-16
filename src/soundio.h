@@ -409,9 +409,6 @@ const char *soundio_get_channel_name(enum SoundIoChannelId id);
 int soundio_channel_layout_builtin_count(void);
 const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);
 
-// TODO remove this API or have it write to a `char *`?
-void soundio_debug_print_channel_layout(const struct SoundIoChannelLayout *layout);
-
 int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel);
 

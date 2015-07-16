@@ -374,18 +374,6 @@ const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index)
     return &builtin_channel_layouts[index];
 }
 
-void soundio_debug_print_channel_layout(const struct SoundIoChannelLayout *layout) {
-    if (layout->name) {
-        fprintf(stderr, "%s\n", layout->name);
-    } else {
-        fprintf(stderr, "%s", soundio_get_channel_name(layout->channels[0]));
-        for (int i = 1; i < layout->channel_count; i += 1) {
-            fprintf(stderr, ", %s", soundio_get_channel_name(layout->channels[i]));
-        }
-        fprintf(stderr, "\n");
-    }
-}
-
 int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel)
 {
