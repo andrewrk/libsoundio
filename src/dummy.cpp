@@ -19,7 +19,6 @@ struct SoundIoOutStreamDummy {
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
     int buffer_size;
-    double period;
     struct SoundIoRingBuffer ring_buffer;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
@@ -44,7 +43,7 @@ static void playback_thread_run(void *arg) {
 
     double time_per_frame = 1.0 / (double)outstream->sample_rate;
     while (osd->abort_flag.test_and_set()) {
-        soundio_os_cond_timed_wait(osd->cond, nullptr, osd->period);
+        soundio_os_cond_timed_wait(osd->cond, nullptr, outstream->period_duration);
 
         double now = soundio_os_get_time();
         double total_time = now - start_time;
@@ -142,7 +141,6 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     os->backend_data = osd;
 
     osd->buffer_size = outstream->bytes_per_frame * outstream->buffer_duration;
-    osd->period = outstream->buffer_duration / (double)outstream->period_count;
 
     soundio_ring_buffer_init(&osd->ring_buffer, osd->buffer_size);
 
@@ -337,9 +335,9 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         device->sample_rate_min = 2;
         device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
-        device->period_count_min = 1;
-        device->period_count_max = 16;
-        device->period_count_current = 2;
+        device->period_duration_min = 0.01;
+        device->period_duration_max = 2;
+        device->period_duration_current = 0.05;
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (si->safe_devices_info->output_devices.append(device)) {
@@ -388,9 +386,9 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         device->sample_rate_min = 2;
         device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
-        device->period_count_min = 1;
-        device->period_count_max = 16;
-        device->period_count_current = 2;
+        device->period_duration_min = 0.01;
+        device->period_duration_max = 2;
+        device->period_duration_current = 0.05;
         device->purpose = SoundIoDevicePurposeInput;
 
         if (si->safe_devices_info->input_devices.append(device)) {

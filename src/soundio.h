@@ -249,11 +249,11 @@ struct SoundIoDevice {
     double buffer_duration_max;
     double buffer_duration_current;
 
-    // How many slices it is possible to cut the buffer into.
-    // TODO change this to duration units?
-    int period_count_min;
-    int period_count_max;
-    int period_count_current;
+    // Period duration in seconds. After this much time passes, write_callback
+    // is called.
+    double period_duration_min;
+    double period_duration_max;
+    double period_duration_current;
 
     // Tells whether this device is an input device or an output device.
     enum SoundIoDevicePurpose purpose;
@@ -292,19 +292,17 @@ struct SoundIoOutStream {
     struct SoundIoChannelLayout layout;
 
     // Buffer duration in seconds.
-    // (buffer_duration / period_count) is the latency; how much time it takes
-    // for a sample put in the buffer to get played.
     // After you call soundio_outstream_open this value is replaced with the
     // actual duration, as near to this value as possible.
     // Defaults to 1 second (and then clamped into range).
     double buffer_duration;
 
-    // How many slices the buffer is cut into. The IRQ will happen every
-    // (buffer_frame_count / period_count) frames.
-    // After you call soundio_outstream_open this value is replaced with the
-    // actual period count, as near to this value as possible.
-    // Defaults to 2 (and then clamped into range).
-    int period_count;
+    // `period_duration` is the latency; how much time it takes
+    // for a sample put in the buffer to get played.
+    // After you call `soundio_outstream_open` this value is replaced with the
+    // actual period duration, as near to this value as possible.
+    // Defaults to `buffer_duration / 2` (and then clamped into range).
+    double period_duration;
 
     // Defaults to NULL.
     void *userdata;
@@ -341,11 +339,10 @@ struct SoundIoInStream {
     // Defaults to 1 second (and then clamped into range).
     double buffer_duration;
 
-    // How many slices the buffer is cut into. The IRQ will happen every
-    // (buffer_duration / period_count) seconds, and that is the latency of the
-    // captured audio. This value must be a power of 2.
-    // Defaults to 8.
-    int period_count;
+    // The latency of the captured audio. After this many seconds pass,
+    // `read_callback` is called.
+    // Defaults to `buffer_duration / 8`.
+    double period_duration;
 
     void *userdata;
     void (*read_callback)(struct SoundIoInStream *);

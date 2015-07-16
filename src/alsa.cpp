@@ -308,6 +308,20 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
 
     snd_pcm_uframes_t min_frames;
     snd_pcm_uframes_t max_frames;
+
+    if ((err = snd_pcm_hw_params_set_period_size_integer(handle, hwparams)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+
+    if ((err = snd_pcm_hw_params_get_period_size_min(hwparams, &min_frames, nullptr)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+
+    if ((err = snd_pcm_hw_params_get_period_size_max(hwparams, &max_frames, nullptr)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+
+
+    device->period_duration_min = ((double)min_frames) / (double)device->sample_rate_max;
+    device->period_duration_max = ((double)max_frames) / (double)device->sample_rate_max;
+
     if ((err = snd_pcm_hw_params_get_buffer_size_min(hwparams, &min_frames)) < 0)
         return SoundIoErrorOpeningDevice;
     if ((err = snd_pcm_hw_params_get_buffer_size_max(hwparams, &max_frames)) < 0)
@@ -317,26 +331,6 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
     device->buffer_duration_min = ((double)min_frames) / (double)device->sample_rate_max;
     device->buffer_duration_max = ((double)max_frames) / (double)device->sample_rate_max;
 
-    if ((err = snd_pcm_hw_params_set_periods_integer(handle, hwparams)) < 0)
-        return SoundIoErrorOpeningDevice;
-
-    dir = 0;
-    if ((err = snd_pcm_hw_params_get_periods_min(hwparams, &num, &dir)) < 0)
-        return SoundIoErrorOpeningDevice;
-
-    if (dir != 0)
-        return SoundIoErrorOpeningDevice;
-
-    device->period_count_min = num;
-
-    dir = 0;
-    if ((err = snd_pcm_hw_params_get_periods_max(hwparams, &num, &dir)) < 0)
-        return SoundIoErrorOpeningDevice;
-
-    if (dir != 0)
-        return SoundIoErrorOpeningDevice;
-
-    device->period_count_max = num;
 
 
     snd_pcm_format_mask_t *fmt_mask;
@@ -438,8 +432,8 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
         if (device->buffer_duration_min == device->buffer_duration_max)
             device->buffer_duration_current = device->buffer_duration_min;
 
-        if (device->period_count_min == device->period_count_max)
-            device->period_count_current = device->period_count_min;
+        if (device->period_duration_min == device->period_duration_max)
+            device->period_duration_current = device->period_duration_min;
 
         // now say that resampling is OK and see what the real min and max is.
         if ((err = probe_open_device(device, handle, hwparams, 1)) < 0) {
@@ -993,20 +987,22 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
+    snd_pcm_uframes_t period_frames = ceil(outstream->period_duration * (double)outstream->sample_rate);
+    if ((err = snd_pcm_hw_params_set_period_size_near(osa->handle, hwparams, &period_frames, nullptr)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+    outstream->period_duration = ((double)period_frames) / (double)outstream->sample_rate;
+
 
     snd_pcm_uframes_t buffer_size_frames = ceil(outstream->buffer_duration * (double)outstream->sample_rate);
+
     if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &buffer_size_frames)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
     outstream->buffer_duration = ((double)buffer_size_frames) / (double)outstream->sample_rate;
 
-    unsigned int actual_periods_count = outstream->period_count;
-    if ((err = snd_pcm_hw_params_set_periods_near(osa->handle, hwparams, &actual_periods_count, nullptr)) < 0) {
-        outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
-    }
-    outstream->period_count = actual_periods_count;
 
 
     snd_pcm_uframes_t period_size;
@@ -1017,6 +1013,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 
     // write the hardware parameters to device
     if ((err = snd_pcm_hw_params(osa->handle, hwparams)) < 0) {
+        //assert(err != -EINVAL);
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }

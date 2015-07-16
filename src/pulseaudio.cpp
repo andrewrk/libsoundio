@@ -296,6 +296,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         //device->default_latency = usec_to_sec(info->configured_latency);
         // TODO set min, max, current sample rate
         //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
+        // TODO set min, max, current period size
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (sipa->current_devices_info->output_devices.append(device))
@@ -330,6 +331,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         //device->default_latency = usec_to_sec(info->configured_latency);
         // TODO set min, max, current sample rate
         //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
+        // TODO set min, max, current period size
         device->purpose = SoundIoDevicePurposeInput;
 
         if (sipa->current_devices_info->input_devices.append(device))
@@ -623,6 +625,8 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     sample_spec.channels = outstream->layout.channel_count;
     pa_channel_map channel_map = to_pulseaudio_channel_map(&outstream->layout);
 
+    // TODO handle period_duration
+
     // TODO make this value ("SoundIo") configurable
     ospa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
     if (!ospa->stream) {
@@ -795,6 +799,8 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     sample_spec.channels = instream->layout.channel_count;
 
     pa_channel_map channel_map = to_pulseaudio_channel_map(&instream->layout);
+
+    // TODO handle period_duration
 
     // TODO make this value ("SoundIo") private
     ispa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
