@@ -449,7 +449,6 @@ const char * soundio_format_string(enum SoundIoFormat format);
 
 // Devices
 
-// returns -1 on error
 int soundio_get_input_device_count(struct SoundIo *soundio);
 int soundio_get_output_device_count(struct SoundIo *soundio);
 

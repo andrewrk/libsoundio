@@ -62,6 +62,16 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
         fprintf(stderr, "\n");
         if (device->current_format != SoundIoFormatInvalid)
             fprintf(stderr, "  current format: %s\n", soundio_format_string(device->current_format));
+
+        fprintf(stderr, "  min buffer duration: %0.8f sec\n", device->buffer_duration_min);
+        fprintf(stderr, "  max buffer duration: %0.8f sec\n", device->buffer_duration_max);
+        if (device->buffer_duration_current != 0.0)
+            fprintf(stderr, "  current buffer duration: %0.8f sec\n", device->buffer_duration_current);
+
+        fprintf(stderr, "  min period duration: %0.8f sec\n", device->period_duration_min);
+        fprintf(stderr, "  max period duration: %0.8f sec\n", device->period_duration_max);
+        if (device->period_duration_current != 0.0)
+            fprintf(stderr, "  current period duration: %0.8f sec\n", device->period_duration_current);
     }
     fprintf(stderr, "\n");
 }

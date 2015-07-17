@@ -261,10 +261,11 @@ static void test_fmt_mask(SoundIoDevice *device, const snd_pcm_format_mask_t *fm
 }
 
 // this function does not override device->formats, so if you want it to, deallocate and set it to NULL
-static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
-        snd_pcm_hw_params_t *hwparams, int resample)
-{
+static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resample) {
     int err;
+
+    snd_pcm_hw_params_t *hwparams;
+    snd_pcm_hw_params_alloca(&hwparams);
 
     if ((err = snd_pcm_hw_params_any(handle, hwparams)) < 0)
         return SoundIoErrorOpeningDevice;
@@ -281,32 +282,26 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
     if ((err = snd_pcm_hw_params_set_channels_last(handle, hwparams, &channel_count)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    unsigned int num;
-    unsigned int den;
+    unsigned int rate_min;
+    unsigned int rate_max;
 
-    int dir = 0;
-    if ((err = snd_pcm_hw_params_set_rate_first(handle, hwparams, &num, &dir)) < 0)
+    if ((err = snd_pcm_hw_params_get_rate_min(hwparams, &rate_min, nullptr)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    if ((err = snd_pcm_hw_params_get_rate_numden(hwparams, &num, &den)) < 0)
+    if ((err = snd_pcm_hw_params_get_rate_max(hwparams, &rate_max, nullptr)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    if (den != 1)
-        return SoundIoErrorIncompatibleDevice;
+    device->sample_rate_min = rate_min;
+    device->sample_rate_max = rate_max;
 
-    device->sample_rate_min = num;
-
-    dir = 0;
-    if ((err = snd_pcm_hw_params_set_rate_last(handle, hwparams, &num, &dir)) < 0)
+    if ((err = snd_pcm_hw_params_set_rate_last(handle, hwparams, &rate_max, nullptr)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    if ((err = snd_pcm_hw_params_get_rate_numden(hwparams, &num, &den)) < 0)
+    rate_max = 48000;
+    if ((err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate_max, nullptr)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    if (den != 1)
-        return SoundIoErrorIncompatibleDevice;
-
-    device->sample_rate_max = num;
+    double one_over_actual_rate = 1.0 / (double)rate_max;
 
     // Purposefully leave the parameters with the highest rate, highest channel count.
 
@@ -322,19 +317,23 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle,
     if ((err = snd_pcm_hw_params_get_period_size_max(hwparams, &max_frames, nullptr)) < 0)
         return SoundIoErrorIncompatibleDevice;
 
+    device->period_duration_min = min_frames * one_over_actual_rate;
+    device->period_duration_max = max_frames * one_over_actual_rate;
 
-    device->period_duration_min = ((double)min_frames) / (double)device->sample_rate_max;
-    device->period_duration_max = ((double)max_frames) / (double)device->sample_rate_max;
+    if ((err = snd_pcm_hw_params_set_period_size_first(handle, hwparams, &min_frames, nullptr)) < 0)
+        return SoundIoErrorIncompatibleDevice;
+
 
     if ((err = snd_pcm_hw_params_get_buffer_size_min(hwparams, &min_frames)) < 0)
         return SoundIoErrorOpeningDevice;
     if ((err = snd_pcm_hw_params_get_buffer_size_max(hwparams, &max_frames)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    // divide the frame counts by the max sample rate
-    device->buffer_duration_min = ((double)min_frames) / (double)device->sample_rate_max;
-    device->buffer_duration_max = ((double)max_frames) / (double)device->sample_rate_max;
+    device->buffer_duration_min = min_frames * one_over_actual_rate;
+    device->buffer_duration_max = max_frames * one_over_actual_rate;
 
+    if ((err = snd_pcm_hw_params_set_buffer_size_first(handle, hwparams, &min_frames)) < 0)
+        return SoundIoErrorOpeningDevice;
 
 
     snd_pcm_format_mask_t *fmt_mask;
@@ -396,12 +395,6 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
     int err;
     snd_pcm_t *handle;
 
-    snd_pcm_hw_params_t *hwparams;
-    snd_pcm_sw_params_t *swparams;
-
-    snd_pcm_hw_params_alloca(&hwparams);
-    snd_pcm_sw_params_alloca(&swparams);
-
     snd_pcm_stream_t stream = purpose_to_stream(device->purpose);
 
     if ((err = snd_pcm_open(&handle, device->name, stream, 0)) < 0) {
@@ -409,7 +402,7 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((err = probe_open_device(device, handle, hwparams, 0))) {
+    if ((err = probe_open_device(device, handle, 0))) {
         handle_channel_maps(device, maps);
         snd_pcm_close(handle);
         return err;
@@ -440,7 +433,7 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
             device->period_duration_current = device->period_duration_min;
 
         // now say that resampling is OK and see what the real min and max is.
-        if ((err = probe_open_device(device, handle, hwparams, 1)) < 0) {
+        if ((err = probe_open_device(device, handle, 1)) < 0) {
             snd_pcm_close(handle);
             return SoundIoErrorOpeningDevice;
         }
