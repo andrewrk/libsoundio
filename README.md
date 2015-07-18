@@ -17,12 +17,14 @@ exposed.
    - Logs messages to stdio and you can't turn that off.
    - Does not support channel layouts / channel maps.
    - Does not support emitting an event when available devices change.
+   - Does not let you connect to multiple backends at once.
    - Not written by me.
  * [rtaudio](https://www.music.mcgill.ca/~gary/rtaudio/)
    - It is not a C library.
    - It uses [exceptions](http://stackoverflow.com/questions/1736146/why-is-exception-handling-bad).
    - It does not support channel layouts / channel maps.
    - Does not support emitting an event when available devices change.
+   - Does not let you connect to multiple backends at once.
    - Not written by me.
  * [SDL](https://www.libsdl.org/)
    - Comes with baggage: display, windowing, input handling, and lots more.
@@ -31,6 +33,7 @@ exposed.
    - Does not support recording devices.
    - Does not support channel layouts / channel maps.
    - Does not support emitting an event when available devices change.
+   - Does not let you connect to multiple backends at once.
    - Not written by me.
 
 ## How It Works

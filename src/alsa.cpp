@@ -684,6 +684,7 @@ static int refresh_devices(SoundIoPrivate *si) {
     sia->ready_devices_info = devices_info;
     sia->have_devices_flag.store(true);
     soundio_os_cond_signal(sia->cond, sia->mutex);
+    soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sia->mutex);
     return 0;
 }

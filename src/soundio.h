@@ -356,14 +356,19 @@ struct SoundIoInStream {
 struct SoundIo {
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
+    // Optional callback. Called when the list of devices change. Only called
+    // during a call to soundio_flush_events or soundio_wait_events.
     void (*on_devices_change)(struct SoundIo *);
+    // Optional callback. Called from an unknown thread that you should not use
+    // to call any soundio functions. You may use this to signal a condition
+    // variable to wake up. Called when soundio_wait_events would be woken up.
     void (*on_events_signal)(struct SoundIo *);
 };
 
 // Main Context
 
-// Create a SoundIo context.
-// Returns an error code.
+// Create a SoundIo context. You may create multiple instances of this to
+// connect to multiple backends.
 struct SoundIo * soundio_create(void);
 void soundio_destroy(struct SoundIo *soundio);
 
