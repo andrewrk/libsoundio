@@ -390,7 +390,7 @@ int soundio_backend_count(struct SoundIo *soundio);
 enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 
 // when you call this, the on_devices_change and on_events_signal callbacks
-// might be called. This is the only time those functions will be called.
+// might be called. This is the only time those callbacks will be called.
 void soundio_flush_events(struct SoundIo *soundio);
 
 // flushes events as they occur, blocks until you call soundio_wakeup
@@ -462,10 +462,10 @@ int soundio_get_output_device_count(struct SoundIo *soundio);
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
-// returns the index of the default input device, or -1 on error
+// returns the index of the default input device
 int soundio_get_default_input_device_index(struct SoundIo *soundio);
 
-// returns the index of the default output device, or -1 on error
+// returns the index of the default output device
 int soundio_get_default_output_device_index(struct SoundIo *soundio);
 
 void soundio_device_ref(struct SoundIoDevice *device);
