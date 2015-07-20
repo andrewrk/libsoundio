@@ -25,6 +25,12 @@ static void panic(const char *format, ...) {
     abort();
 }
 
+static int usage(char *exe) {
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio]\n", exe);
+    return 1;
+}
+
+
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
@@ -69,12 +75,29 @@ static void error_callback(struct SoundIoOutStream *device, int err) {
 }
 
 int main(int argc, char **argv) {
+    char *exe = argv[0];
+    enum SoundIoBackend backend = SoundIoBackendNone;
+    for (int i = 1; i < argc; i += 1) {
+        char *arg = argv[i];
+        if (strcmp("--dummy", arg) == 0) {
+            backend = SoundIoBackendDummy;
+        } else if (strcmp("--alsa", arg) == 0) {
+            backend = SoundIoBackendAlsa;
+        } else if (strcmp("--pulseaudio", arg) == 0) {
+            backend = SoundIoBackendPulseAudio;
+        } else {
+            return usage(exe);
+        }
+    }
+
     struct SoundIo *soundio = soundio_create();
     if (!soundio)
         panic("out of memory");
 
-    int err;
-    if ((err = soundio_connect(soundio)))
+    int err = (backend == SoundIoBackendNone) ?
+        soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
+
+    if (err)
         panic("error connecting: %s", soundio_strerror(err));
 
     int default_out_device_index = soundio_get_default_output_device_index(soundio);
