@@ -39,13 +39,6 @@ Complete program to emit a sine wave over the default device using the best
 backend:
 
 ```c
-/*
- * Copyright (c) 2015 Andrew Kelley
- *
- * This file is part of libsoundio, which is MIT licensed.
- * See http://opensource.org/licenses/MIT
- */
-
 #include <soundio/soundio.h>
 
 #include <stdio.h>
@@ -151,7 +144,7 @@ int main(int argc, char **argv) {
 
 ### "Best Backend"
 
-When you use `soundio_connect', it tries these backends in order.
+When you use `soundio_connect`, it tries these backends in order.
 libsoundio tries these backends in order. If unable to connect to that backend,
 due to the backend not being installed, or the server not running, or the
 platform is wrong, the next backend is tried.
