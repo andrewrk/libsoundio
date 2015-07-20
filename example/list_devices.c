@@ -14,7 +14,7 @@
 // list or keep a watch on audio devices
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--watch]\n", exe);
+    fprintf(stderr, "Usage: %s [--watch] [--dummy] [--alsa] [--pulseaudio]\n", exe);
     return 1;
 }
 
@@ -108,11 +108,18 @@ static void on_devices_change(struct SoundIo *soundio) {
 int main(int argc, char **argv) {
     char *exe = argv[0];
     bool watch = false;
+    enum SoundIoBackend backend = SoundIoBackendNone;
 
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (strcmp("--watch", arg) == 0) {
             watch = true;
+        } else if (strcmp("--dummy", arg) == 0) {
+            backend = SoundIoBackendDummy;
+        } else if (strcmp("--alsa", arg) == 0) {
+            backend = SoundIoBackendAlsa;
+        } else if (strcmp("--pulseaudio", arg) == 0) {
+            backend = SoundIoBackendPulseAudio;
         } else {
             return usage(exe);
         }
@@ -124,8 +131,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    int err;
-    if ((err = soundio_connect(soundio))) {
+    int err = (backend == SoundIoBackendNone) ?
+        soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
+
+    if (err) {
         fprintf(stderr, "%s\n", soundio_strerror(err));
         return err;
     }

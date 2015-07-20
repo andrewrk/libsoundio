@@ -479,12 +479,13 @@ enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *dev
 // Sorts channel layouts by channel count, descending.
 void soundio_device_sort_channel_layouts(struct SoundIoDevice *device);
 
-// Returns whether `format` is included in the devices supported formats.
+// Convenience function. Returns whether `format` is included in the device's
+// supported formats.
 bool soundio_device_supports_format(struct SoundIoDevice *device,
         enum SoundIoFormat format);
 
-// Returns whether `layout` is included in the devices supported channel
-// layouts.
+// Convenience function. Returns whether `layout` is included in the device's
+// supported channel layouts.
 bool soundio_device_supports_layout(struct SoundIoDevice *device,
         const struct SoundIoChannelLayout *layout);
 
