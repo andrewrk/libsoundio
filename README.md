@@ -144,10 +144,9 @@ int main(int argc, char **argv) {
 
 ### "Best Backend"
 
-When you use `soundio_connect`, it tries these backends in order.
-libsoundio tries these backends in order. If unable to connect to that backend,
-due to the backend not being installed, or the server not running, or the
-platform is wrong, the next backend is tried.
+When you use `soundio_connect`, libsoundio tries these backends in order.
+If unable to connect to that backend, due to the backend not being installed,
+or the server not running, or the platform is wrong, the next backend is tried.
 
  0. JACK
  0. PulseAudio
