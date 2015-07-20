@@ -184,10 +184,11 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
 #endif
     case SoundIoBackendDummy:
         si->current_backend = SoundIoBackendDummy;
-        err = soundio_dummy_init(si);
-        if (err)
+        if ((err = soundio_dummy_init(si))) {
             soundio_disconnect(soundio);
-        return err;
+            return err;
+        }
+        return 0;
     case SoundIoBackendNone:
         return SoundIoErrorInvalid;
     }
@@ -229,35 +230,37 @@ void soundio_disconnect(struct SoundIo *soundio) {
 
 void soundio_flush_events(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    assert(si->flush_events);
-    if (si->flush_events)
-        si->flush_events(si);
+    si->flush_events(si);
 }
 
 int soundio_get_input_device_count(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    soundio_flush_events(soundio);
+    if (!si->safe_devices_info)
+        soundio_flush_events(soundio);
     assert(si->safe_devices_info);
     return si->safe_devices_info->input_devices.length;
 }
 
 int soundio_get_output_device_count(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    soundio_flush_events(soundio);
+    if (!si->safe_devices_info)
+        soundio_flush_events(soundio);
     assert(si->safe_devices_info);
     return si->safe_devices_info->output_devices.length;
 }
 
 int soundio_get_default_input_device_index(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    soundio_flush_events(soundio);
+    if (!si->safe_devices_info)
+        soundio_flush_events(soundio);
     assert(si->safe_devices_info);
     return si->safe_devices_info->default_input_index;
 }
 
 int soundio_get_default_output_device_index(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    soundio_flush_events(soundio);
+    if (!si->safe_devices_info)
+        soundio_flush_events(soundio);
     assert(si->safe_devices_info);
     return si->safe_devices_info->default_output_index;
 }
