@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 struct SoundIoOutStreamDummy {
     struct SoundIoOsThread *thread;
@@ -42,9 +43,8 @@ static void playback_thread_run(void *arg) {
     long frames_consumed = 0;
 
     double time_per_frame = 1.0 / (double)outstream->sample_rate;
-    while (osd->abort_flag.test_and_set()) {
-        soundio_os_cond_timed_wait(osd->cond, nullptr, outstream->period_duration);
 
+    while (osd->abort_flag.test_and_set()) {
         double now = soundio_os_get_time();
         double total_time = now - start_time;
         long total_frames = total_time / time_per_frame;
@@ -62,6 +62,12 @@ static void playback_thread_run(void *arg) {
         } else if (read_count > 0) {
             outstream->write_callback(outstream, read_count);
         }
+        now = soundio_os_get_time();
+        double time_passed = now - start_time;
+        double next_period = start_time +
+            ceil(time_passed / outstream->period_duration) * outstream->period_duration;
+        double relative_time = next_period - now;
+        soundio_os_cond_timed_wait(osd->cond, nullptr, relative_time);
     }
 }
 
@@ -151,23 +157,38 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     return 0;
 }
 
-static int outstream_start_dummy(SoundIoPrivate *soundio, SoundIoOutStreamPrivate *os) {
+static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
+    if (pause) {
+        if (osd->thread) {
+            osd->abort_flag.clear();
+            soundio_os_cond_signal(osd->cond, nullptr);
+            soundio_os_thread_destroy(osd->thread);
+            osd->thread = nullptr;
+        }
+    } else {
+        if (!osd->thread) {
+            osd->abort_flag.test_and_set();
+            int err;
+            if ((err = soundio_os_thread_create(playback_thread_run, os, true, &osd->thread))) {
+                return err;
+            }
+        }
+    }
+    return 0;
+}
+
+static int outstream_start_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
 
     soundio_outstream_fill_with_silence(outstream);
     assert(soundio_ring_buffer_fill_count(&osd->ring_buffer) == osd->buffer_size);
 
-    osd->abort_flag.test_and_set();
-    int err;
-    if ((err = soundio_os_thread_create(playback_thread_run, os, true, &osd->thread))) {
-        return err;
-    }
-
-    return 0;
+    return outstream_pause_dummy(si, os, false);
 }
 
-static int outstream_free_count_dummy(SoundIoPrivate *soundio, SoundIoOutStreamPrivate *os) {
+static int outstream_free_count_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
     int fill_count = soundio_ring_buffer_fill_count(&osd->ring_buffer);
@@ -212,10 +233,6 @@ static int outstream_write_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os
 static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
     soundio_ring_buffer_clear(&osd->ring_buffer);
-}
-
-static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
-    soundio_panic("TODO");
 }
 
 static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {

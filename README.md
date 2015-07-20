@@ -258,6 +258,7 @@ view `coverage/index.html` in a browser.
       specify how much to peek() and if you don't peek all of it, save the
       unused to a buffer for you.
  0. add len arguments to APIs that have char *
+ 0. custom allocator support
 
 ## Planned Uses for libsoundio
 
