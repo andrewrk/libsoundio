@@ -509,11 +509,12 @@ int soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream);
 int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
 
 // Call this function when you are ready to begin writing to the device buffer.
-// `outstream` - (in) The output stream you want to write to.
-// `areas` - (out) The memory addresses you can write data to.
-// `frame_count` - (in/out) Provide the number of frames you want to write.
-// returned will be the number of frames you actually can write. If this number
-// is greater than zero, you must call this function again.
+//  * `outstream` - (in) The output stream you want to write to.
+//  * `areas` - (out) The memory addresses you can write data to. It is OK to
+//     modify the pointers if that helps you iterate.
+//  * `frame_count` - (in/out) Provide the number of frames you want to write.
+//    Returned will be the number of frames you actually can write. If this
+//    number is greater than zero, you must call this function again.
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         struct SoundIoChannelArea **areas, int *frame_count);
 
