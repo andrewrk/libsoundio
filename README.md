@@ -238,6 +238,7 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
+ 0. ALSA: support devices that don't support mmap access (test with pulseaudio alsa default)
  0. implement ALSA (Linux) backend, get examples working
  0. ALSA: poll instead of callback
  0. pipe record to playback example working with dummy linux, osx, windows
@@ -261,7 +262,6 @@ view `coverage/index.html` in a browser.
       unused to a buffer for you.
  0. add len arguments to APIs that have char *
  0. custom allocator support
- 0. ALSA: support devices that don't support mmap access
  0. Test in an app that needs to synchronize video to test the
     latency/synchronization API.
  0. Support PulseAudio proplist properties for main context and streams

@@ -382,14 +382,6 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
     outstream->device = device;
     soundio_device_ref(device);
 
-    const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-
-    outstream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
-        SoundIoFormatFloat32NE : device->formats[0];
-    outstream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
-    outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
-    outstream->name = "SoundIo";
-
     return outstream;
 }
 
@@ -397,11 +389,31 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
     if (outstream->format <= SoundIoFormatInvalid)
         return SoundIoErrorInvalid;
 
+    SoundIoDevice *device = outstream->device;
+    if (device->probe_error)
+        return device->probe_error;
+
+    if (outstream->format == SoundIoFormatInvalid) {
+        outstream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
+            SoundIoFormatFloat32NE : device->formats[0];
+    }
+
+    if (!outstream->layout.channel_count) {
+        const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+        outstream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
+    }
+
+    if (!outstream->sample_rate)
+        outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+
+    if (!outstream->name)
+        outstream->name = "SoundIo";
+
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
     outstream->bytes_per_sample = soundio_get_bytes_per_sample(outstream->format);
 
-    SoundIo *soundio = outstream->device->soundio;
+    SoundIo *soundio = device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     return si->outstream_open(si, os);
 }
@@ -444,14 +456,6 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     instream->device = device;
     soundio_device_ref(device);
 
-    const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-
-    instream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
-        SoundIoFormatFloat32NE : device->formats[0];
-    instream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
-    instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
-    instream->name = "SoundIo";
-
     return instream;
 }
 
@@ -459,9 +463,31 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
     if (instream->format <= SoundIoFormatInvalid)
         return SoundIoErrorInvalid;
 
+    SoundIoDevice *device = instream->device;
+
+    if (device->probe_error)
+        return device->probe_error;
+
+    if (instream->format == SoundIoFormatInvalid) {
+        instream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
+            SoundIoFormatFloat32NE : device->formats[0];
+    }
+
+    if (!instream->layout.channel_count) {
+        const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+        instream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
+    }
+
+    if (!instream->sample_rate)
+        instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+
+    if (!instream->name)
+        instream->name = "SoundIo";
+
+
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);
     instream->bytes_per_sample = soundio_get_bytes_per_sample(instream->format);
-    SoundIo *soundio = instream->device->soundio;
+    SoundIo *soundio = device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
     return si->instream_open(si, is);
