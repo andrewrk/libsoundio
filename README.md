@@ -152,8 +152,8 @@ or the server not running, or the platform is wrong, the next backend is tried.
  0. PulseAudio
  0. ALSA (Linux)
  0. CoreAudio (OSX)
- 0. ASIO (Windows)
  0. WASAPI (Windows)
+ 0. ASIO (Windows)
  0. Dummy
 
 If you don't like this order, you can use `soundio_connect_backend` to
@@ -246,8 +246,6 @@ view `coverage/index.html` in a browser.
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
       it can return
-    - consider doing the public/private struct thing and make `backend_data` a
-      union instead of a `void *`
  0. use a documentation generator and host the docs somewhere
  0. -fvisibility=hidden and then explicitly export stuff
  0. Integrate into libgroove and test with Groove Basin
@@ -259,6 +257,7 @@ view `coverage/index.html` in a browser.
       unused to a buffer for you.
  0. add len arguments to APIs that have char *
  0. custom allocator support
+ 0. ALSA: support devices that don't support mmap access
 
 ## Planned Uses for libsoundio
 

@@ -274,8 +274,11 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resam
         return SoundIoErrorOpeningDevice;
 
     if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED)) < 0) {
-        if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_NONINTERLEAVED)) < 0)
-            return SoundIoErrorIncompatibleDevice;
+        if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_NONINTERLEAVED)) < 0) {
+            if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_COMPLEX)) < 0) {
+                return SoundIoErrorIncompatibleDevice;
+            }
+        }
     }
 
     unsigned int channel_count;
@@ -965,8 +968,10 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 
     if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED)) < 0) {
         if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_NONINTERLEAVED)) < 0) {
-            outstream_destroy_alsa(si, os);
-            return SoundIoErrorIncompatibleDevice;
+            if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_COMPLEX)) < 0) {
+                outstream_destroy_alsa(si, os);
+                return SoundIoErrorIncompatibleDevice;
+            }
         }
     }
 
