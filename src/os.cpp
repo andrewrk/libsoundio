@@ -16,6 +16,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <math.h>
 
 #if defined(_WIN32)
 #define SOUNDIO_OS_WINDOWS
@@ -130,6 +131,14 @@ pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 static int page_size;
+
+struct SoundIoOsMirroredMemoryPrivate {
+    SoundIoOsMirroredMemory pub;
+#if defined(SOUNDIO_OS_WINDOWS)
+    HANDLE handle;
+#endif
+};
+
 
 double soundio_os_get_time(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
@@ -603,19 +612,19 @@ int soundio_os_page_size(void) {
     return page_size;
 }
 
-int soundio_os_create_mirrored_memory(size_t *capacity, char **out_address) {
-    *out_address = nullptr;
-    size_t requested_capacity = *capacity;
+struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t requested_capacity) {
+    SoundIoOsMirroredMemoryPrivate *m = create<SoundIoOsMirroredMemoryPrivate>();
+    if (!m)
+        return nullptr;
+    SoundIoOsMirroredMemory *mem = &m->pub;
 
-    size_t actual_capacity = (requested_capacity / page_size) * page_size;
-    if (actual_capacity < requested_capacity)
-        actual_capacity += page_size;
+    size_t actual_capacity = ceil(requested_capacity / (double)page_size) * page_size;
 
 #if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;
     HANDLE hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, actual_capacity * 2, NULL);
     if (!hMapFile)
-        return SoundIoErrorNoMem;
+        return nullptr;
 
     for (;;) {
         // find a free address space with the correct size
@@ -623,7 +632,7 @@ int soundio_os_create_mirrored_memory(size_t *capacity, char **out_address) {
         if (!address) {
             ok = CloseHandle(hMapFile);
             assert(ok);
-            return SoundIoErrorNoMem;
+            return nullptr;
         }
 
         // found a big enough address space. hopefully it will remain free
@@ -639,7 +648,7 @@ int soundio_os_create_mirrored_memory(size_t *capacity, char **out_address) {
             } else {
                 ok = CloseHandle(hMapFile);
                 assert(ok);
-                return SoundIoErrorNoMem;
+                return nullptr;
             }
         }
 
@@ -655,48 +664,56 @@ int soundio_os_create_mirrored_memory(size_t *capacity, char **out_address) {
             } else {
                 ok = CloseHandle(hMapFile);
                 assert(ok);
-                return SoundIoErrorNoMem;
+                return nullptr;
             }
         }
 
-        *out_address = address;
+        mem->address = address;
         break;
     }
 #else
     char *address = (char*)mmap(NULL, actual_capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (address == MAP_FAILED)
-        return SoundIoErrorNoMem;
+        return nullptr;
 
     char *other_address = (char*)mmap(address, actual_capacity, PROT_READ|PROT_WRITE,
             MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != address) {
         munmap(address, 2 * actual_capacity);
-        return SoundIoErrorNoMem;
+        return nullptr;
     }
 
     other_address = (char*)mmap(address + actual_capacity, actual_capacity,
             PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != address + actual_capacity) {
         munmap(address, 2 * actual_capacity);
-        return SoundIoErrorNoMem;
+        return nullptr;
     }
 
-    *out_address = address;
+    mem->address = address;
 
 #endif
 
-    *capacity = actual_capacity;
-
-    return 0;
+    mem->capacity = actual_capacity;
+    return mem;
 }
 
-void soundio_os_destroy_mirrored_memory(char *address, size_t capacity) {
-    if (!address)
+void soundio_os_destroy_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
+    if (!mem)
+        return;
+    if (!mem->address)
         return;
 #if defined(SOUNDIO_OS_WINDOWS)
-    // TODO
+    SoundIoOsMirroredMemoryPrivate *m = (SoundIoOsMirroredMemoryPrivate *)mem;
+    BOOL ok;
+    ok = UnmapViewOfFile(mem->address);
+    assert(ok);
+    ok = UnmapViewOfFile(mem->address + mem->capacity);
+    assert(ok);
+    ok = CloseHandle(m->handle);
+    assert(ok);
 #else
-    int err = munmap(address, 2 * capacity);
+    int err = munmap(mem->address, 2 * mem->capacity);
     assert(!err);
 #endif
 }

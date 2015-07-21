@@ -75,14 +75,13 @@ void soundio_ring_buffer_clear(struct SoundIoRingBuffer *rb) {
 }
 
 int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacity) {
-    int err;
-    size_t capacity = requested_capacity;
-    if ((err = soundio_os_create_mirrored_memory(&capacity, &rb->address))) {
+    rb->mem = soundio_os_create_mirrored_memory(requested_capacity);
+    if (!rb->mem) {
         soundio_ring_buffer_deinit(rb);
-        return err;
+        return SoundIoErrorNoMem;
     }
-
-    rb->capacity = capacity;
+    rb->address = rb->mem->address;
+    rb->capacity = rb->mem->capacity;
     rb->write_offset = 0;
     rb->read_offset = 0;
 
@@ -90,5 +89,6 @@ int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacit
 }
 
 void soundio_ring_buffer_deinit(struct SoundIoRingBuffer *rb) {
-    soundio_os_destroy_mirrored_memory(rb->address, rb->capacity);
+    soundio_os_destroy_mirrored_memory(rb->mem);
+    rb->mem = nullptr;
 }
