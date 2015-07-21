@@ -20,6 +20,7 @@ struct SoundIoOutStreamPulseAudio {
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    char *write_ptr;
 };
 
 struct SoundIoInStreamPulseAudio {
@@ -740,12 +741,11 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
     pa_stream *stream = ospa->stream;
     size_t byte_count = *frame_count * outstream->bytes_per_frame;
-    char *data;
-    if (pa_stream_begin_write(stream, (void**)&data, &byte_count))
+    if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &byte_count))
         return SoundIoErrorStreaming;
 
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-        ospa->areas[ch].ptr = data + outstream->bytes_per_sample * ch;
+        ospa->areas[ch].ptr = ospa->write_ptr + outstream->bytes_per_sample * ch;
         ospa->areas[ch].step = outstream->bytes_per_frame;
     }
 
@@ -760,7 +760,7 @@ static int outstream_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, i
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
     pa_stream *stream = ospa->stream;
     size_t byte_count = frame_count * outstream->bytes_per_frame;
-    if (pa_stream_write(stream, ospa->areas[0].ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
+    if (pa_stream_write(stream, ospa->write_ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
         return SoundIoErrorStreaming;
     return 0;
 }
@@ -780,7 +780,21 @@ static void outstream_clear_buffer_pa(SoundIoPrivate *si,
 }
 
 static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, bool pause) {
-    soundio_panic("TODO");
+    SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
+    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
+
+    pa_threaded_mainloop_lock(sipa->main_loop);
+
+    if (pause != !pa_stream_is_corked(ospa->stream)) {
+        pa_operation *op = pa_stream_cork(ospa->stream, pause, NULL, NULL);
+        if (!op)
+            return SoundIoErrorStreaming;
+        pa_operation_unref(op);
+    }
+
+    pa_threaded_mainloop_unlock(sipa->main_loop);
+
+    return 0;
 }
 
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
