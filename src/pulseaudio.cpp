@@ -627,8 +627,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     // TODO handle period_duration
 
-    // TODO make this value ("SoundIo") configurable
-    ospa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
+    ospa->stream = pa_stream_new(sipa->pulse_context, outstream->name, &sample_spec, &channel_map);
     if (!ospa->stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         outstream_destroy_pa(si, os);
@@ -806,8 +805,7 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     // TODO handle period_duration
 
-    // TODO make this value ("SoundIo") private
-    ispa->stream = pa_stream_new(sipa->pulse_context, "SoundIo", &sample_spec, &channel_map);
+    ispa->stream = pa_stream_new(sipa->pulse_context, instream->name, &sample_spec, &channel_map);
     if (!ispa->stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         instream_destroy_pa(si, is);

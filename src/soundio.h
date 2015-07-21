@@ -16,9 +16,6 @@ extern "C"
 {
 #endif
 
-struct SoundIo;
-struct SoundIoDevicesInfo;
-
 enum SoundIoError {
     SoundIoErrorNone,
     SoundIoErrorNoMem,
@@ -198,6 +195,19 @@ struct SoundIoChannelArea {
 };
 
 // The size of this struct is not part of the API or ABI.
+struct SoundIo {
+    // Defaults to NULL. Put whatever you want here.
+    void *userdata;
+    // Optional callback. Called when the list of devices change. Only called
+    // during a call to soundio_flush_events or soundio_wait_events.
+    void (*on_devices_change)(struct SoundIo *);
+    // Optional callback. Called from an unknown thread that you should not use
+    // to call any soundio functions. You may use this to signal a condition
+    // variable to wake up. Called when soundio_wait_events would be woken up.
+    void (*on_events_signal)(struct SoundIo *);
+};
+
+// The size of this struct is not part of the API or ABI.
 struct SoundIoDevice {
     // Read-only. Set automatically.
     struct SoundIo *soundio;
@@ -314,6 +324,9 @@ struct SoundIoOutStream {
     void (*error_callback)(struct SoundIoOutStream *, int err);
     void (*write_callback)(struct SoundIoOutStream *, int requested_frame_count);
 
+    // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
+    const char *name;
+
     // computed automatically when you call soundio_outstream_open
     int bytes_per_frame;
     int bytes_per_sample;
@@ -347,22 +360,12 @@ struct SoundIoInStream {
     void *userdata;
     void (*read_callback)(struct SoundIoInStream *);
 
+    // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
+    const char *name;
+
     // computed automatically when you call soundio_instream_open
     int bytes_per_frame;
     int bytes_per_sample;
-};
-
-// The size of this struct is not part of the API or ABI.
-struct SoundIo {
-    // Defaults to NULL. Put whatever you want here.
-    void *userdata;
-    // Optional callback. Called when the list of devices change. Only called
-    // during a call to soundio_flush_events or soundio_wait_events.
-    void (*on_devices_change)(struct SoundIo *);
-    // Optional callback. Called from an unknown thread that you should not use
-    // to call any soundio functions. You may use this to signal a condition
-    // variable to wake up. Called when soundio_wait_events would be woken up.
-    void (*on_events_signal)(struct SoundIo *);
 };
 
 // Main Context

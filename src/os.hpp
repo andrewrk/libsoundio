@@ -13,6 +13,7 @@
 
 // safe to call from any thread(s) multiple times, but
 // must be called at least once before calling any other os functions
+// soundio_create calls this function.
 void soundio_os_init(void);
 
 double soundio_os_get_time(void);

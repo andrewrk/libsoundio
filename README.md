@@ -235,6 +235,7 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement ALSA (Linux) backend, get examples working
+ 0. ALSA: poll instead of callback
  0. fix pulseaudio backend since I broke it
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux

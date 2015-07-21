@@ -389,6 +389,7 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
     outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
     outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
     outstream->period_duration = -1.0;
+    outstream->name = "SoundIo";
 
     return outstream;
 }
@@ -457,6 +458,7 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
     instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
     instream->period_duration = -1.0;
+    instream->name = "SoundIo";
 
     return instream;
 }

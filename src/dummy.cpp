@@ -39,15 +39,12 @@ static void playback_thread_run(void *arg) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
 
-    double start_time = soundio_os_get_time();
     long frames_consumed = 0;
-
-    double time_per_frame = 1.0 / (double)outstream->sample_rate;
-
+    double start_time = soundio_os_get_time();
     while (osd->abort_flag.test_and_set()) {
         double now = soundio_os_get_time();
         double total_time = now - start_time;
-        long total_frames = total_time / time_per_frame;
+        long total_frames = total_time * outstream->sample_rate;
         int frames_to_kill = total_frames - frames_consumed;
         int fill_count = soundio_ring_buffer_fill_count(&osd->ring_buffer);
         int frames_in_buffer = fill_count / outstream->bytes_per_frame;
@@ -59,6 +56,9 @@ static void playback_thread_run(void *arg) {
 
         if (frames_left > 0) {
             outstream->error_callback(outstream, SoundIoErrorUnderflow);
+            // simulate filling with silence
+            int free_count = soundio_ring_buffer_free_count(&osd->ring_buffer);
+            soundio_ring_buffer_advance_write_ptr(&osd->ring_buffer, free_count);
         } else if (read_count > 0) {
             outstream->write_callback(outstream, read_count);
         }
