@@ -137,6 +137,15 @@ static void outstream_destroy_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate 
 
 static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
+    SoundIoDevice *device = outstream->device;
+
+    if (outstream->buffer_duration == 0.0)
+        outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    if (outstream->period_duration == 0.0) {
+        outstream->period_duration = clamp(device->period_duration_min,
+                outstream->buffer_duration / 2.0, device->period_duration_max);
+    }
+
     SoundIoOutStreamDummy *osd = create<SoundIoOutStreamDummy>();
     if (!osd) {
         outstream_destroy_dummy(si, os);
@@ -236,6 +245,15 @@ static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPri
 }
 
 static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    /* TODO
+    instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    instream->period_duration = -1.0;
+    if (instream->period_duration == -1.0) {
+        instream->period_duration = clamp(instream->device->period_duration_min,
+                instream->buffer_duration / 8.0, instream->device->period_duration_max);
+    }
+    */
+
     soundio_panic("TODO");
 }
 
@@ -293,6 +311,16 @@ static int set_all_device_formats(SoundIoDevice *device) {
     return 0;
 }
 
+static int set_all_device_channel_layouts(SoundIoDevice *device) {
+    device->layout_count = soundio_channel_layout_builtin_count();
+    device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
+    if (!device->layouts)
+        return SoundIoErrorNoMem;
+    for (int i = 0; i < device->layout_count; i += 1)
+        device->layouts[i] = *soundio_channel_layout_get_builtin(i);
+    return 0;
+}
+
 int soundio_dummy_init(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     assert(!si->backend_data);
@@ -342,17 +370,13 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             destroy_dummy(si);
             return SoundIoErrorNoMem;
         }
-        device->layout_count = soundio_channel_layout_builtin_count();
-        device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
-        if (!device->layouts) {
-            soundio_device_unref(device);
-            destroy_dummy(si);
-            return SoundIoErrorNoMem;
-        }
-        for (int i = 0; i < device->layout_count; i += 1)
-            device->layouts[i] = *soundio_channel_layout_get_builtin(i);
 
         int err;
+        if ((err = set_all_device_channel_layouts(device))) {
+            soundio_device_unref(device);
+            destroy_dummy(si);
+            return err;
+        }
         if ((err = set_all_device_formats(device))) {
             soundio_device_unref(device);
             destroy_dummy(si);
@@ -395,17 +419,13 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             return SoundIoErrorNoMem;
         }
 
-        device->layout_count = soundio_channel_layout_builtin_count();
-        device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
-        if (!device->layouts) {
+        int err;
+        if ((err = set_all_device_channel_layouts(device))) {
             soundio_device_unref(device);
             destroy_dummy(si);
-            return SoundIoErrorNoMem;
+            return err;
         }
-        for (int i = 0; i < device->layout_count; i += 1)
-            device->layouts[i] = *soundio_channel_layout_get_builtin(i);
 
-        int err;
         if ((err = set_all_device_formats(device))) {
             soundio_device_unref(device);
             destroy_dummy(si);

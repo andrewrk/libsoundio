@@ -38,8 +38,9 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     float seconds_per_frame = 1.0f / float_sample_rate;
     int err;
 
-    int frame_count = requested_frame_count;
     for (;;) {
+        int frame_count = requested_frame_count;
+
         struct SoundIoChannelArea *areas;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
@@ -62,6 +63,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
 
         if ((err = soundio_outstream_write(outstream, frame_count)))
             panic("%s", soundio_strerror(err));
+
+        requested_frame_count -= frame_count;
+        if (requested_frame_count <= 0)
+            break;
     }
 }
 

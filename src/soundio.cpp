@@ -134,6 +134,7 @@ struct SoundIo * soundio_create(void) {
     SoundIo *soundio = &si->pub;
     soundio->on_devices_change = default_on_devices_change;
     soundio->on_events_signal = default_on_events_signal;
+    soundio->app_name = "SoundIo";
     return soundio;
 }
 
@@ -387,8 +388,6 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
         SoundIoFormatFloat32NE : device->formats[0];
     outstream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
     outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
-    outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    outstream->period_duration = -1.0;
     outstream->name = "SoundIo";
 
     return outstream;
@@ -397,11 +396,6 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
 int soundio_outstream_open(struct SoundIoOutStream *outstream) {
     if (outstream->format <= SoundIoFormatInvalid)
         return SoundIoErrorInvalid;
-
-    if (outstream->period_duration == -1.0) {
-        outstream->period_duration = clamp(outstream->device->period_duration_min,
-                outstream->buffer_duration / 2.0, outstream->device->period_duration_max);
-    }
 
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
@@ -456,8 +450,6 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
         SoundIoFormatFloat32NE : device->formats[0];
     instream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
     instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
-    instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    instream->period_duration = -1.0;
     instream->name = "SoundIo";
 
     return instream;
@@ -466,11 +458,6 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
 int soundio_instream_open(struct SoundIoInStream *instream) {
     if (instream->format <= SoundIoFormatInvalid)
         return SoundIoErrorInvalid;
-
-    if (instream->period_duration == -1.0) {
-        instream->period_duration = clamp(instream->device->period_duration_min,
-                instream->buffer_duration / 8.0, instream->device->period_duration_max);
-    }
 
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);
     instream->bytes_per_sample = soundio_get_bytes_per_sample(instream->format);

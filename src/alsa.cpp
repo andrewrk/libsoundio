@@ -929,6 +929,15 @@ static void async_direct_callback(snd_async_handler_t *ahandler) {
 
 static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStream *outstream = &os->pub;
+    SoundIoDevice *device = outstream->device;
+
+    if (outstream->buffer_duration == 0.0)
+        outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    if (outstream->period_duration == 0.0) {
+        outstream->period_duration = clamp(device->period_duration_min,
+                outstream->buffer_duration / 2.0, device->period_duration_max);
+    }
+
     SoundIoOutStreamAlsa *osa = create<SoundIoOutStreamAlsa>();
     if (!osa) {
         outstream_destroy_alsa(si, os);
@@ -1133,6 +1142,7 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
 }
 
 static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    // TODO default buffer_duration and period_duration
     soundio_panic("TODO");
 }
 

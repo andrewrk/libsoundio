@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
 #include <pulse/pulseaudio.h>
 
@@ -135,14 +136,7 @@ static void destroy_pa(SoundIoPrivate *si) {
     si->backend_data = nullptr;
 }
 
-/* TODO
-static double usec_to_sec(pa_usec_t usec) {
-    return (double)usec / (double)PA_USEC_PER_SEC;
-}
-*/
-
-
-static SoundIoFormat format_from_pulseaudio(pa_sample_spec sample_spec) {
+static SoundIoFormat from_pulseaudio_format(pa_sample_spec sample_spec) {
     switch (sample_spec.format) {
     case PA_SAMPLE_U8:          return SoundIoFormatU8;
     case PA_SAMPLE_S16LE:       return SoundIoFormatS16LE;
@@ -165,13 +159,6 @@ static SoundIoFormat format_from_pulseaudio(pa_sample_spec sample_spec) {
     return SoundIoFormatInvalid;
 }
 
-/* TODO
-static int sample_rate_from_pulseaudio(pa_sample_spec sample_spec) {
-    return sample_spec.rate;
-}
-*/
-
-/* TODO
 static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     switch (pos) {
     case PA_CHANNEL_POSITION_MONO: return SoundIoChannelIdFrontCenter;
@@ -214,7 +201,33 @@ static void set_from_pulseaudio_channel_map(pa_channel_map channel_map, SoundIoC
         }
     }
 }
-*/
+
+static int set_all_device_channel_layouts(SoundIoDevice *device) {
+    device->layout_count = soundio_channel_layout_builtin_count();
+    device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
+    if (!device->layouts)
+        return SoundIoErrorNoMem;
+    for (int i = 0; i < device->layout_count; i += 1)
+        device->layouts[i] = *soundio_channel_layout_get_builtin(i);
+    return 0;
+}
+
+static int set_all_device_formats(SoundIoDevice *device) {
+    device->format_count = 9;
+    device->formats = allocate<SoundIoFormat>(device->format_count);
+    if (!device->formats)
+        return SoundIoErrorNoMem;
+    device->formats[0] = SoundIoFormatU8;
+    device->formats[1] = SoundIoFormatS16LE;
+    device->formats[2] = SoundIoFormatS16BE;
+    device->formats[3] = SoundIoFormatFloat32LE;
+    device->formats[4] = SoundIoFormatFloat32BE;
+    device->formats[5] = SoundIoFormatS32LE;
+    device->formats[6] = SoundIoFormatS32BE;
+    device->formats[7] = SoundIoFormatS24LE;
+    device->formats[8] = SoundIoFormatS24BE;
+    return 0;
+}
 
 static int perform_operation(SoundIoPrivate *si, pa_operation *op) {
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
@@ -274,6 +287,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
     SoundIoPrivate *si = (SoundIoPrivate *)userdata;
     SoundIo *soundio = &si->pub;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
+    int err;
     if (eol) {
         sipa->have_sink_list = true;
         finish_device_query(si);
@@ -288,15 +302,29 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         device->description = strdup(info->description);
         if (!device->name || !device->description)
             soundio_panic("out of memory");
-        // TODO determine the list of supported formats and the min and max sample rate
-        // TODO determine the channel layouts supported
-        //TODO set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
-        device->current_format = format_from_pulseaudio(info->sample_spec);
-        // TODO set min, max, current latency
-        //device->default_latency = usec_to_sec(info->configured_latency);
-        // TODO set min, max, current sample rate
-        //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
-        // TODO set min, max, current period size
+
+        device->sample_rate_current = info->sample_spec.rate;
+        // PulseAudio performs resampling, so any value is valid. Let's pick
+        // some reasonable min and max values.
+        device->sample_rate_min = min(8000, device->sample_rate_current);
+        device->sample_rate_max = max(5644800, device->sample_rate_current);
+
+        device->current_format = from_pulseaudio_format(info->sample_spec);
+        // PulseAudio performs sample format conversion, so any PulseAudio
+        // value is valid.
+        if ((err = set_all_device_formats(device)))
+            soundio_panic("out of memory");
+
+        set_from_pulseaudio_channel_map(info->channel_map, &device->current_layout);
+        // PulseAudio does channel layout remapping, so any channel layout is valid.
+        if ((err = set_all_device_channel_layouts(device)))
+            soundio_panic("out of memory");
+
+        device->buffer_duration_min = 0.10;
+        device->buffer_duration_max = 4.0;
+
+        // "period" is not a recognized concept in PulseAudio.
+
         device->purpose = SoundIoDevicePurposeOutput;
 
         if (sipa->current_devices_info->output_devices.append(device))
@@ -309,6 +337,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
     SoundIoPrivate *si = (SoundIoPrivate *)userdata;
     SoundIo *soundio = &si->pub;
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
+    int err;
     if (eol) {
         sipa->have_source_list = true;
         finish_device_query(si);
@@ -323,15 +352,30 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         device->description = strdup(info->description);
         if (!device->name || !device->description)
             soundio_panic("out of memory");
-        // TODO determine the list of supported formats and the min and max sample rate
-        // TODO determine the channel layouts supported
-        // TODO set_from_pulseaudio_channel_map(info->channel_map, &device->channel_layout);
-        device->current_format = format_from_pulseaudio(info->sample_spec);
-        // TODO set min, max, current latency
-        //device->default_latency = usec_to_sec(info->configured_latency);
-        // TODO set min, max, current sample rate
-        //device->sample_rate_current = sample_rate_from_pulseaudio(info->sample_spec);
-        // TODO set min, max, current period size
+
+        device->sample_rate_current = info->sample_spec.rate;
+        // PulseAudio performs resampling, so any value is valid. Let's pick
+        // some reasonable min and max values.
+        device->sample_rate_min = min(8000, device->sample_rate_current);
+        device->sample_rate_max = max(5644800, device->sample_rate_current);
+
+        device->current_format = from_pulseaudio_format(info->sample_spec);
+        // PulseAudio performs sample format conversion, so any PulseAudio
+        // value is valid.
+        if ((err = set_all_device_formats(device)))
+            soundio_panic("out of memory");
+
+        set_from_pulseaudio_channel_map(info->channel_map, &device->current_layout);
+        // PulseAudio does channel layout remapping, so any channel layout is valid.
+        if ((err = set_all_device_channel_layouts(device)))
+            soundio_panic("out of memory");
+
+        device->buffer_duration_min = 0.10;
+        device->buffer_duration_max = 4.0;
+        device->buffer_duration_current = -1.0;
+
+        // "period" is not a recognized concept in PulseAudio.
+
         device->purpose = SoundIoDevicePurposeInput;
 
         if (sipa->current_devices_info->input_devices.append(device))
@@ -625,8 +669,6 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     sample_spec.channels = outstream->layout.channel_count;
     pa_channel_map channel_map = to_pulseaudio_channel_map(&outstream->layout);
 
-    // TODO handle period_duration
-
     ospa->stream = pa_stream_new(sipa->pulse_context, outstream->name, &sample_spec, &channel_map);
     if (!ospa->stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
@@ -637,15 +679,20 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     pa_stream_set_write_callback(ospa->stream, playback_stream_write_callback, os);
     pa_stream_set_underflow_callback(ospa->stream, playback_stream_underflow_callback, outstream);
 
-    int bytes_per_second = outstream->bytes_per_frame * outstream->sample_rate;
-    int buffer_length = outstream->bytes_per_frame *
-        ceil(outstream->buffer_duration * bytes_per_second / (double)outstream->bytes_per_frame);
-
-    ospa->buffer_attr.maxlength = buffer_length;
-    ospa->buffer_attr.tlength = buffer_length;
-    ospa->buffer_attr.prebuf = 0;
+    ospa->buffer_attr.maxlength = UINT32_MAX;
+    ospa->buffer_attr.tlength = UINT32_MAX;
+    ospa->buffer_attr.prebuf = UINT32_MAX;
     ospa->buffer_attr.minreq = UINT32_MAX;
     ospa->buffer_attr.fragsize = UINT32_MAX;
+
+    if (outstream->buffer_duration > 0.0) {
+        int bytes_per_second = outstream->bytes_per_frame * outstream->sample_rate;
+        int buffer_length = outstream->bytes_per_frame *
+            ceil(outstream->buffer_duration * bytes_per_second / (double)outstream->bytes_per_frame);
+
+        ospa->buffer_attr.maxlength = buffer_length;
+        ospa->buffer_attr.tlength = buffer_length;
+    }
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
@@ -659,10 +706,11 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
+    pa_stream_flags_t flags = (outstream->buffer_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
 
     int err = pa_stream_connect_playback(ospa->stream,
             outstream->device->name, &ospa->buffer_attr,
-            PA_STREAM_ADJUST_LATENCY, nullptr, nullptr);
+            flags, nullptr, nullptr);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorOpeningDevice;
@@ -670,8 +718,6 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     while (!ospa->stream_ready)
         pa_threaded_mainloop_wait(sipa->main_loop);
-
-    soundio_outstream_fill_with_silence(outstream);
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
@@ -784,6 +830,7 @@ static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *inst
 
 static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStream *instream = &is->pub;
+
     SoundIoInStreamPulseAudio *ispa = create<SoundIoInStreamPulseAudio>();
     if (!ispa) {
         instream_destroy_pa(si, is);
@@ -803,8 +850,6 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     pa_channel_map channel_map = to_pulseaudio_channel_map(&instream->layout);
 
-    // TODO handle period_duration
-
     ispa->stream = pa_stream_new(sipa->pulse_context, instream->name, &sample_spec, &channel_map);
     if (!ispa->stream) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
@@ -817,15 +862,22 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     pa_stream_set_state_callback(stream, recording_stream_state_callback, is);
     pa_stream_set_read_callback(stream, recording_stream_read_callback, is);
 
-    int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
-    int buffer_length = instream->bytes_per_frame *
-        ceil(instream->buffer_duration * bytes_per_second / (double)instream->bytes_per_frame);
-
     ispa->buffer_attr.maxlength = UINT32_MAX;
     ispa->buffer_attr.tlength = UINT32_MAX;
-    ispa->buffer_attr.prebuf = 0;
+    ispa->buffer_attr.prebuf = UINT32_MAX;
     ispa->buffer_attr.minreq = UINT32_MAX;
-    ispa->buffer_attr.fragsize = buffer_length;
+    ispa->buffer_attr.fragsize = UINT32_MAX;
+
+    if (instream->period_duration > 0.0) {
+        int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
+        int buffer_length = instream->bytes_per_frame *
+            ceil(instream->period_duration * bytes_per_second / (double)instream->bytes_per_frame);
+        ispa->buffer_attr.maxlength = UINT32_MAX;
+        ispa->buffer_attr.tlength = UINT32_MAX;
+        ispa->buffer_attr.prebuf = UINT32_MAX;
+        ispa->buffer_attr.minreq = UINT32_MAX;
+        ispa->buffer_attr.fragsize = buffer_length;
+    }
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
@@ -838,9 +890,11 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
+    pa_stream_flags_t flags = (instream->period_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
+
     int err = pa_stream_connect_record(ispa->stream,
             instream->device->name,
-            &ispa->buffer_attr, PA_STREAM_ADJUST_LATENCY);
+            &ispa->buffer_attr, flags);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorOpeningDevice;
@@ -905,6 +959,8 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
 }
 
 int soundio_pulseaudio_init(SoundIoPrivate *si) {
+    SoundIo *soundio = &si->pub;
+
     assert(!si->backend_data);
     SoundIoPulseAudio *sipa = create<SoundIoPulseAudio>();
     if (!sipa) {
@@ -932,12 +988,7 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
         return SoundIoErrorNoMem;
     }
 
-    // TODO let the API specify this
-    pa_proplist_sets(sipa->props, PA_PROP_APPLICATION_NAME, "libsoundio");
-    pa_proplist_sets(sipa->props, PA_PROP_APPLICATION_VERSION, SOUNDIO_VERSION_STRING);
-    pa_proplist_sets(sipa->props, PA_PROP_APPLICATION_ID, "me.andrewkelley.libsoundio");
-
-    sipa->pulse_context = pa_context_new_with_proplist(main_loop_api, "SoundIo", sipa->props);
+    sipa->pulse_context = pa_context_new_with_proplist(main_loop_api, soundio->app_name, sipa->props);
     if (!sipa->pulse_context) {
         destroy_pa(si);
         return SoundIoErrorNoMem;

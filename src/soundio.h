@@ -205,6 +205,9 @@ struct SoundIo {
     // to call any soundio functions. You may use this to signal a condition
     // variable to wake up. Called when soundio_wait_events would be woken up.
     void (*on_events_signal)(struct SoundIo *);
+
+    // Optional: Application name. Used by PulseAudio. Defaults to "SoundIo".
+    const char *app_name;
 };
 
 // The size of this struct is not part of the API or ABI.
@@ -254,13 +257,15 @@ struct SoundIoDevice {
     int sample_rate_max;
     int sample_rate_current;
 
-    // Buffer duration in seconds.
+    // Buffer duration in seconds. If any values are unknown, they are set to
+    // 0.0. These values are unknown for PulseAudio.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;
 
     // Period duration in seconds. After this much time passes, write_callback
-    // is called.
+    // is called. If values are unknown, they are set to 0.0. These values are
+    // unknown for PulseAudio.
     double period_duration_min;
     double period_duration_max;
     double period_duration_current;
@@ -305,6 +310,10 @@ struct SoundIoOutStream {
     // After you call soundio_outstream_open this value is replaced with the
     // actual duration, as near to this value as possible.
     // Defaults to 1 second (and then clamped into range).
+    // If the device has unknown buffer duration min and max values, you may
+    // still set this. If you set this and the backend is PulseAudio, it
+    // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength`
+    // and `tlength`.
     double buffer_duration;
 
     // `period_duration` is the latency; how much time it takes
@@ -312,6 +321,9 @@ struct SoundIoOutStream {
     // After you call `soundio_outstream_open` this value is replaced with the
     // actual period duration, as near to this value as possible.
     // Defaults to `buffer_duration / 2` (and then clamped into range).
+    // If the device has unknown period duration min and max values, you may
+    // still set this. If you set this and the backend is PulseAudio, it
+    // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
     double period_duration;
 
     // Defaults to NULL. Put whatever you want here.
@@ -516,8 +528,10 @@ int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
 //  * `areas` - (out) The memory addresses you can write data to. It is OK to
 //     modify the pointers if that helps you iterate.
 //  * `frame_count` - (in/out) Provide the number of frames you want to write.
-//    Returned will be the number of frames you actually can write. If this
-//    number is greater than zero, you must call this function again.
+//    Returned will be the number of frames you actually can write.
+// It is your responsibility to call this function no more and no fewer than the
+// correct number of times as determined by `requested_frame_count` from
+// `write_callback`. See sine.c for an example.
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         struct SoundIoChannelArea **areas, int *frame_count);
 

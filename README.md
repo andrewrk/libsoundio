@@ -66,8 +66,9 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     float seconds_per_frame = 1.0f / float_sample_rate;
     int err;
 
-    int frame_count = requested_frame_count;
     for (;;) {
+        int frame_count = requested_frame_count;
+
         struct SoundIoChannelArea *areas;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
@@ -90,6 +91,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
 
         if ((err = soundio_outstream_write(outstream, frame_count)))
             panic("%s", soundio_strerror(err));
+
+        requested_frame_count -= frame_count;
+        if (requested_frame_count <= 0)
+            break;
     }
 }
 
@@ -107,7 +112,6 @@ int main(int argc, char **argv) {
     if (!soundio)
         panic("out of memory");
 
-    int err;
     if ((err = soundio_connect(soundio)))
         panic("error connecting: %s", soundio_strerror(err));
 
@@ -236,7 +240,6 @@ view `coverage/index.html` in a browser.
 
  0. implement ALSA (Linux) backend, get examples working
  0. ALSA: poll instead of callback
- 0. fix pulseaudio backend since I broke it
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux
  0. implement CoreAudio (OSX) backend, get examples working
@@ -259,6 +262,9 @@ view `coverage/index.html` in a browser.
  0. add len arguments to APIs that have char *
  0. custom allocator support
  0. ALSA: support devices that don't support mmap access
+ 0. Test in an app that needs to synchronize video to test the
+    latency/synchronization API.
+ 0. Support PulseAudio proplist properties for main context and streams
 
 ## Planned Uses for libsoundio
 
