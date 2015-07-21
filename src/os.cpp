@@ -193,6 +193,8 @@ static void *run_pthread(void *userdata) {
     thread->run(thread->arg);
     return NULL;
 }
+#endif
+
 static void emit_rtprio_warning(void) {
     static atomic_flag seen = ATOMIC_FLAG_INIT;
     if (!seen.test_and_set()) {
@@ -201,7 +203,6 @@ static void emit_rtprio_warning(void) {
                 "warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
     }
 }
-#endif
 
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
@@ -226,7 +227,7 @@ int soundio_os_thread_create(
     }
     if (high_priority) {
         if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
-            win32_panic("unable to set high priority thread: %s"); // TODO don't panic
+            emit_rtprio_warning();
         }
     }
 #else
