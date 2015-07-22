@@ -238,9 +238,9 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
+ 0. ALSA: poll instead of callback
  0. ALSA: support devices that don't support mmap access (test with pulseaudio alsa default)
  0. implement ALSA (Linux) backend, get examples working
- 0. ALSA: poll instead of callback
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux
  0. implement CoreAudio (OSX) backend, get examples working

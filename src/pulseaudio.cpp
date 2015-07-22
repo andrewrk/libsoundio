@@ -969,7 +969,21 @@ static void instream_clear_buffer_pa(SoundIoPrivate *si, SoundIoInStreamPrivate 
 }
 
 static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
-    soundio_panic("TODO");
+    SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)is->backend_data;
+    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
+
+    pa_threaded_mainloop_lock(sipa->main_loop);
+
+    if (pause != !pa_stream_is_corked(ispa->stream)) {
+        pa_operation *op = pa_stream_cork(ispa->stream, pause, NULL, NULL);
+        if (!op)
+            return SoundIoErrorStreaming;
+        pa_operation_unref(op);
+    }
+
+    pa_threaded_mainloop_unlock(sipa->main_loop);
+
+    return 0;
 }
 
 int soundio_pulseaudio_init(SoundIoPrivate *si) {
