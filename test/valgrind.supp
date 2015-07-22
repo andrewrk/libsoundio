@@ -111,3 +111,14 @@
    fun:snd_pcm_get_chmap
    fun:snd_pcm_set_chmap
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:snd_interval_floor
+   fun:snd_pcm_plug_hw_refine_cchange
+   fun:snd1_pcm_hw_refine_slave
+   fun:snd_pcm_plug_hw_refine
+   fun:snd_pcm_hw_refine
+   fun:snd1_pcm_hw_param_set_last
+   ...
+}

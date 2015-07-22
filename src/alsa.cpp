@@ -16,6 +16,15 @@
 
 static snd_pcm_stream_t stream_types[] = {SND_PCM_STREAM_PLAYBACK, SND_PCM_STREAM_CAPTURE};
 
+static snd_pcm_access_t prioritized_access_types[] = {
+    SND_PCM_ACCESS_MMAP_INTERLEAVED,
+    SND_PCM_ACCESS_MMAP_NONINTERLEAVED,
+    SND_PCM_ACCESS_MMAP_COMPLEX,
+    SND_PCM_ACCESS_RW_INTERLEAVED,
+    SND_PCM_ACCESS_RW_NONINTERLEAVED,
+};
+
+
 struct SoundIoAlsa {
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
@@ -35,9 +44,17 @@ struct SoundIoOutStreamAlsa {
     snd_pcm_t *handle;
     snd_pcm_chmap_t *chmap;
     int chmap_size;
-    snd_async_handler_t *ahandler;
     snd_pcm_uframes_t offset;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    snd_pcm_access_t access;
+    int sample_buffer_size;
+    char *sample_buffer;
+    int alsa_areas_size;
+    snd_pcm_channel_area_t *alsa_areas;
+    int poll_fd_count;
+    struct pollfd *poll_fds;
+    SoundIoOsThread *thread;
+    atomic_flag thread_exit_flag;
 };
 
 struct SoundIoInStreamAlsa {
@@ -260,6 +277,19 @@ static void test_fmt_mask(SoundIoDevice *device, const snd_pcm_format_mask_t *fm
     }
 }
 
+static int set_access(snd_pcm_t *handle, snd_pcm_hw_params_t *hwparams, snd_pcm_access_t *out_access) {
+    for (int i = 0; i < array_length(prioritized_access_types); i += 1) {
+        snd_pcm_access_t access = prioritized_access_types[i];
+        int err = snd_pcm_hw_params_set_access(handle, hwparams, access);
+        if (err >= 0) {
+            if (out_access)
+                *out_access = access;
+            return 0;
+        }
+    }
+    return SoundIoErrorOpeningDevice;
+}
+
 // this function does not override device->formats, so if you want it to, deallocate and set it to NULL
 static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resample) {
     int err;
@@ -273,13 +303,8 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resam
     if ((err = snd_pcm_hw_params_set_rate_resample(handle, hwparams, resample)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED)) < 0) {
-        if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_NONINTERLEAVED)) < 0) {
-            if ((err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_COMPLEX)) < 0) {
-                return SoundIoErrorIncompatibleDevice;
-            }
-        }
-    }
+    if ((err = set_access(handle, hwparams, nullptr)))
+        return err;
 
     unsigned int channel_count;
     if ((err = snd_pcm_hw_params_set_channels_last(handle, hwparams, &channel_count)) < 0)
@@ -840,10 +865,21 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     if (!osa)
         return;
 
-    deallocate(osa->chmap, osa->chmap_size);
+    if (osa->thread) {
+        osa->thread_exit_flag.clear();
+        // TODO wake up poll
+        soundio_os_thread_destroy(osa->thread);
+    }
 
     if (osa->handle)
         snd_pcm_close(osa->handle);
+
+    deallocate(osa->poll_fds, osa->poll_fd_count);
+
+    deallocate(osa->chmap, osa->chmap_size);
+
+    deallocate(osa->alsa_areas, osa->alsa_areas_size);
+    deallocate(osa->sample_buffer, osa->sample_buffer_size);
 
     destroy(osa);
     os->backend_data = nullptr;
@@ -867,14 +903,40 @@ static int xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
     return err;
 }
 
-static void async_direct_callback(snd_async_handler_t *ahandler) {
-    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)snd_async_handler_get_callback_private(ahandler);
+static int wait_for_poll(SoundIoOutStreamAlsa *osa) {
+    int err;
+    unsigned short revents;
+    for (;;) {
+        if ((err = poll(osa->poll_fds, osa->poll_fd_count, -1)) < 0)
+            return err;
+        if ((err = snd_pcm_poll_descriptors_revents(osa->handle,
+                        osa->poll_fds, osa->poll_fd_count, &revents)) < 0)
+        {
+            return err;
+        }
+        if (revents & POLLERR)
+            return -EIO;
+        if (revents & POLLOUT)
+            return 0;
+    }
+}
+
+void outstream_thread_run(void *arg) {
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *) arg;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *) os->backend_data;
 
     int err;
 
     for (;;) {
+        if ((err = wait_for_poll(osa)) < 0) {
+            if (!osa->thread_exit_flag.test_and_set())
+                return;
+            outstream->error_callback(outstream, SoundIoErrorStreaming);
+            return;
+        }
+        if (!osa->thread_exit_flag.test_and_set())
+            return;
         snd_pcm_state_t state = snd_pcm_state(osa->handle);
         switch (state) {
             case SND_PCM_STATE_OPEN:
@@ -903,7 +965,7 @@ static void async_direct_callback(snd_async_handler_t *ahandler) {
                 }
 
                 outstream->write_callback(outstream, avail);
-                return;
+                continue;
             }
             case SND_PCM_STATE_XRUN:
                 if ((err = xrun_recovery(os, -EPIPE)) < 0) {
@@ -945,7 +1007,9 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     }
     os->backend_data = osa;
 
-    osa->chmap_size = sizeof(int) + sizeof(int) * outstream->layout.channel_count;
+    int ch_count = outstream->layout.channel_count;
+
+    osa->chmap_size = sizeof(int) + sizeof(int) * ch_count;
     osa->chmap = (snd_pcm_chmap_t *)allocate<char>(osa->chmap_size);
     if (!osa->chmap) {
         outstream_destroy_alsa(si, os);
@@ -975,16 +1039,12 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED)) < 0) {
-        if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_NONINTERLEAVED)) < 0) {
-            if ((err = snd_pcm_hw_params_set_access(osa->handle, hwparams, SND_PCM_ACCESS_MMAP_COMPLEX)) < 0) {
-                outstream_destroy_alsa(si, os);
-                return SoundIoErrorIncompatibleDevice;
-            }
-        }
+    if ((err = set_access(osa->handle, hwparams, &osa->access))) {
+        outstream_destroy_alsa(si, os);
+        return err;
     }
 
-    if ((err = snd_pcm_hw_params_set_channels(osa->handle, hwparams, outstream->layout.channel_count)) < 0) {
+    if ((err = snd_pcm_hw_params_set_channels(osa->handle, hwparams, ch_count)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -994,7 +1054,14 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((err = snd_pcm_hw_params_set_format(osa->handle, hwparams, to_alsa_fmt(outstream->format))) < 0) {
+    snd_pcm_format_t format = to_alsa_fmt(outstream->format);
+    int phys_bits_per_sample = snd_pcm_format_physical_width(format);
+    if (phys_bits_per_sample % 8 != 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorIncompatibleDevice;
+    }
+    int phys_bytes_per_sample = phys_bits_per_sample / 8;
+    if ((err = snd_pcm_hw_params_set_format(osa->handle, hwparams, format)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -1030,8 +1097,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     }
 
     // set channel map
-    osa->chmap->channels = outstream->layout.channel_count;
-    for (int i = 0; i < outstream->layout.channel_count; i += 1) {
+    osa->chmap->channels = ch_count;
+    for (int i = 0; i < ch_count; i += 1) {
         osa->chmap->pos[i] = to_alsa_chmap_pos(outstream->layout.channels[i]);
     }
     if (snd_pcm_set_chmap(osa->handle, osa->chmap) < 0) {
@@ -1064,7 +1131,49 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
     }
 
-    if ((err = snd_async_add_pcm_handler(&osa->ahandler, osa->handle, async_direct_callback, os)) < 0) {
+    if (osa->access == SND_PCM_ACCESS_RW_INTERLEAVED || osa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
+        osa->sample_buffer_size = ch_count * period_size * phys_bytes_per_sample;
+        osa->sample_buffer = allocate_nonzero<char>(osa->sample_buffer_size);
+        if (!osa->sample_buffer) {
+            outstream_destroy_alsa(si, os);
+            return SoundIoErrorNoMem;
+        }
+
+        osa->alsa_areas_size = ch_count;
+        osa->alsa_areas = allocate<snd_pcm_channel_area_t>(osa->alsa_areas_size);
+        if (!osa->alsa_areas) {
+            outstream_destroy_alsa(si, os);
+            return SoundIoErrorNoMem;
+        }
+
+        if (osa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
+            for (int ch = 0; ch < ch_count; ch += 1) {
+                osa->alsa_areas[ch].addr = osa->sample_buffer;
+                osa->alsa_areas[ch].first = ch * phys_bits_per_sample;
+                osa->alsa_areas[ch].step = ch_count * phys_bits_per_sample;
+            }
+        } else {
+            for (int ch = 0; ch < ch_count; ch += 1) {
+                osa->alsa_areas[ch].addr = osa->sample_buffer;
+                osa->alsa_areas[ch].first = ch * phys_bits_per_sample * period_size;
+                osa->alsa_areas[ch].step = phys_bits_per_sample;
+            }
+        }
+    }
+
+    osa->poll_fd_count = snd_pcm_poll_descriptors_count(osa->handle);
+    if (osa->poll_fd_count <= 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    osa->poll_fds = allocate<struct pollfd>(osa->poll_fd_count);
+    if (!osa->poll_fds) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorNoMem;
+    }
+
+    if ((err = snd_pcm_poll_descriptors(osa->handle, osa->poll_fds, osa->poll_fd_count)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -1075,7 +1184,14 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *) os->backend_data;
 
-    async_direct_callback(osa->ahandler);
+    assert(!osa->thread);
+
+    osa->thread_exit_flag.test_and_set();
+    int err;
+    if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osa->thread))) {
+        outstream_destroy_alsa(si, os);
+        return err;
+    }
 
     return 0;
 }

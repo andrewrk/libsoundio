@@ -261,10 +261,13 @@ view `coverage/index.html` in a browser.
       specify how much to peek() and if you don't peek all of it, save the
       unused to a buffer for you.
  0. add len arguments to APIs that have char *
- 0. custom allocator support
  0. Test in an app that needs to synchronize video to test the
     latency/synchronization API.
  0. Support PulseAudio proplist properties for main context and streams
+ 0. custom allocator support
+ 0. mlock memory which is accessed in the real time path
+ 0. instead of `void *backend_data` use a union for better cache locality
+    and smaller mlock requirements
 
 ## Planned Uses for libsoundio
 
