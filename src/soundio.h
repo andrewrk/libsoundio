@@ -483,9 +483,11 @@ struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int inde
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
 // returns the index of the default input device
+// returns -1 if there are no devices.
 int soundio_get_default_input_device_index(struct SoundIo *soundio);
 
 // returns the index of the default output device
+// returns -1 if there are no devices.
 int soundio_get_default_output_device_index(struct SoundIo *soundio);
 
 void soundio_device_ref(struct SoundIoDevice *device);

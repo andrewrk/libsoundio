@@ -509,6 +509,8 @@ static int refresh_devices(SoundIoPrivate *si) {
     SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
     if (!devices_info)
         return SoundIoErrorNoMem;
+    devices_info->default_output_index = -1;
+    devices_info->default_input_index = -1;
 
     void **hints;
     if (snd_device_name_hint(-1, "pcm", &hints) < 0) {

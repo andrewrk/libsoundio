@@ -259,20 +259,30 @@ static void finish_device_query(SoundIoPrivate *si) {
     }
 
     // based on the default sink name, figure out the default output index
+    // if the name doesn't match just pick the first one. if there are no
+    // devices then we need to set it to -1.
     sipa->current_devices_info->default_output_index = -1;
     sipa->current_devices_info->default_input_index = -1;
-    for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1) {
-        SoundIoDevice *device = sipa->current_devices_info->input_devices.at(i);
-        assert(device->purpose == SoundIoDevicePurposeInput);
-        if (strcmp(device->name, sipa->default_source_name) == 0) {
-            sipa->current_devices_info->default_input_index = i;
+
+    if (sipa->current_devices_info->input_devices.length > 0) {
+        sipa->current_devices_info->default_input_index = 0;
+        for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1) {
+            SoundIoDevice *device = sipa->current_devices_info->input_devices.at(i);
+            assert(device->purpose == SoundIoDevicePurposeInput);
+            if (strcmp(device->name, sipa->default_source_name) == 0) {
+                sipa->current_devices_info->default_input_index = i;
+            }
         }
     }
-    for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1) {
-        SoundIoDevice *device = sipa->current_devices_info->output_devices.at(i);
-        assert(device->purpose == SoundIoDevicePurposeOutput);
-        if (strcmp(device->name, sipa->default_sink_name) == 0) {
-            sipa->current_devices_info->default_output_index = i;
+
+    if (sipa->current_devices_info->output_devices.length > 0) {
+        sipa->current_devices_info->default_output_index = 0;
+        for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1) {
+            SoundIoDevice *device = sipa->current_devices_info->output_devices.at(i);
+            assert(device->purpose == SoundIoDevicePurposeOutput);
+            if (strcmp(device->name, sipa->default_sink_name) == 0) {
+                sipa->current_devices_info->default_output_index = i;
+            }
         }
     }
 

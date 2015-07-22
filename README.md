@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 }
 ```
 
-### "Best Backend"
+### Backend Priority
 
 When you use `soundio_connect`, libsoundio tries these backends in order.
 If unable to connect to that backend, due to the backend not being installed,
@@ -238,12 +238,12 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux
  0. pipe record to playback example working with ALSA linux
+ 0. pipe record to playback example working with dummy linux, osx, windows
+ 0. implement JACK backend, get examples working
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
- 0. implement JACK backend, get examples working
  0. Avoid calling `panic` in PulseAudio.
  0. implement ASIO (Windows) backend, get examples working
  0. clean up API and improve documentation
@@ -266,6 +266,7 @@ view `coverage/index.html` in a browser.
  0. instead of `void *backend_data` use a union for better cache locality
     and smaller mlock requirements
  0. Consider testing on FreeBSD
+ 0. make rtprio warning a callback and have existing behavior be the default callback
 
 ## Planned Uses for libsoundio
 
