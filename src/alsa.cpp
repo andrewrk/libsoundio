@@ -1252,7 +1252,7 @@ int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
     return 0;
 }
 
-static int outstream_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
+static int outstream_end_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
     SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *) os->backend_data;
     SoundIoOutStream *outstream = &os->pub;
 
@@ -1305,13 +1305,13 @@ static int instream_start_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
 
-static void instream_peek_alsa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, const char **data, int *frame_count)
+static int instream_begin_read_alsa(SoundIoPrivate *si,
+        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
 {
     soundio_panic("TODO");
 }
 
-static void instream_drop_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     soundio_panic("TODO");
 }
 
@@ -1411,15 +1411,15 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->outstream_start = outstream_start_alsa;
     si->outstream_free_count = outstream_free_count_alsa;
     si->outstream_begin_write = outstream_begin_write_alsa;
-    si->outstream_write = outstream_write_alsa;
+    si->outstream_end_write = outstream_end_write_alsa;
     si->outstream_clear_buffer = outstream_clear_buffer_alsa;
     si->outstream_pause = outstream_pause_alsa;
 
     si->instream_open = instream_open_alsa;
     si->instream_destroy = instream_destroy_alsa;
     si->instream_start = instream_start_alsa;
-    si->instream_peek = instream_peek_alsa;
-    si->instream_drop = instream_drop_alsa;
+    si->instream_begin_read = instream_begin_read_alsa;
+    si->instream_end_read = instream_end_read_alsa;
     si->instream_clear_buffer = instream_clear_buffer_alsa;
     si->instream_pause = instream_pause_alsa;
 

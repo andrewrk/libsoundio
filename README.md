@@ -238,7 +238,6 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. pipe record to playback example working with pulseaudio linux
  0. pipe record to playback example working with ALSA linux
  0. pipe record to playback example working with dummy linux, osx, windows
  0. implement JACK backend, get examples working

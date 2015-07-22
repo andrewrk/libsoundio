@@ -34,7 +34,7 @@ struct SoundIoPrivate {
 
     enum SoundIoBackend current_backend;
 
-    // safe to read without a mutex from a single thread
+    // Safe to read from a single thread without a mutex.
     struct SoundIoDevicesInfo *safe_devices_info;
 
     void *backend_data;
@@ -49,7 +49,7 @@ struct SoundIoPrivate {
     int (*outstream_free_count)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
             SoundIoChannelArea **out_areas, int *frame_count);
-    int (*outstream_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, int frame_count);
+    int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, int frame_count);
     void (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
 
@@ -57,9 +57,9 @@ struct SoundIoPrivate {
     int (*instream_open)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     void (*instream_destroy)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     int (*instream_start)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    void (*instream_peek)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
-            const char **data, int *frame_count);
-    void (*instream_drop)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    int (*instream_begin_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
+            SoundIoChannelArea **out_areas, int *frame_count);
+    int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     void (*instream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
 };

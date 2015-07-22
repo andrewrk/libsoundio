@@ -19,14 +19,15 @@ struct SoundIoOutStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
     char *write_ptr;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoPulseAudio {
@@ -730,6 +731,10 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     while (!ospa->stream_ready)
         pa_threaded_mainloop_wait(sipa->main_loop);
 
+    const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ospa->stream);
+    outstream->buffer_duration = (attr->maxlength /
+        (double)outstream->bytes_per_frame) / (double)outstream->sample_rate;
+
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
@@ -765,11 +770,13 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
     return 0;
 }
 
-static int outstream_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
+static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
     pa_stream *stream = ospa->stream;
+    assert(frame_count > 0);
     size_t byte_count = frame_count * outstream->bytes_per_frame;
+    assert(byte_count < 1 * 1024 * 1024 * 1024); // attempting to write > 1GB is certainly a mistake
     if (pa_stream_write(stream, ospa->write_ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
         return SoundIoErrorStreaming;
     return 0;
@@ -810,6 +817,10 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
     SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)is->backend_data;
+    SoundIoInStream *instream = &is->pub;
+    SoundIo *soundio = instream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoPulseAudio *sipa = (SoundIoPulseAudio *)si->backend_data;
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
@@ -817,6 +828,7 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
             break;
         case PA_STREAM_READY:
             ispa->stream_ready = true;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
             soundio_panic("pulseaudio stream error: %s",
@@ -828,7 +840,10 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
 static void recording_stream_read_callback(pa_stream *stream, size_t nbytes, void *userdata) {
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
     SoundIoInStream *instream = &is->pub;
-    instream->read_callback(instream);
+    assert(nbytes % instream->bytes_per_frame == 0);
+    assert(nbytes > 0);
+    int available_frame_count = nbytes / instream->bytes_per_frame;
+    instream->read_callback(instream, available_frame_count);
 }
 
 static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *instream) {
@@ -924,32 +939,51 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorOpeningDevice;
     }
 
+    while (!ispa->stream_ready)
+        pa_threaded_mainloop_wait(sipa->main_loop);
+
+    const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ispa->stream);
+    instream->buffer_duration = (attr->maxlength /
+        (double)instream->bytes_per_frame) / (double)instream->sample_rate;
+
     pa_threaded_mainloop_unlock(sipa->main_loop);
     return 0;
 }
 
-static void instream_peek_pa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, const char **data, int *frame_count)
+static int instream_begin_read_pa(SoundIoPrivate *si,
+        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
 {
+    *out_areas = nullptr;
+
     SoundIoInStream *instream = &is->pub;
     SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)is->backend_data;
     pa_stream *stream = ispa->stream;
-    if (ispa->stream_ready) {
-        size_t nbytes;
-        if (pa_stream_peek(stream, (const void **)data, &nbytes))
-            soundio_panic("pa_stream_peek error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
-        *frame_count = ((int)nbytes) / instream->bytes_per_frame;
-    } else {
-        *data = nullptr;
-        *frame_count = 0;
+
+    assert(ispa->stream_ready);
+
+    char *data;
+    size_t nbytes = *frame_count * instream->bytes_per_frame;
+    if (pa_stream_peek(stream, (const void **)&data, &nbytes))
+        return SoundIoErrorStreaming;
+
+    for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+        ispa->areas[ch].ptr = data + instream->bytes_per_sample * ch;
+        ispa->areas[ch].step = instream->bytes_per_frame;
     }
+
+    *frame_count = nbytes / instream->bytes_per_frame;
+    *out_areas = ispa->areas;
+
+    return 0;
 }
 
-static void instream_drop_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_end_read_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamPulseAudio *ispa = (SoundIoInStreamPulseAudio *)is->backend_data;
     pa_stream *stream = ispa->stream;
     if (pa_stream_drop(stream))
-        soundio_panic("pa_stream_drop error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+        return SoundIoErrorStreaming;
+
+    return 0;
 }
 
 static void instream_clear_buffer_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
@@ -1061,15 +1095,15 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->outstream_start = outstream_start_pa;
     si->outstream_free_count = outstream_free_count_pa;
     si->outstream_begin_write = outstream_begin_write_pa;
-    si->outstream_write = outstream_write_pa;
+    si->outstream_end_write = outstream_end_write_pa;
     si->outstream_clear_buffer = outstream_clear_buffer_pa;
     si->outstream_pause = outstream_pause_pa;
 
     si->instream_open = instream_open_pa;
     si->instream_destroy = instream_destroy_pa;
     si->instream_start = instream_start_pa;
-    si->instream_peek = instream_peek_pa;
-    si->instream_drop = instream_drop_pa;
+    si->instream_begin_read = instream_begin_read_pa;
+    si->instream_end_read = instream_end_read_pa;
     si->instream_clear_buffer = instream_clear_buffer_pa;
     si->instream_pause = instream_pause_pa;
 

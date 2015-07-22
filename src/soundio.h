@@ -111,24 +111,24 @@ enum SoundIoDevicePurpose {
 
 enum SoundIoFormat {
     SoundIoFormatInvalid,
-    SoundIoFormatS8,          // Signed 8 bit
-    SoundIoFormatU8,          // Unsigned 8 bit
-    SoundIoFormatS16LE,       // Signed 16 bit Little Endian
-    SoundIoFormatS16BE,       // Signed 16 bit Big Endian
-    SoundIoFormatU16LE,       // Unsigned 16 bit Little Endian
-    SoundIoFormatU16BE,       // Unsigned 16 bit Little Endian
-    SoundIoFormatS24LE,       // Signed 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoFormatS24BE,       // Signed 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoFormatU24LE,       // Unsigned 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoFormatU24BE,       // Unsigned 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoFormatS32LE,       // Signed 32 bit Little Endian
-    SoundIoFormatS32BE,       // Signed 32 bit Big Endian
-    SoundIoFormatU32LE,       // Unsigned 32 bit Little Endian
-    SoundIoFormatU32BE,       // Unsigned 32 bit Big Endian
-    SoundIoFormatFloat32LE,   // Float 32 bit Little Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat32BE,   // Float 32 bit Big Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat64LE,   // Float 64 bit Little Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat64BE,   // Float 64 bit Big Endian, Range -1.0 to 1.0
+    SoundIoFormatS8,        // Signed 8 bit
+    SoundIoFormatU8,        // Unsigned 8 bit
+    SoundIoFormatS16LE,     // Signed 16 bit Little Endian
+    SoundIoFormatS16BE,     // Signed 16 bit Big Endian
+    SoundIoFormatU16LE,     // Unsigned 16 bit Little Endian
+    SoundIoFormatU16BE,     // Unsigned 16 bit Little Endian
+    SoundIoFormatS24LE,     // Signed 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatS24BE,     // Signed 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatU24LE,     // Unsigned 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatU24BE,     // Unsigned 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatS32LE,     // Signed 32 bit Little Endian
+    SoundIoFormatS32BE,     // Signed 32 bit Big Endian
+    SoundIoFormatU32LE,     // Unsigned 32 bit Little Endian
+    SoundIoFormatU32BE,     // Unsigned 32 bit Big Endian
+    SoundIoFormatFloat32LE, // Float 32 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat32BE, // Float 32 bit Big Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64LE, // Float 64 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64BE, // Float 64 bit Big Endian, Range -1.0 to 1.0
 };
 
 // For your convenience, Native Endian and Foreign Endian constants are defined
@@ -249,6 +249,7 @@ struct SoundIoDevice {
     int format_count;
     enum SoundIoFormat current_format;
 
+    // Sample rate is the number of frames per second.
     // Sample rate is handled very similar to sample format; see those docs.
     // If sample rate information is missing due to a probe error, the field
     // will be set to zero.
@@ -300,6 +301,7 @@ struct SoundIoOutStream {
     // Defaults to SoundIoFormatFloat32NE, followed by the first one supported.
     enum SoundIoFormat format;
 
+    // Sample rate is the number of frames per second.
     // Defaults to 48000 (and then clamped into range).
     int sample_rate;
 
@@ -357,6 +359,7 @@ struct SoundIoInStream {
     // Defaults to SoundIoFormatFloat32NE, followed by the first one supported.
     enum SoundIoFormat format;
 
+    // Sample rate is the number of frames per second.
     // Defaults to max(sample_rate_min, min(sample_rate_max, 48000))
     int sample_rate;
 
@@ -375,7 +378,7 @@ struct SoundIoInStream {
 
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
-    void (*read_callback)(struct SoundIoInStream *);
+    void (*read_callback)(struct SoundIoInStream *, int available_frame_count);
 
     // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
     const char *name;
@@ -404,9 +407,10 @@ void soundio_disconnect(struct SoundIo *soundio);
 const char *soundio_strerror(int error);
 const char *soundio_backend_name(enum SoundIoBackend backend);
 
-// return the number of available backends
+// Returns the number of available backends.
 int soundio_backend_count(struct SoundIo *soundio);
-// get the available backend at the specified index (0 <= index < soundio_backend_count)
+// get the available backend at the specified index
+// (0 <= index < `soundio_backend_count`)
 enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 
 // when you call this, the on_devices_change and on_events_signal callbacks
@@ -461,6 +465,7 @@ static inline int soundio_get_bytes_per_frame(enum SoundIoFormat format, int cha
     return soundio_get_bytes_per_sample(format) * channel_count;
 }
 
+// Sample rate is the number of frames per second.
 static inline int soundio_get_bytes_per_second(enum SoundIoFormat format,
         int channel_count, int sample_rate)
 {
@@ -477,9 +482,11 @@ const char * soundio_format_string(enum SoundIoFormat format);
 int soundio_get_input_device_count(struct SoundIo *soundio);
 int soundio_get_output_device_count(struct SoundIo *soundio);
 
-// returns NULL on error
-// call soundio_device_unref when you no longer have a reference to the pointer.
+// Always returns a device. Call soundio_device_unref when done.
+// `index` must be 0 <= index < soundio_get_input_device_count
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
+// Always returns a device. Call soundio_device_unref when done.
+// `index` must be 0 <= index < soundio_get_output_device_count
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
 // returns the index of the default input device
@@ -514,8 +521,8 @@ bool soundio_device_supports_layout(struct SoundIoDevice *device,
 
 
 // Output Streams
-// allocates memory and sets defaults. Next you should fill out the struct fields
-// and then call soundio_outstream_open
+// Allocates memory and sets defaults. Next you should fill out the struct fields
+// and then call `soundio_outstream_open`.
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
 
 int soundio_outstream_open(struct SoundIoOutStream *outstream);
@@ -539,10 +546,14 @@ int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
 // It is your responsibility to call this function no more and no fewer than the
 // correct number of times as determined by `requested_frame_count` from
 // `write_callback`. See sine.c for an example.
+// You must call this function only from `write_callback`. After calling this
+// function, write data to `areas` and then call `soundio_outstream_end_write`.
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         struct SoundIoChannelArea **areas, int *frame_count);
 
-int soundio_outstream_write(struct SoundIoOutStream *outstream, int frame_count);
+// Commits the write that you began with `soundio_outstream_begin_write`.
+// You must call this function only from `write_callback`.
+int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_count);
 
 void soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
@@ -555,8 +566,8 @@ int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
 
 // Input Streams
-// allocates memory and sets defaults. Next you should fill out the struct fields
-// and then call soundio_instream_open
+// Allocates memory and sets defaults. Next you should fill out the struct fields
+// and then call `soundio_instream_open`.
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
 void soundio_instream_destroy(struct SoundIoInStream *instream);
 
@@ -564,10 +575,23 @@ int soundio_instream_open(struct SoundIoInStream *instream);
 
 int soundio_instream_start(struct SoundIoInStream *instream);
 
-void soundio_instream_peek(struct SoundIoInStream *instream,
-        const char **data, int *out_frame_count);
-// this will drop all of the frames from when you called soundio_instream_peek
-void soundio_instream_drop(struct SoundIoInStream *instream);
+// Call this function when you are ready to begin reading from the device
+// buffer.
+// * `instream` - (in) The input stream you want to read from.
+// * `areas` - (out) The memory addresses you can read data from. It is OK
+//   to modify the pointers if that helps you iterate.
+// * `frame_count` - (in/out) - Provide the number of frames you want to read.
+//   Returned will be the number of frames you can actually read.
+// It is your responsibility to call this function no more and no fewer than the
+// correct number of times as determined by `available_frame_count` from
+// `read_callback`. See microphone.c for an example.
+// You must call this function only from `read_callback`.
+// After calling this function, read data from `areas` and then call
+// `soundio_instream_end_read`.
+int soundio_instream_begin_read(struct SoundIoInStream *instream,
+        struct SoundIoChannelArea **areas, int *frame_count);
+// This will drop all of the frames from when you called `soundio_instream_begin_read`.
+int soundio_instream_end_read(struct SoundIoInStream *instream);
 
 void soundio_instream_clear_buffer(struct SoundIoInStream *instream);
 
@@ -579,25 +603,28 @@ int soundio_instream_pause(struct SoundIoInStream *instream, bool pause);
 
 // Ring Buffer
 struct SoundIoRingBuffer;
+// `requested_capacity` in bytes.
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity);
 void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *ring_buffer);
 int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *ring_buffer);
 
 // don't write more than capacity
 char *soundio_ring_buffer_write_ptr(struct SoundIoRingBuffer *ring_buffer);
+// `count` in bytes.
 void soundio_ring_buffer_advance_write_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
 
 // don't read more than capacity
 char *soundio_ring_buffer_read_ptr(struct SoundIoRingBuffer *ring_buffer);
+// `count` in bytes.
 void soundio_ring_buffer_advance_read_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
 
-// how much of the buffer is used, ready for reading
+// Returns how many bytes of the buffer is used, ready for reading.
 int soundio_ring_buffer_fill_count(struct SoundIoRingBuffer *ring_buffer);
 
-// how much is available, ready for writing
+// Returns how many bytes of the buffer is free, ready for writing.
 int soundio_ring_buffer_free_count(struct SoundIoRingBuffer *ring_buffer);
 
-// must be called by the writer
+// Must be called by the writer.
 void soundio_ring_buffer_clear(struct SoundIoRingBuffer *ring_buffer);
 
 

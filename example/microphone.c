@@ -47,12 +47,93 @@ static void panic(const char *format, ...) {
     abort();
 }
 
-static void read_callback(struct SoundIoInStream *instream) {
-    fprintf(stderr, "read_callback\n");
+struct SoundIoRingBuffer *ring_buffer = NULL;
+
+static void read_callback(struct SoundIoInStream *instream, int available_frame_count) {
+    int err;
+    struct SoundIoChannelArea *areas;
+    char *write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
+    int frames_left = available_frame_count;
+
+    for (;;) {
+        int frame_count = frames_left;
+
+        if ((err = soundio_instream_begin_read(instream, &areas, &frame_count)))
+            panic("begin read error: %s", soundio_strerror(err));
+
+        if (frame_count <= 0)
+            break;
+
+        for (int frame = 0; frame < frame_count; frame += 1) {
+            for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+                memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                areas[ch].ptr += areas[ch].step;
+                write_ptr += instream->bytes_per_sample;
+            }
+        }
+
+        if ((err = soundio_instream_end_read(instream)))
+            panic("end read error: %s", soundio_strerror(err));
+
+        frames_left -= frame_count;
+
+        if (frames_left <= 0)
+            break;
+    }
+
+    int advance_frames = available_frame_count * instream->bytes_per_frame;
+    soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_frames);
 }
 
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
-    fprintf(stderr, "write_callback\n");
+    int err;
+    struct SoundIoChannelArea *areas;
+    char *read_ptr = soundio_ring_buffer_read_ptr(ring_buffer);
+
+    int fill_count = soundio_ring_buffer_fill_count(ring_buffer) / outstream->bytes_per_frame;
+    int frames_left = requested_frame_count;
+    int silence_count = frames_left - fill_count;
+    if (silence_count < 0)
+        silence_count = 0;
+    int total_read_count = requested_frame_count - silence_count;
+
+    for (;;) {
+        int frame_count = frames_left;
+
+        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
+            panic("begin write error: %s", soundio_strerror(err));
+
+        if (frame_count <= 0)
+            break;
+
+        int silence_frame_count = (silence_count < frame_count) ? silence_count : frame_count;
+        int read_count = frame_count - silence_frame_count;
+
+        for (int frame = 0; frame < silence_frame_count; frame += 1) {
+            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                memset(areas[ch].ptr, 0, outstream->bytes_per_sample);
+                areas[ch].ptr += areas[ch].step;
+            }
+        }
+
+        for (int frame = 0; frame < read_count; frame += 1) {
+            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                memcpy(areas[ch].ptr, read_ptr, outstream->bytes_per_sample);
+                areas[ch].ptr += areas[ch].step;
+                read_ptr += outstream->bytes_per_sample;
+            }
+        }
+
+        if ((err = soundio_outstream_end_write(outstream, frame_count)))
+            panic("end write error: %s", soundio_strerror(err));
+
+        frames_left -= frame_count;
+
+        if (frames_left <= 0)
+            break;
+    }
+
+    soundio_ring_buffer_advance_read_ptr(ring_buffer, total_read_count * outstream->bytes_per_frame);
 }
 
 static void error_callback(struct SoundIoOutStream *outstream, int err) {
@@ -65,14 +146,32 @@ static void error_callback(struct SoundIoOutStream *outstream, int err) {
     }
 }
 
+static int usage(char *exe) {
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio]\n", exe);
+    return 1;
+}
+
 int main(int argc, char **argv) {
+    char *exe = argv[0];
+    enum SoundIoBackend backend = SoundIoBackendNone;
+    for (int i = 1; i < argc; i += 1) {
+        char *arg = argv[i];
+        if (strcmp("--dummy", arg) == 0) {
+            backend = SoundIoBackendDummy;
+        } else if (strcmp("--alsa", arg) == 0) {
+            backend = SoundIoBackendAlsa;
+        } else if (strcmp("--pulseaudio", arg) == 0) {
+            backend = SoundIoBackendPulseAudio;
+        } else {
+            return usage(exe);
+        }
+    }
     struct SoundIo *soundio = soundio_create();
     if (!soundio)
         panic("out of memory");
 
-    int err;
-    if ((err = soundio_connect(soundio)))
-        panic("error connecting: %s", soundio_strerror(err));
+    int err = (backend == SoundIoBackendNone) ?
+        soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     int default_out_device_index = soundio_get_default_output_device_index(soundio);
     if (default_out_device_index < 0)
@@ -125,7 +224,7 @@ int main(int argc, char **argv) {
     instream->format = *fmt;
     instream->sample_rate = sample_rate;
     instream->layout = *layout;
-    instream->buffer_duration = 0.1;
+    instream->period_duration = 0.1;
     instream->read_callback = read_callback;
 
     if ((err = soundio_instream_open(instream)))
@@ -137,12 +236,18 @@ int main(int argc, char **argv) {
     outstream->format = *fmt;
     outstream->sample_rate = sample_rate;
     outstream->layout = *layout;
-    outstream->buffer_duration = 0.1;
+    outstream->buffer_duration = 0.2;
+    outstream->period_duration = 0.1;
     outstream->write_callback = write_callback;
     outstream->error_callback = error_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));
+
+    int capacity = 0.4 * instream->sample_rate * instream->bytes_per_frame;
+    ring_buffer = soundio_ring_buffer_create(soundio, capacity);
+    if (!ring_buffer)
+        panic("unable to create ring buffer: out of memory");
 
     if ((err = soundio_instream_start(instream)))
         panic("unable to start input device: %s", soundio_strerror(err));

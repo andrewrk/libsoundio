@@ -218,14 +218,14 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->outstream_start = nullptr;
     si->outstream_free_count = nullptr;
     si->outstream_begin_write = nullptr;
-    si->outstream_write = nullptr;
+    si->outstream_end_write = nullptr;
     si->outstream_clear_buffer = nullptr;
 
     si->instream_open = nullptr;
     si->instream_destroy = nullptr;
     si->instream_start = nullptr;
-    si->instream_peek = nullptr;
-    si->instream_drop = nullptr;
+    si->instream_begin_read = nullptr;
+    si->instream_end_read = nullptr;
     si->instream_clear_buffer = nullptr;
 }
 
@@ -343,7 +343,7 @@ int soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream) {
                 memset(areas[ch].ptr + areas[ch].step * frame, 0, outstream->bytes_per_sample);
             }
         }
-        soundio_outstream_write(outstream, frame_count);
+        soundio_outstream_end_write(outstream, frame_count);
         requested_frame_count -= frame_count;
     }
     return 0;
@@ -365,11 +365,11 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
     return si->outstream_begin_write(si, os, areas, frame_count);
 }
 
-int soundio_outstream_write(struct SoundIoOutStream *outstream, int frame_count) {
+int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_count) {
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    return si->outstream_write(si, os, frame_count);
+    return si->outstream_end_write(si, os, frame_count);
 }
 
 
@@ -520,6 +520,22 @@ int soundio_instream_pause(struct SoundIoInStream *instream, bool pause) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
     return si->instream_pause(si, is, pause);
+}
+
+int soundio_instream_begin_read(struct SoundIoInStream *instream,
+        struct SoundIoChannelArea **areas, int *frame_count)
+{
+    SoundIo *soundio = instream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
+    return si->instream_begin_read(si, is, areas, frame_count);
+}
+
+int soundio_instream_end_read(struct SoundIoInStream *instream) {
+    SoundIo *soundio = instream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
+    return si->instream_end_read(si, is);
 }
 
 void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
