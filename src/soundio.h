@@ -339,9 +339,14 @@ struct SoundIoOutStream {
     // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
     const char *name;
 
+
     // computed automatically when you call soundio_outstream_open
     int bytes_per_frame;
     int bytes_per_sample;
+
+    // If setting the channel layout fails for some reason, this field is set
+    // to an error code. Possible error codes are: SoundIoErrorIncompatibleDevice
+    int layout_error;
 };
 
 // The size of this struct is not part of the API or ABI.

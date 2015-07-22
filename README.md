@@ -238,11 +238,9 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. ALSA: poll instead of callback
- 0. ALSA: support devices that don't support mmap access (test with pulseaudio alsa default)
- 0. implement ALSA (Linux) backend, get examples working
  0. pipe record to playback example working with dummy linux, osx, windows
  0. pipe record to playback example working with pulseaudio linux
+ 0. pipe record to playback example working with ALSA linux
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement JACK backend, get examples working
@@ -254,7 +252,6 @@ view `coverage/index.html` in a browser.
  0. use a documentation generator and host the docs somewhere
  0. -fvisibility=hidden and then explicitly export stuff
  0. Integrate into libgroove and test with Groove Basin
- 0. Consider testing on FreeBSD
  0. look at microphone example and determine if fewer memcpys can be done
     with the audio data
     - pulseaudio has peek() drop() which sucks, but what if libsoundio lets you
@@ -268,6 +265,7 @@ view `coverage/index.html` in a browser.
  0. mlock memory which is accessed in the real time path
  0. instead of `void *backend_data` use a union for better cache locality
     and smaller mlock requirements
+ 0. Consider testing on FreeBSD
 
 ## Planned Uses for libsoundio
 

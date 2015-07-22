@@ -123,6 +123,9 @@ int main(int argc, char **argv) {
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open device: %s", soundio_strerror(err));
 
+    if (outstream->layout_error)
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
+
     if ((err = soundio_outstream_start(outstream)))
         panic("unable to start device: %s", soundio_strerror(err));
 
