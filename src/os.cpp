@@ -195,9 +195,9 @@ static void *run_pthread(void *userdata) {
 }
 #endif
 
+static atomic_flag rtprio_seen = ATOMIC_FLAG_INIT;
 static void emit_rtprio_warning(void) {
-    static atomic_flag seen = ATOMIC_FLAG_INIT;
-    if (!seen.test_and_set()) {
+    if (!rtprio_seen.test_and_set()) {
         fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
         fprintf(stderr, "See https://github.com/andrewrk/genesis/wiki/"
                 "warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
