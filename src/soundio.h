@@ -327,6 +327,11 @@ struct SoundIoOutStream {
     // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
     double period_duration;
 
+    // How many seconds need to be in the buffer before playback will commence.
+    // If a buffer underflow occurs, this prebuffering will be again enabled.
+    // This value defaults to being the same as `buffer_duration`.
+    double prebuf_duration;
+
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
     // In this callback, you call `soundio_outstream_begin_write` and

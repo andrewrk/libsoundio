@@ -1029,6 +1029,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         outstream->period_duration = clamp(device->period_duration_min,
                 outstream->buffer_duration / 2.0, device->period_duration_max);
     }
+    if (outstream->prebuf_duration == -1.0)
+        outstream->prebuf_duration = outstream->buffer_duration;
 
     SoundIoOutStreamAlsa *osa = create<SoundIoOutStreamAlsa>();
     if (!osa) {
@@ -1144,7 +1146,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((err = snd_pcm_sw_params_set_start_threshold(osa->handle, swparams, buffer_size_frames)) < 0) {
+    snd_pcm_uframes_t prebuf_frames = ceil(outstream->prebuf_duration * (double)outstream->sample_rate);
+    if ((err = snd_pcm_sw_params_set_start_threshold(osa->handle, swparams, prebuf_frames)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }

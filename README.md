@@ -231,7 +231,6 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. pipe record to playback example working with dummy osx, windows
  0. pipe record to playback example working with ALSA linux
  0. expose prebuf
  0. why does pulseaudio microphone use up all the CPU?
@@ -248,9 +247,7 @@ view `coverage/index.html` in a browser.
  0. Integrate into libgroove and test with Groove Basin
  0. look at microphone example and determine if fewer memcpys can be done
     with the audio data
-    - pulseaudio has peek() drop() which sucks, but what if libsoundio lets you
-      specify how much to peek() and if you don't peek all of it, save the
-      unused to a buffer for you.
+    - test that sending the frame count to begin read works with PulseAudio
  0. add len arguments to APIs that have char *
  0. Test in an app that needs to synchronize video to test the
     latency/synchronization API.

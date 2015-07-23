@@ -70,6 +70,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     }
 }
 
+static void underflow_callback(struct SoundIoOutStream *outstream) {
+    static int count = 0;
+    fprintf(stderr, "underflow %d\n", count++);
+}
+
 int main(int argc, char **argv) {
     char *exe = argv[0];
     enum SoundIoBackend backend = SoundIoBackendNone;
@@ -109,6 +114,7 @@ int main(int argc, char **argv) {
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
+    outstream->underflow_callback = underflow_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open device: %s", soundio_strerror(err));
