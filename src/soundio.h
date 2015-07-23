@@ -413,6 +413,9 @@ int soundio_backend_count(struct SoundIo *soundio);
 // (0 <= index < `soundio_backend_count`)
 enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 
+// Returns whether libsoundio was compiled with `backend`.
+bool soundio_have_backend(enum SoundIoBackend backend);
+
 // when you call this, the on_devices_change and on_events_signal callbacks
 // might be called. This is the only time those callbacks will be called.
 void soundio_flush_events(struct SoundIo *soundio);

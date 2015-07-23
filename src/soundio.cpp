@@ -286,16 +286,6 @@ struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int ind
     return device;
 }
 
-// the name is the identifier for the device. UTF-8 encoded
-const char *soundio_device_name(const struct SoundIoDevice *device) {
-    return device->name;
-}
-
-// UTF-8 encoded
-const char *soundio_device_description(const struct SoundIoDevice *device) {
-    return device->description;
-}
-
 enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device) {
     return device->purpose;
 }
