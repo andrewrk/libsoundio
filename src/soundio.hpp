@@ -46,7 +46,6 @@ struct SoundIoPrivate {
     int (*outstream_open)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     void (*outstream_destroy)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_start)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_free_count)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
             SoundIoChannelArea **out_areas, int *frame_count);
     int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, int frame_count);
@@ -60,7 +59,6 @@ struct SoundIoPrivate {
     int (*instream_begin_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
             SoundIoChannelArea **out_areas, int *frame_count);
     int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    void (*instream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
 };
 

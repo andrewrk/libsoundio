@@ -702,10 +702,8 @@ struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t request
 void soundio_os_destroy_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
     if (!mem)
         return;
-    if (!mem->address)
-        return;
-#if defined(SOUNDIO_OS_WINDOWS)
     SoundIoOsMirroredMemoryPrivate *m = (SoundIoOsMirroredMemoryPrivate *)mem;
+#if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;
     ok = UnmapViewOfFile(mem->address);
     assert(ok);
@@ -717,4 +715,5 @@ void soundio_os_destroy_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
     int err = munmap(mem->address, 2 * mem->capacity);
     assert(!err);
 #endif
+    destroy(m);
 }

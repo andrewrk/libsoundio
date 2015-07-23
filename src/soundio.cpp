@@ -42,7 +42,6 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorInvalid: return "invalid value";
         case SoundIoErrorBackendUnavailable: return "backend unavailable";
         case SoundIoErrorStreaming: return "unrecoverable streaming failure";
-        case SoundIoErrorUnderflow: return "buffer underflow";
         case SoundIoErrorIncompatibleDevice: return "incompatible device";
     }
     soundio_panic("invalid error enum value: %d", error);
@@ -216,7 +215,6 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->outstream_open = nullptr;
     si->outstream_destroy = nullptr;
     si->outstream_start = nullptr;
-    si->outstream_free_count = nullptr;
     si->outstream_begin_write = nullptr;
     si->outstream_end_write = nullptr;
     si->outstream_clear_buffer = nullptr;
@@ -226,7 +224,6 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->instream_start = nullptr;
     si->instream_begin_read = nullptr;
     si->instream_end_read = nullptr;
-    si->instream_clear_buffer = nullptr;
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {
@@ -320,32 +317,6 @@ void soundio_wakeup(struct SoundIo *soundio) {
     si->wakeup(si);
 }
 
-int soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream) {
-    SoundIoChannelArea *areas;
-    int err;
-    int requested_frame_count = soundio_outstream_free_count(outstream);
-    while (requested_frame_count > 0) {
-        int frame_count = requested_frame_count;
-        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
-            return err;
-        for (int frame = 0; frame < frame_count; frame += 1) {
-            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-                memset(areas[ch].ptr + areas[ch].step * frame, 0, outstream->bytes_per_sample);
-            }
-        }
-        soundio_outstream_end_write(outstream, frame_count);
-        requested_frame_count -= frame_count;
-    }
-    return 0;
-}
-
-int soundio_outstream_free_count(struct SoundIoOutStream *outstream) {
-    SoundIo *soundio = outstream->device->soundio;
-    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    return si->outstream_free_count(si, os);
-}
-
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         SoundIoChannelArea **areas, int *frame_count)
 {
@@ -362,6 +333,11 @@ int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_co
     return si->outstream_end_write(si, os, frame_count);
 }
 
+static void default_outstream_error_callback(struct SoundIoOutStream *os, int err) {
+    soundio_panic("libsoundio: %s", soundio_strerror(err));
+}
+
+static void default_underflow_callback(struct SoundIoOutStream *outstream) { }
 
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) {
     SoundIoOutStreamPrivate *os = create<SoundIoOutStreamPrivate>();
@@ -371,6 +347,9 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
 
     outstream->device = device;
     soundio_device_ref(device);
+
+    outstream->error_callback = default_outstream_error_callback;
+    outstream->underflow_callback = default_underflow_callback;
 
     return outstream;
 }
@@ -437,6 +416,10 @@ int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause) {
     return si->outstream_pause(si, os, pause);
 }
 
+static void default_instream_error_callback(struct SoundIoInStream *is, int err) {
+    soundio_panic("libsoundio: %s", soundio_strerror(err));
+}
+
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     SoundIoInStreamPrivate *is = create<SoundIoInStreamPrivate>();
     if (!is)
@@ -445,6 +428,8 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
 
     instream->device = device;
     soundio_device_ref(device);
+
+    instream->error_callback = default_instream_error_callback;
 
     return instream;
 }

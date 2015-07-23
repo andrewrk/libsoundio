@@ -64,11 +64,17 @@ static void read_callback(struct SoundIoInStream *instream, int available_frame_
         if (frame_count <= 0)
             break;
 
-        for (int frame = 0; frame < frame_count; frame += 1) {
-            for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-                memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
-                areas[ch].ptr += areas[ch].step;
-                write_ptr += instream->bytes_per_sample;
+        if (!areas) {
+            // Due to an overflow there is a hole. Fill the ring buffer with
+            // silence for the size of the hole.
+            memset(write_ptr, 0, frame_count * instream->bytes_per_frame);
+        } else {
+            for (int frame = 0; frame < frame_count; frame += 1) {
+                for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                    areas[ch].ptr += areas[ch].step;
+                    write_ptr += instream->bytes_per_sample;
+                }
             }
         }
 
@@ -134,16 +140,6 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     }
 
     soundio_ring_buffer_advance_read_ptr(ring_buffer, total_read_count * outstream->bytes_per_frame);
-}
-
-static void error_callback(struct SoundIoOutStream *outstream, int err) {
-    if (err == SoundIoErrorUnderflow) {
-        static int count = 0;
-        fprintf(stderr, "underrun %d\n", count++);
-        soundio_outstream_fill_with_silence(outstream);
-    } else {
-        panic("error: %s", soundio_strerror(err));
-    }
 }
 
 static int usage(char *exe) {
@@ -239,7 +235,6 @@ int main(int argc, char **argv) {
     outstream->buffer_duration = 0.2;
     outstream->period_duration = 0.1;
     outstream->write_callback = write_callback;
-    outstream->error_callback = error_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));

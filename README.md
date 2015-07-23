@@ -12,10 +12,10 @@ exposed.
 
 ## Features
 
- * Supports:
+ * Supported backends:
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
-   - Dummy Backend (silence)
+   - Dummy (silence)
    - (planned) [JACK](http://jackaudio.org/)
    - (planned) [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
@@ -89,21 +89,12 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_write(outstream, frame_count)))
+        if ((err = soundio_outstream_end_write(outstream, frame_count)))
             panic("%s", soundio_strerror(err));
 
         requested_frame_count -= frame_count;
         if (requested_frame_count <= 0)
             break;
-    }
-}
-
-static void error_callback(struct SoundIoOutStream *device, int err) {
-    if (err == SoundIoErrorUnderflow) {
-        static int count = 0;
-        fprintf(stderr, "underrun %d\n", count++);
-    } else {
-        panic("%s", soundio_strerror(err));
     }
 }
 
@@ -128,10 +119,12 @@ int main(int argc, char **argv) {
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
-    outstream->error_callback = error_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open device: %s", soundio_strerror(err));
+
+    if (outstream->layout_error)
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
 
     if ((err = soundio_outstream_start(outstream)))
         panic("unable to start device: %s", soundio_strerror(err));
@@ -238,8 +231,10 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
+ 0. pipe record to playback example working with dummy osx, windows
  0. pipe record to playback example working with ALSA linux
- 0. pipe record to playback example working with dummy linux, osx, windows
+ 0. expose prebuf
+ 0. why does pulseaudio microphone use up all the CPU?
  0. implement JACK backend, get examples working
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
@@ -266,6 +261,8 @@ view `coverage/index.html` in a browser.
     and smaller mlock requirements
  0. Consider testing on FreeBSD
  0. make rtprio warning a callback and have existing behavior be the default callback
+ 0. write detailed docs on buffer underflows explaining when they occur, what state
+    changes are related to them, and how to recover from them.
 
 ## Planned Uses for libsoundio
 

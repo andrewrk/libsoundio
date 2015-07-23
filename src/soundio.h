@@ -24,7 +24,6 @@ enum SoundIoError {
     SoundIoErrorOpeningDevice,
     SoundIoErrorInvalid,
     SoundIoErrorBackendUnavailable,
-    SoundIoErrorUnderflow,
     SoundIoErrorStreaming,
     SoundIoErrorIncompatibleDevice,
 };
@@ -330,13 +329,21 @@ struct SoundIoOutStream {
 
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
-    // `err` is SoundIoErrorUnderflow or SoundIoErrorStreaming.
-    // SoundIoErrorUnderflow means that the sound device ran out of buffered
-    // audio data to play. You must write more data to the buffer to recover.
+    // In this callback, you call `soundio_outstream_begin_write` and
+    // `soundio_outstream_end_write`.
+    void (*write_callback)(struct SoundIoOutStream *, int requested_frame_count);
+    // This optional callback happens when the sound device runs out of buffered
+    // audio data to play. After this occurs, the outstream waits until the
+    // buffer is full to resume playback.
+    // This callback is called in the same thread context as `write_callback`.
+    void (*underflow_callback)(struct SoundIoOutStream *);
+    // Optional callback. `err` is always SoundIoErrorStreaming.
     // SoundIoErrorStreaming is an unrecoverable error. The stream is in an
     // invalid state and must be destroyed.
+    // If you do not supply `error_callback`, the default callback will print
+    // a message to stderr and then call `abort`.
+    // This callback is called in the same thread context as `write_callback`.
     void (*error_callback)(struct SoundIoOutStream *, int err);
-    void (*write_callback)(struct SoundIoOutStream *, int requested_frame_count);
 
     // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
     const char *name;
@@ -378,7 +385,16 @@ struct SoundIoInStream {
 
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
+    // In this function call `soundio_instream_begin_read` and
+    // `soundio_instream_end_read`.
     void (*read_callback)(struct SoundIoInStream *, int available_frame_count);
+    // Optional callback. `err` is always SoundIoErrorStreaming.
+    // SoundIoErrorStreaming is an unrecoverable error. The stream is in an
+    // invalid state and must be destroyed.
+    // If you do not supply `error_callback`, the default callback will print
+    // a message to stderr and then abort().
+    // This is called from the same thread context as `read_callback`.
+    void (*error_callback)(struct SoundIoInStream *, int err);
 
     // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
     const char *name;
@@ -530,15 +546,10 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
 
 int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
+// You may not call this function from `write_callback`.
 void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
 int soundio_outstream_start(struct SoundIoOutStream *outstream);
-
-int soundio_outstream_fill_with_silence(struct SoundIoOutStream *outstream);
-
-
-// number of frames available to write
-int soundio_outstream_free_count(struct SoundIoOutStream *outstream);
 
 // Call this function when you are ready to begin writing to the device buffer.
 //  * `outstream` - (in) The output stream you want to write to.
@@ -563,6 +574,7 @@ void soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 // If the underyling device supports pausing, this pauses the stream and
 // prevents `write_callback` from being called. Otherwise this returns
 // `SoundIoErrorIncompatibleDevice`.
+// You must call this function only from `write_callback`.
 int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
 
@@ -572,6 +584,7 @@ int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 // Allocates memory and sets defaults. Next you should fill out the struct fields
 // and then call `soundio_instream_open`.
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
+// You must not call this function from `read_callback`.
 void soundio_instream_destroy(struct SoundIoInStream *instream);
 
 int soundio_instream_open(struct SoundIoInStream *instream);
@@ -582,25 +595,33 @@ int soundio_instream_start(struct SoundIoInStream *instream);
 // buffer.
 // * `instream` - (in) The input stream you want to read from.
 // * `areas` - (out) The memory addresses you can read data from. It is OK
-//   to modify the pointers if that helps you iterate.
+//   to modify the pointers if that helps you iterate. If a buffer overflow
+//   occurred, there will be a "hole" in the buffer. To indicate this,
+//   `areas` will be `NULL` and `frame_count` tells how big the hole is in
+//   frames.
 // * `frame_count` - (in/out) - Provide the number of frames you want to read.
 //   Returned will be the number of frames you can actually read.
 // It is your responsibility to call this function no more and no fewer than the
 // correct number of times as determined by `available_frame_count` from
 // `read_callback`. See microphone.c for an example.
 // You must call this function only from `read_callback`.
-// After calling this function, read data from `areas` and then call
-// `soundio_instream_end_read`.
+// After calling this function, read data from `areas` and then use
+// `soundio_instream_end_read` to actually remove the data from the buffer
+// and move the read index forward. `soundio_instream_end_read` should not be
+// called if the buffer is empty (`frame_count` == 0), but it should be called
+// if there is a hole.
 int soundio_instream_begin_read(struct SoundIoInStream *instream,
         struct SoundIoChannelArea **areas, int *frame_count);
-// This will drop all of the frames from when you called `soundio_instream_begin_read`.
+// This will drop all of the frames from when you called
+// `soundio_instream_begin_read`.
+// You must call this function only from `read_callback` after a successful
+// call to `soundio_instream_begin_read`.
 int soundio_instream_end_read(struct SoundIoInStream *instream);
-
-void soundio_instream_clear_buffer(struct SoundIoInStream *instream);
 
 // If the underyling device supports pausing, this pauses the stream and
 // prevents `read_callback` from being called. Otherwise this returns
 // `SoundIoErrorIncompatibleDevice`.
+// You must call this function only from `read_callback`.
 int soundio_instream_pause(struct SoundIoInStream *instream, bool pause);
 
 

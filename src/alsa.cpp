@@ -917,16 +917,18 @@ static int xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *)os->backend_data;
     if (err == -EPIPE) {
-        outstream->error_callback(outstream, SoundIoErrorUnderflow);
         err = snd_pcm_prepare(osa->handle);
+        if (err >= 0)
+            outstream->underflow_callback(outstream);
     } else if (err == -ESTRPIPE) {
-        outstream->error_callback(outstream, SoundIoErrorUnderflow);
         while ((err = snd_pcm_resume(osa->handle)) == -EAGAIN) {
             // wait until suspend flag is released
             poll(nullptr, 0, 1);
         }
         if (err < 0)
             err = snd_pcm_prepare(osa->handle);
+        if (err >= 0)
+            outstream->underflow_callback(outstream);
     }
     return err;
 }
@@ -1202,10 +1204,6 @@ static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     return 0;
 }
 
-static int outstream_free_count_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    soundio_panic("TODO");
-}
-
 int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
@@ -1315,10 +1313,6 @@ static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
     soundio_panic("TODO");
 }
 
-static void instream_clear_buffer_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
-}
-
 static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
     int err;
@@ -1409,7 +1403,6 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->outstream_open = outstream_open_alsa;
     si->outstream_destroy = outstream_destroy_alsa;
     si->outstream_start = outstream_start_alsa;
-    si->outstream_free_count = outstream_free_count_alsa;
     si->outstream_begin_write = outstream_begin_write_alsa;
     si->outstream_end_write = outstream_end_write_alsa;
     si->outstream_clear_buffer = outstream_clear_buffer_alsa;
@@ -1420,7 +1413,6 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->instream_start = instream_start_alsa;
     si->instream_begin_read = instream_begin_read_alsa;
     si->instream_end_read = instream_end_read_alsa;
-    si->instream_clear_buffer = instream_clear_buffer_alsa;
     si->instream_pause = instream_pause_alsa;
 
     return 0;
