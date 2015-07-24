@@ -134,8 +134,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
 }
 
 static void underflow_callback(struct SoundIoOutStream *outstream) {
-    static int count = 0;
-    fprintf(stderr, "underflow %d\n", count++);
+    char *write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
+    int bytes_to_fill = outstream->buffer_duration * outstream->sample_rate * outstream->bytes_per_frame;
+    memset(write_ptr, 0, bytes_to_fill);
+    soundio_ring_buffer_advance_write_ptr(ring_buffer, bytes_to_fill);
 }
 
 static int usage(char *exe) {
@@ -289,10 +291,6 @@ int main(int argc, char **argv) {
     ring_buffer = soundio_ring_buffer_create(soundio, capacity);
     if (!ring_buffer)
         panic("unable to create ring buffer: out of memory");
-    char *write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
-    int bytes_to_fill = outstream->buffer_duration * outstream->sample_rate * outstream->bytes_per_frame;
-    memset(write_ptr, 0, bytes_to_fill);
-    soundio_ring_buffer_advance_write_ptr(ring_buffer, bytes_to_fill);
 
     if ((err = soundio_instream_start(instream)))
         panic("unable to start input device: %s", soundio_strerror(err));
