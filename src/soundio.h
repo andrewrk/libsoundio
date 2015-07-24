@@ -407,6 +407,10 @@ struct SoundIoInStream {
     // computed automatically when you call soundio_instream_open
     int bytes_per_frame;
     int bytes_per_sample;
+
+    // If setting the channel layout fails for some reason, this field is set
+    // to an error code. Possible error codes are: SoundIoErrorIncompatibleDevice
+    int layout_error;
 };
 
 // Main Context
@@ -503,23 +507,23 @@ const char * soundio_format_string(enum SoundIoFormat format);
 
 // Devices
 
-int soundio_get_input_device_count(struct SoundIo *soundio);
-int soundio_get_output_device_count(struct SoundIo *soundio);
+int soundio_input_device_count(struct SoundIo *soundio);
+int soundio_output_device_count(struct SoundIo *soundio);
 
 // Always returns a device. Call soundio_device_unref when done.
-// `index` must be 0 <= index < soundio_get_input_device_count
+// `index` must be 0 <= index < soundio_input_device_count
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
 // Always returns a device. Call soundio_device_unref when done.
-// `index` must be 0 <= index < soundio_get_output_device_count
+// `index` must be 0 <= index < soundio_output_device_count
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
 // returns the index of the default input device
 // returns -1 if there are no devices.
-int soundio_get_default_input_device_index(struct SoundIo *soundio);
+int soundio_default_input_device_index(struct SoundIo *soundio);
 
 // returns the index of the default output device
 // returns -1 if there are no devices.
-int soundio_get_default_output_device_index(struct SoundIo *soundio);
+int soundio_default_output_device_index(struct SoundIo *soundio);
 
 void soundio_device_ref(struct SoundIoDevice *device);
 void soundio_device_unref(struct SoundIoDevice *device);

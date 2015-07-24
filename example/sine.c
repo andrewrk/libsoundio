@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     if (err)
         panic("error connecting: %s", soundio_strerror(err));
 
-    int default_out_device_index = soundio_get_default_output_device_index(soundio);
+    int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)
         panic("no output device found");
 

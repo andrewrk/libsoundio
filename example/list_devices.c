@@ -77,11 +77,11 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
 }
 
 static int list_devices(struct SoundIo *soundio) {
-    int output_count = soundio_get_output_device_count(soundio);
-    int input_count = soundio_get_input_device_count(soundio);
+    int output_count = soundio_output_device_count(soundio);
+    int input_count = soundio_input_device_count(soundio);
 
-    int default_output = soundio_get_default_output_device_index(soundio);
-    int default_input = soundio_get_default_input_device_index(soundio);
+    int default_output = soundio_default_output_device_index(soundio);
+    int default_input = soundio_default_input_device_index(soundio);
 
     fprintf(stderr, "--------Input Devices--------\n\n");
     for (int i = 0; i < input_count; i += 1) {

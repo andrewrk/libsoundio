@@ -28,6 +28,7 @@ exposed.
  * Supports channel layouts (also known as channel maps), important for
    surround sound applications.
  * Ability to monitor devices and get an event when available devices change.
+ * Detects which input device is default and which output device is default.
  * Ability to connect to multiple backends at once. For example you could have
    an ALSA device open and a JACK device open at the same time.
  * Meticulously checks all return codes and memory allocations and uses
@@ -234,6 +235,7 @@ view `coverage/index.html` in a browser.
  0. pipe record to playback example working with ALSA linux
  0. expose prebuf
  0. why does pulseaudio microphone use up all the CPU?
+ 0. merge in/out stream structures and functions?
  0. implement JACK backend, get examples working
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working

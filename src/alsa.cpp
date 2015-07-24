@@ -58,6 +58,19 @@ struct SoundIoOutStreamAlsa {
 
 struct SoundIoInStreamAlsa {
     snd_pcm_t *handle;
+    snd_pcm_chmap_t *chmap;
+    int chmap_size;
+    snd_pcm_uframes_t offset;
+    snd_pcm_access_t access;
+    int sample_buffer_size;
+    char *sample_buffer;
+    int poll_fd_count;
+    struct pollfd *poll_fds;
+    SoundIoOsThread *thread;
+    atomic_flag thread_exit_flag;
+    int period_size;
+    int read_frame_count;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 static void wakeup_device_poll(SoundIoAlsa *sia) {
@@ -601,13 +614,13 @@ static int refresh_devices(SoundIoPrivate *si) {
             if (stream == SND_PCM_STREAM_PLAYBACK) {
                 device->purpose = SoundIoDevicePurposeOutput;
                 device_list = &devices_info->output_devices;
-                if (str_has_prefix(name, "default:"))
+                if (devices_info->default_output_index < 0 && str_has_prefix(name, "default:"))
                     devices_info->default_output_index = device_list->length;
             } else {
                 assert(stream == SND_PCM_STREAM_CAPTURE);
                 device->purpose = SoundIoDevicePurposeInput;
                 device_list = &devices_info->input_devices;
-                if (str_has_prefix(name, "default:"))
+                if (devices_info->default_input_index < 0 && str_has_prefix(name, "default:"))
                     devices_info->default_input_index = device_list->length;
             }
 
@@ -933,6 +946,21 @@ static int xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
     return err;
 }
 
+static int instream_xrun_recovery(SoundIoInStreamPrivate *is, int err) {
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *)is->backend_data;
+    if (err == -EPIPE) {
+        err = snd_pcm_prepare(isa->handle);
+    } else if (err == -ESTRPIPE) {
+        while ((err = snd_pcm_resume(isa->handle)) == -EAGAIN) {
+            // wait until suspend flag is released
+            poll(nullptr, 0, 1);
+        }
+        if (err < 0)
+            err = snd_pcm_prepare(isa->handle);
+    }
+    return err;
+}
+
 static int wait_for_poll(SoundIoOutStreamAlsa *osa) {
     int err;
     unsigned short revents;
@@ -951,6 +979,24 @@ static int wait_for_poll(SoundIoOutStreamAlsa *osa) {
     }
 }
 
+static int instream_wait_for_poll(SoundIoInStreamAlsa *isa) {
+    int err;
+    unsigned short revents;
+    for (;;) {
+        if ((err = poll(isa->poll_fds, isa->poll_fd_count, -1)) < 0)
+            return err;
+        if ((err = snd_pcm_poll_descriptors_revents(isa->handle,
+                        isa->poll_fds, isa->poll_fd_count, &revents)) < 0)
+        {
+            return err;
+        }
+        if (revents & POLLERR)
+            return -EIO;
+        if (revents & POLLIN)
+            return 0;
+    }
+}
+
 void outstream_thread_run(void *arg) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *) arg;
     SoundIoOutStream *outstream = &os->pub;
@@ -959,14 +1005,6 @@ void outstream_thread_run(void *arg) {
     int err;
 
     for (;;) {
-        if ((err = wait_for_poll(osa)) < 0) {
-            if (!osa->thread_exit_flag.test_and_set())
-                return;
-            outstream->error_callback(outstream, SoundIoErrorStreaming);
-            return;
-        }
-        if (!osa->thread_exit_flag.test_and_set())
-            return;
         snd_pcm_state_t state = snd_pcm_state(osa->handle);
         switch (state) {
             case SND_PCM_STATE_OPEN:
@@ -985,6 +1023,15 @@ void outstream_thread_run(void *arg) {
                 continue;
             case SND_PCM_STATE_RUNNING:
             {
+                if ((err = wait_for_poll(osa)) < 0) {
+                    if (!osa->thread_exit_flag.test_and_set())
+                        return;
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                if (!osa->thread_exit_flag.test_and_set())
+                    return;
+
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
                 if (avail < 0) {
                     if ((err = xrun_recovery(os, avail)) < 0) {
@@ -1010,6 +1057,75 @@ void outstream_thread_run(void *arg) {
             case SND_PCM_STATE_SUSPENDED:
                 if ((err = xrun_recovery(os, -ESTRPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                continue;
+            case SND_PCM_STATE_DISCONNECTED:
+                soundio_panic("TODO disconnected");
+        }
+    }
+}
+
+static void instream_thread_run(void *arg) {
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *) arg;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamAlsa *osa = (SoundIoInStreamAlsa *) is->backend_data;
+
+    int err;
+
+    for (;;) {
+        snd_pcm_state_t state = snd_pcm_state(osa->handle);
+        switch (state) {
+            case SND_PCM_STATE_OPEN:
+                soundio_panic("TODO open");
+            case SND_PCM_STATE_SETUP:
+                if ((err = snd_pcm_prepare(osa->handle)) < 0) {
+                    instream->error_callback(instream, SoundIoErrorStreaming);
+                    return;
+                }
+                continue;
+            case SND_PCM_STATE_PREPARED:
+                if ((err = snd_pcm_start(osa->handle)) < 0) {
+                    instream->error_callback(instream, SoundIoErrorStreaming);
+                    return;
+                }
+                continue;
+            case SND_PCM_STATE_RUNNING:
+            {
+                if ((err = instream_wait_for_poll(osa)) < 0) {
+                    if (!osa->thread_exit_flag.test_and_set())
+                        return;
+                    instream->error_callback(instream, SoundIoErrorStreaming);
+                    return;
+                }
+                if (!osa->thread_exit_flag.test_and_set())
+                    return;
+
+                snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
+                if (avail < 0) {
+                    if ((err = instream_xrun_recovery(is, avail)) < 0) {
+                        instream->error_callback(instream, SoundIoErrorStreaming);
+                        return;
+                    }
+                    continue;
+                }
+
+                instream->read_callback(instream, avail);
+                continue;
+            }
+            case SND_PCM_STATE_XRUN:
+                if ((err = instream_xrun_recovery(is, -EPIPE)) < 0) {
+                    instream->error_callback(instream, SoundIoErrorStreaming);
+                    return;
+                }
+                continue;
+            case SND_PCM_STATE_DRAINING:
+                soundio_panic("TODO draining");
+            case SND_PCM_STATE_PAUSED:
+                soundio_panic("TODO paused");
+            case SND_PCM_STATE_SUSPENDED:
+                if ((err = instream_xrun_recovery(is, -ESTRPIPE)) < 0) {
+                    instream->error_callback(instream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
@@ -1293,27 +1409,271 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
-static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    // TODO default buffer_duration and period_duration
-    soundio_panic("TODO");
+static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
+    if (!isa)
+        return;
+
+    deallocate(isa->chmap, isa->chmap_size);
+    // TODO
+
+    destroy(isa);
+    is->backend_data = nullptr;
 }
 
-static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    SoundIoInStream *instream = &is->pub;
+    SoundIoDevice *device = instream->device;
+
+    if (instream->buffer_duration == 0.0)
+        instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
+    if (instream->period_duration == 0.0) {
+        instream->period_duration = clamp(device->period_duration_min,
+                instream->buffer_duration / 8.0, device->period_duration_max);
+    }
+
+    SoundIoInStreamAlsa *isa = create<SoundIoInStreamAlsa>();
+    if (!isa) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorNoMem;
+    }
+    is->backend_data = isa;
+
+    int ch_count = instream->layout.channel_count;
+
+    isa->chmap_size = sizeof(int) + sizeof(int) * ch_count;
+    isa->chmap = (snd_pcm_chmap_t *)allocate<char>(isa->chmap_size);
+    if (!isa->chmap) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorNoMem;
+    }
+
+    int err;
+
+    snd_pcm_hw_params_t *hwparams;
+    snd_pcm_hw_params_alloca(&hwparams);
+
+    snd_pcm_stream_t stream = purpose_to_stream(instream->device->purpose);
+
+    if ((err = snd_pcm_open(&isa->handle, instream->device->name, stream, 0)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_any(isa->handle, hwparams)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    int want_resample = !instream->device->is_raw;
+    if ((err = snd_pcm_hw_params_set_rate_resample(isa->handle, hwparams, want_resample)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = set_access(isa->handle, hwparams, &isa->access))) {
+        instream_destroy_alsa(si, is);
+        return err;
+    }
+
+    if ((err = snd_pcm_hw_params_set_channels(isa->handle, hwparams, ch_count)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((err = snd_pcm_hw_params_set_rate(isa->handle, hwparams, instream->sample_rate, 0)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    snd_pcm_format_t format = to_alsa_fmt(instream->format);
+    int phys_bits_per_sample = snd_pcm_format_physical_width(format);
+    if (phys_bits_per_sample % 8 != 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorIncompatibleDevice;
+    }
+    int phys_bytes_per_sample = phys_bits_per_sample / 8;
+    if ((err = snd_pcm_hw_params_set_format(isa->handle, hwparams, format)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    snd_pcm_uframes_t period_frames = ceil(instream->period_duration * (double)instream->sample_rate);
+    if ((err = snd_pcm_hw_params_set_period_size_near(isa->handle, hwparams, &period_frames, nullptr)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+    instream->period_duration = ((double)period_frames) / (double)instream->sample_rate;
+
+
+    snd_pcm_uframes_t buffer_size_frames = ceil(instream->buffer_duration * (double)instream->sample_rate);
+
+    if ((err = snd_pcm_hw_params_set_buffer_size_near(isa->handle, hwparams, &buffer_size_frames)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+    instream->buffer_duration = ((double)buffer_size_frames) / (double)instream->sample_rate;
+
+    snd_pcm_uframes_t period_size;
+    if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, nullptr)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+    isa->period_size = period_size;
+
+    // write the hardware parameters to device
+    if ((err = snd_pcm_hw_params(isa->handle, hwparams)) < 0) {
+        instream_destroy_alsa(si, is);
+        return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
+    }
+
+    // set channel map
+    isa->chmap->channels = ch_count;
+    for (int i = 0; i < ch_count; i += 1) {
+        isa->chmap->pos[i] = to_alsa_chmap_pos(instream->layout.channels[i]);
+    }
+    if ((err = snd_pcm_set_chmap(isa->handle, isa->chmap)) < 0)
+        instream->layout_error = SoundIoErrorIncompatibleDevice;
+
+    // get current swparams
+    snd_pcm_sw_params_t *swparams;
+    snd_pcm_sw_params_alloca(&swparams);
+
+    if ((err = snd_pcm_sw_params_current(isa->handle, swparams)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    // write the software parameters to device
+    if ((err = snd_pcm_sw_params(isa->handle, swparams)) < 0) {
+        instream_destroy_alsa(si, is);
+        return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
+    }
+
+    if (isa->access == SND_PCM_ACCESS_RW_INTERLEAVED || isa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
+        isa->sample_buffer_size = ch_count * isa->period_size * phys_bytes_per_sample;
+        isa->sample_buffer = allocate_nonzero<char>(isa->sample_buffer_size);
+        if (!isa->sample_buffer) {
+            instream_destroy_alsa(si, is);
+            return SoundIoErrorNoMem;
+        }
+    }
+
+    isa->poll_fd_count = snd_pcm_poll_descriptors_count(isa->handle);
+    if (isa->poll_fd_count <= 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    isa->poll_fds = allocate<struct pollfd>(isa->poll_fd_count);
+    if (!isa->poll_fds) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorNoMem;
+    }
+
+    if ((err = snd_pcm_poll_descriptors(isa->handle, isa->poll_fds, isa->poll_fd_count)) < 0) {
+        instream_destroy_alsa(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    return 0;
 }
 
 static int instream_start_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
+
+    assert(!isa->thread);
+
+    isa->thread_exit_flag.test_and_set();
+    int err;
+    if ((err = soundio_os_thread_create(instream_thread_run, is, true, &isa->thread))) {
+        instream_destroy_alsa(si, is);
+        return err;
+    }
+
+    return 0;
 }
 
 static int instream_begin_read_alsa(SoundIoPrivate *si,
         SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
 {
-    soundio_panic("TODO");
+    *out_areas = nullptr;
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
+    SoundIoInStream *instream = &is->pub;
+
+    if (isa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            isa->areas[ch].ptr = isa->sample_buffer + ch * instream->bytes_per_sample;
+            isa->areas[ch].step = instream->bytes_per_frame;
+        }
+
+        isa->read_frame_count = min(*frame_count, isa->period_size);
+        *frame_count = isa->read_frame_count;
+        snd_pcm_sframes_t commitres = snd_pcm_readi(isa->handle, isa->sample_buffer, isa->read_frame_count);
+        if (commitres < 0 || commitres != *frame_count) {
+            int err = (commitres >= 0) ? -EPIPE : commitres;
+            if ((err = instream_xrun_recovery(is, err)) < 0)
+                return SoundIoErrorStreaming;
+        }
+    } else if (isa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
+        char *ptrs[SOUNDIO_MAX_CHANNELS];
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            isa->areas[ch].ptr = isa->sample_buffer + ch * instream->bytes_per_sample * isa->period_size;
+            isa->areas[ch].step = instream->bytes_per_sample;
+            ptrs[ch] = isa->areas[ch].ptr;
+        }
+
+        isa->read_frame_count = min(*frame_count, isa->period_size);
+        *frame_count = isa->read_frame_count;
+        snd_pcm_sframes_t commitres = snd_pcm_readn(isa->handle, (void**)ptrs, isa->read_frame_count);
+        if (commitres < 0 || commitres != *frame_count) {
+            int err = (commitres >= 0) ? -EPIPE : commitres;
+            if ((err = instream_xrun_recovery(is, err)) < 0)
+                return SoundIoErrorStreaming;
+        }
+    } else {
+        const snd_pcm_channel_area_t *areas;
+        snd_pcm_uframes_t frames = *frame_count;
+        int err;
+
+        if ((err = snd_pcm_mmap_begin(isa->handle, &areas, &isa->offset, &frames)) < 0) {
+            if ((err = instream_xrun_recovery(is, err)) < 0)
+                return SoundIoErrorStreaming;
+        }
+
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            if ((areas[ch].first % 8 != 0) || (areas[ch].step % 8 != 0))
+                return SoundIoErrorIncompatibleDevice;
+            isa->areas[ch].step = areas[ch].step / 8;
+            isa->areas[ch].ptr = ((char *)areas[ch].addr) + (areas[ch].first / 8) +
+                (isa->areas[ch].step * isa->offset);
+        }
+
+        isa->read_frame_count = frames;
+        *frame_count = isa->read_frame_count;
+    }
+
+    *out_areas = isa->areas;
+    return 0;
 }
 
 static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamAlsa *isa = (SoundIoInStreamAlsa *) is->backend_data;
+
+    if (isa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
+        return 0;
+    } else if (isa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
+        return 0;
+    } else {
+        snd_pcm_sframes_t commitres = snd_pcm_mmap_commit(isa->handle, isa->offset, isa->read_frame_count);
+        if (commitres < 0 || commitres != isa->read_frame_count) {
+            int err = (commitres >= 0) ? -EPIPE : commitres;
+            if ((err = instream_xrun_recovery(is, err)) < 0)
+                return SoundIoErrorStreaming;
+        }
+    }
+
+    return 0;
 }
 
 static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {

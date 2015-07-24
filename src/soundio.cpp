@@ -231,7 +231,7 @@ void soundio_flush_events(struct SoundIo *soundio) {
     si->flush_events(si);
 }
 
-int soundio_get_input_device_count(struct SoundIo *soundio) {
+int soundio_input_device_count(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -239,7 +239,7 @@ int soundio_get_input_device_count(struct SoundIo *soundio) {
     return si->safe_devices_info->input_devices.length;
 }
 
-int soundio_get_output_device_count(struct SoundIo *soundio) {
+int soundio_output_device_count(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -247,7 +247,7 @@ int soundio_get_output_device_count(struct SoundIo *soundio) {
     return si->safe_devices_info->output_devices.length;
 }
 
-int soundio_get_default_input_device_index(struct SoundIo *soundio) {
+int soundio_default_input_device_index(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -255,7 +255,7 @@ int soundio_get_default_input_device_index(struct SoundIo *soundio) {
     return si->safe_devices_info->default_input_index;
 }
 
-int soundio_get_default_output_device_index(struct SoundIo *soundio) {
+int soundio_default_output_device_index(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);

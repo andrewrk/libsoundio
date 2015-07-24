@@ -143,13 +143,15 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio]\n", exe);
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--in-device name] [--out-device name]\n", exe);
     return 1;
 }
 
 int main(int argc, char **argv) {
     char *exe = argv[0];
     enum SoundIoBackend backend = SoundIoBackendNone;
+    char *in_device_name = NULL;
+    char *out_device_name = NULL;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (strcmp("--dummy", arg) == 0) {
@@ -158,6 +160,18 @@ int main(int argc, char **argv) {
             backend = SoundIoBackendAlsa;
         } else if (strcmp("--pulseaudio", arg) == 0) {
             backend = SoundIoBackendPulseAudio;
+        } else if (strcmp("--in-device", arg) == 0) {
+            if (++i >= argc) {
+                return usage(exe);
+            } else {
+                in_device_name = argv[i];
+            }
+        } else if (strcmp("--out-device", arg) == 0) {
+            if (++i >= argc) {
+                return usage(exe);
+            } else {
+                out_device_name = argv[i];
+            }
         } else {
             return usage(exe);
         }
@@ -169,19 +183,53 @@ int main(int argc, char **argv) {
     int err = (backend == SoundIoBackendNone) ?
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
-    int default_out_device_index = soundio_get_default_output_device_index(soundio);
+    int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)
         panic("no output device found");
 
-    int default_in_device_index = soundio_get_default_input_device_index(soundio);
+    int default_in_device_index = soundio_default_input_device_index(soundio);
     if (default_in_device_index < 0)
         panic("no output device found");
 
-    struct SoundIoDevice *out_device = soundio_get_output_device(soundio, default_out_device_index);
+    int in_device_index = default_in_device_index;
+    if (in_device_name) {
+        bool found = false;
+        for (int i = 0; i < soundio_input_device_count(soundio); i += 1) {
+            struct SoundIoDevice *device = soundio_get_input_device(soundio, i);
+            if (strcmp(device->name, in_device_name) == 0) {
+                in_device_index = i;
+                found = true;
+                soundio_device_unref(device);
+                break;
+            }
+            soundio_device_unref(device);
+        }
+        if (!found)
+            panic("invalid input device name: %s", in_device_name);
+    }
+
+    int out_device_index = default_out_device_index;
+    if (out_device_name) {
+        bool found = false;
+        for (int i = 0; i < soundio_output_device_count(soundio); i += 1) {
+            struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
+            if (strcmp(device->name, out_device_name) == 0) {
+                out_device_index = i;
+                found = true;
+                soundio_device_unref(device);
+                break;
+            }
+            soundio_device_unref(device);
+        }
+        if (!found)
+            panic("invalid output device name: %s", out_device_name);
+    }
+
+    struct SoundIoDevice *out_device = soundio_get_output_device(soundio, out_device_index);
     if (!out_device)
         panic("could not get output device: out of memory");
 
-    struct SoundIoDevice *in_device = soundio_get_input_device(soundio, default_in_device_index);
+    struct SoundIoDevice *in_device = soundio_get_input_device(soundio, in_device_index);
     if (!in_device)
         panic("could not get input device: out of memory");
 
