@@ -1414,8 +1414,18 @@ static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
     if (!isa)
         return;
 
+    if (isa->thread) {
+        isa->thread_exit_flag.clear();
+        // TODO wake up poll
+        soundio_os_thread_destroy(isa->thread);
+    }
+
+    if (isa->handle)
+        snd_pcm_close(isa->handle);
+
+    deallocate(isa->poll_fds, isa->poll_fd_count);
     deallocate(isa->chmap, isa->chmap_size);
-    // TODO
+    deallocate(isa->sample_buffer, isa->sample_buffer_size);
 
     destroy(isa);
     is->backend_data = nullptr;

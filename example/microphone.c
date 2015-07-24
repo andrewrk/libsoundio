@@ -142,6 +142,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     soundio_ring_buffer_advance_read_ptr(ring_buffer, total_read_count * outstream->bytes_per_frame);
 }
 
+static void underflow_callback(struct SoundIoOutStream *outstream) {
+    static int count = 0;
+    fprintf(stderr, "underflow %d\n", count++);
+}
+
 static int usage(char *exe) {
     fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--in-device name] [--out-device name]\n", exe);
     return 1;
@@ -280,14 +285,15 @@ int main(int argc, char **argv) {
     outstream->format = *fmt;
     outstream->sample_rate = sample_rate;
     outstream->layout = *layout;
-    outstream->buffer_duration = 0.2;
-    outstream->period_duration = 0.1;
+    outstream->buffer_duration = 0.1;
+    outstream->period_duration = out_device->period_duration_min;
     outstream->write_callback = write_callback;
+    outstream->underflow_callback = underflow_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));
 
-    int capacity = 0.4 * instream->sample_rate * instream->bytes_per_frame;
+    int capacity = outstream->buffer_duration * 2 * instream->sample_rate * instream->bytes_per_frame;
     ring_buffer = soundio_ring_buffer_create(soundio, capacity);
     if (!ring_buffer)
         panic("unable to create ring buffer: out of memory");
