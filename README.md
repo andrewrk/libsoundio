@@ -233,13 +233,15 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. pipe record to playback example working with ALSA linux
- 0. expose prebuf
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
  0. implement JACK backend, get examples working
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. Avoid calling `panic` in PulseAudio.
+ 0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
+    which is why we have to pre-fill the ring buffer with silence for
+    the microphone example.
  0. implement ASIO (Windows) backend, get examples working
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
