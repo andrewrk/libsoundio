@@ -290,9 +290,11 @@ static int outstream_end_write_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate
     return 0;
 }
 
-static void outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+static int outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamDummy *osd = (SoundIoOutStreamDummy *)os->backend_data;
     soundio_ring_buffer_clear(&osd->ring_buffer);
+    osd->prebuf_frames_left = osd->prebuf_frame_count;
+    return 0;
 }
 
 static void instream_destroy_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {

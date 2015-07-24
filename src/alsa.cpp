@@ -909,7 +909,6 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
 
     if (osa->thread) {
         osa->thread_exit_flag.clear();
-        // TODO wake up poll
         soundio_os_thread_destroy(osa->thread);
     }
 
@@ -1007,8 +1006,6 @@ void outstream_thread_run(void *arg) {
     for (;;) {
         snd_pcm_state_t state = snd_pcm_state(osa->handle);
         switch (state) {
-            case SND_PCM_STATE_OPEN:
-                soundio_panic("TODO open");
             case SND_PCM_STATE_SETUP:
                 if ((err = snd_pcm_prepare(osa->handle)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1050,18 +1047,18 @@ void outstream_thread_run(void *arg) {
                     return;
                 }
                 continue;
-            case SND_PCM_STATE_DRAINING:
-                soundio_panic("TODO draining");
-            case SND_PCM_STATE_PAUSED:
-                soundio_panic("TODO paused");
             case SND_PCM_STATE_SUSPENDED:
                 if ((err = xrun_recovery(os, -ESTRPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
+            case SND_PCM_STATE_OPEN:
+            case SND_PCM_STATE_DRAINING:
+            case SND_PCM_STATE_PAUSED:
             case SND_PCM_STATE_DISCONNECTED:
-                soundio_panic("TODO disconnected");
+                outstream->error_callback(outstream, SoundIoErrorStreaming);
+                return;
         }
     }
 }
@@ -1076,8 +1073,6 @@ static void instream_thread_run(void *arg) {
     for (;;) {
         snd_pcm_state_t state = snd_pcm_state(osa->handle);
         switch (state) {
-            case SND_PCM_STATE_OPEN:
-                soundio_panic("TODO open");
             case SND_PCM_STATE_SETUP:
                 if ((err = snd_pcm_prepare(osa->handle)) < 0) {
                     instream->error_callback(instream, SoundIoErrorStreaming);
@@ -1119,18 +1114,18 @@ static void instream_thread_run(void *arg) {
                     return;
                 }
                 continue;
-            case SND_PCM_STATE_DRAINING:
-                soundio_panic("TODO draining");
-            case SND_PCM_STATE_PAUSED:
-                soundio_panic("TODO paused");
             case SND_PCM_STATE_SUSPENDED:
                 if ((err = instream_xrun_recovery(is, -ESTRPIPE)) < 0) {
                     instream->error_callback(instream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
+            case SND_PCM_STATE_OPEN:
+            case SND_PCM_STATE_DRAINING:
+            case SND_PCM_STATE_PAUSED:
             case SND_PCM_STATE_DISCONNECTED:
-                soundio_panic("TODO disconnected");
+                instream->error_callback(instream, SoundIoErrorStreaming);
+                return;
         }
     }
 }
@@ -1395,10 +1390,14 @@ static int outstream_end_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate 
     return 0;
 }
 
-static void outstream_clear_buffer_alsa(SoundIoPrivate *si,
+static int outstream_clear_buffer_alsa(SoundIoPrivate *si,
         SoundIoOutStreamPrivate *os)
 {
-    soundio_panic("TODO");
+    SoundIoOutStreamAlsa *osa = (SoundIoOutStreamAlsa *) os->backend_data;
+    int err;
+    if ((err = snd_pcm_reset(osa->handle)) < 0)
+        return SoundIoErrorStreaming;
+    return 0;
 }
 
 static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
@@ -1416,7 +1415,6 @@ static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
 
     if (isa->thread) {
         isa->thread_exit_flag.clear();
-        // TODO wake up poll
         soundio_os_thread_destroy(isa->thread);
     }
 

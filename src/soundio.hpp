@@ -49,7 +49,7 @@ struct SoundIoPrivate {
     int (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
             SoundIoChannelArea **out_areas, int *frame_count);
     int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, int frame_count);
-    void (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    int (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
 
 

@@ -242,6 +242,9 @@ view `coverage/index.html` in a browser.
  0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
     which is why we have to pre-fill the ring buffer with silence for
     the microphone example.
+ 0. In ALSA do we need to wake up the poll when destroying the in or out stream?
+ 0. Create a test for clearing the playback buffer.
+ 0. Create a test for pausing and resuming input and output streams.
  0. implement ASIO (Windows) backend, get examples working
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors

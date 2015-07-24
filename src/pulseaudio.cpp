@@ -782,7 +782,7 @@ static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *o
     return 0;
 }
 
-static void outstream_clear_buffer_pa(SoundIoPrivate *si,
+static int outstream_clear_buffer_pa(SoundIoPrivate *si,
         SoundIoOutStreamPrivate *os)
 {
     SoundIoOutStreamPulseAudio *ospa = (SoundIoOutStreamPulseAudio *)os->backend_data;
@@ -791,9 +791,10 @@ static void outstream_clear_buffer_pa(SoundIoPrivate *si,
     pa_threaded_mainloop_lock(sipa->main_loop);
     pa_operation *op = pa_stream_flush(stream, NULL, NULL);
     if (!op)
-        soundio_panic("pa_stream_flush failed: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
+        return SoundIoErrorStreaming;
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(sipa->main_loop);
+    return 0;
 }
 
 static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, bool pause) {
