@@ -154,6 +154,7 @@ void soundio_destroy(struct SoundIo *soundio) {
 
 static void default_on_devices_change(struct SoundIo *) { }
 static void default_on_events_signal(struct SoundIo *) { }
+static void default_msg_callback(const char *msg) { }
 
 struct SoundIo * soundio_create(void) {
     soundio_os_init();
@@ -164,6 +165,8 @@ struct SoundIo * soundio_create(void) {
     soundio->on_devices_change = default_on_devices_change;
     soundio->on_events_signal = default_on_events_signal;
     soundio->app_name = "SoundIo";
+    soundio->jack_info_callback = default_msg_callback;
+    soundio->jack_error_callback = default_msg_callback;
     return soundio;
 }
 

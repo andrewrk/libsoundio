@@ -10,7 +10,7 @@ exposed.
 
 **This library is a work-in-progress.**
 
-## Features
+## Features and Limitations
 
  * Supported backends:
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)

@@ -212,6 +212,13 @@ struct SoundIo {
     // PulseAudio uses this for "application name".
     // JACK uses this for `client_name`.
     const char *app_name;
+
+    // Optional: JACK info and error callbacks.
+    // By default, libsoundio sets these to empty functions in order to
+    // silence stdio messages from JACK. You may override the behavior by
+    // setting these to `NULL` or providing your own function.
+    void (*jack_info_callback)(const char *msg);
+    void (*jack_error_callback)(const char *msg);
 };
 
 // The size of this struct is not part of the API or ABI.
@@ -426,11 +433,10 @@ struct SoundIo * soundio_create(void);
 void soundio_destroy(struct SoundIo *soundio);
 
 
-// Provided these backends were compiled in, this tries JACK, then PulseAudio,
-// then ALSA, then CoreAudio, then ASIO, then DirectSound, then OSS, then Dummy.
+// This is a convenience function you could implement yourself if you wanted
+// to. It tries `soundio_connect_backend` on all available backends in order.
 int soundio_connect(struct SoundIo *soundio);
 // Instead of calling `soundio_connect` you may call this function to try a
-// specific backend.
 int soundio_connect_backend(struct SoundIo *soundio, enum SoundIoBackend backend);
 void soundio_disconnect(struct SoundIo *soundio);
 

@@ -7,9 +7,12 @@
 
 #include "jack.hpp"
 #include "soundio.hpp"
+#include "atomics.hpp"
 
 #include <jack/jack.h>
 #include <stdio.h>
+
+static atomic_flag global_msg_callback_flag = ATOMIC_FLAG_INIT;
 
 struct SoundIoJack {
     jack_client_t *client;
@@ -96,16 +99,17 @@ static void destroy_jack(SoundIoPrivate *si) {
     si->backend_data = nullptr;
 }
 
-static void error_callback(const char *msg) {
-    //fprintf(stderr, "JACK error: %s\n", msg);
-}
-
-static void info_callback(const char *msg) {
-    //fprintf(stderr, "JACK info: %s\n", msg);
-}
-
 int soundio_jack_init(struct SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
+
+    if (!global_msg_callback_flag.test_and_set()) {
+        if (soundio->jack_error_callback)
+            jack_set_error_function(soundio->jack_error_callback);
+        if (soundio->jack_info_callback)
+            jack_set_info_function(soundio->jack_info_callback);
+        global_msg_callback_flag.clear();
+    }
+
     assert(!si->backend_data);
     SoundIoJack *sij = create<SoundIoJack>();
     if (!sij) {
@@ -113,9 +117,6 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
         return SoundIoErrorNoMem;
     }
     si->backend_data = sij;
-
-    jack_set_error_function(error_callback);
-    jack_set_info_function(info_callback);
 
     jack_status_t status;
     sij->client = jack_client_open(soundio->app_name, JackNoStartServer, &status);
