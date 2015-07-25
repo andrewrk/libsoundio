@@ -70,7 +70,6 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorBackendUnavailable: return "backend unavailable";
         case SoundIoErrorStreaming: return "unrecoverable streaming failure";
         case SoundIoErrorIncompatibleDevice: return "incompatible device";
-        case SoundIoErrorNameNotUnique: return "name not unique";
         case SoundIoErrorNoSuchClient: return "no such client";
     }
     soundio_panic("invalid error enum value: %d", error);
@@ -188,7 +187,7 @@ int soundio_connect(struct SoundIo *soundio) {
 int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
 
-    if (si->current_backend)
+    if (soundio->current_backend)
         return SoundIoErrorInvalid;
 
     if (backend <= 0 || backend > SoundIoBackendDummy)
@@ -214,7 +213,7 @@ void soundio_disconnect(struct SoundIo *soundio) {
         si->destroy(si);
     assert(!si->backend_data);
 
-    si->current_backend = SoundIoBackendNone;
+    soundio->current_backend = SoundIoBackendNone;
 
     soundio_destroy_devices_info(si->safe_devices_info);
     si->safe_devices_info = nullptr;
@@ -390,7 +389,7 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
         outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
 
     if (!outstream->name)
-        outstream->name = "SoundIo";
+        outstream->name = "SoundIoOutStream";
 
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
@@ -471,7 +470,7 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
         instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
 
     if (!instream->name)
-        instream->name = "SoundIo";
+        instream->name = "SoundIoInStream";
 
 
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);

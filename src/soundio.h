@@ -26,7 +26,6 @@ enum SoundIoError {
     SoundIoErrorBackendUnavailable,
     SoundIoErrorStreaming,
     SoundIoErrorIncompatibleDevice,
-    SoundIoErrorNameNotUnique,
     SoundIoErrorNoSuchClient,
 };
 
@@ -198,7 +197,7 @@ struct SoundIoChannelArea {
 
 // The size of this struct is not part of the API or ABI.
 struct SoundIo {
-    // Defaults to NULL. Put whatever you want here.
+    // Optional. Put whatever you want here. Defaults to NULL.
     void *userdata;
     // Optional callback. Called when the list of devices change. Only called
     // during a call to soundio_flush_events or soundio_wait_events.
@@ -216,9 +215,15 @@ struct SoundIo {
     // Optional: JACK info and error callbacks.
     // By default, libsoundio sets these to empty functions in order to
     // silence stdio messages from JACK. You may override the behavior by
-    // setting these to `NULL` or providing your own function.
+    // setting these to `NULL` or providing your own function. These are
+    // registered with JACK regardless of whether `soundio_connect_backend`
+    // succeeds.
     void (*jack_info_callback)(const char *msg);
     void (*jack_error_callback)(const char *msg);
+
+    // Read-only. After calling `soundio_connect` or `soundio_connect_backend`,
+    // this field tells which backend is currently connected.
+    enum SoundIoBackend current_backend;
 };
 
 // The size of this struct is not part of the API or ABI.
@@ -285,9 +290,9 @@ struct SoundIoDevice {
     // Tells whether this device is an input device or an output device.
     enum SoundIoDevicePurpose purpose;
 
-    // raw means that you are directly opening the hardware device and not
-    // going through a proxy such as dmix or PulseAudio. When you open a raw
-    // device, other applications on the computer are not able to
+    // Raw means that you are directly opening the hardware device and not
+    // going through a proxy such as dmix, PulseAudio, or JACK. When you open a
+    // raw device, other applications on the computer are not able to
     // simultaneously access the device. Raw devices do not perform automatic
     // resampling and thus tend to have fewer formats available.
     bool is_raw;
@@ -359,10 +364,13 @@ struct SoundIoOutStream {
     // invalid state and must be destroyed.
     // If you do not supply `error_callback`, the default callback will print
     // a message to stderr and then call `abort`.
-    // This is called fram the `write_callback` thread context.
+    // This is called from the `write_callback` thread context.
     void (*error_callback)(struct SoundIoOutStream *, int err);
 
-    // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
+    // Optional: Name of the stream. Defaults to "SoundIoOutStream"
+    // PulseAudio uses this for the stream name.
+    // JACK uses this for the client name of the client that connects when you
+    // open the stream.
     const char *name;
 
 
@@ -413,7 +421,10 @@ struct SoundIoInStream {
     // This is called from the `read_callback` thread context.
     void (*error_callback)(struct SoundIoInStream *, int err);
 
-    // Name of the stream. This is used by PulseAudio. Defaults to "SoundIo".
+    // Optional: Name of the stream. Defaults to "SoundIoInStream";
+    // PulseAudio uses this for the stream name.
+    // JACK uses this for the client name of the client that connects when you
+    // open the stream.
     const char *name;
 
     // computed automatically when you call soundio_instream_open

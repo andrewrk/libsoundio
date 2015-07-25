@@ -32,8 +32,6 @@ struct SoundIoInStreamPrivate {
 struct SoundIoPrivate {
     struct SoundIo pub;
 
-    enum SoundIoBackend current_backend;
-
     // Safe to read from a single thread without a mutex.
     struct SoundIoDevicesInfo *safe_devices_info;
 
