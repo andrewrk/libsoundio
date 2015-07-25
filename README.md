@@ -232,25 +232,37 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. pipe record to playback example working with ALSA linux
+ 0. implement JACK backend, get examples working
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
- 0. implement JACK backend, get examples working
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
+ 0. implement ASIO (Windows) backend, get examples working
  0. Avoid calling `panic` in PulseAudio.
  0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
     which is why we have to pre-fill the ring buffer with silence for
     the microphone example.
+ 0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Create a test for clearing the playback buffer.
  0. Create a test for pausing and resuming input and output streams.
- 0. implement ASIO (Windows) backend, get examples working
+ 0. Create a test for the latency / synchronization API.
+    - Input is an audio file and some events indexed at particular frame - when
+      listening the events should line up exactly with a beat or visual
+      indicator, even when the latency is large.
+    - Play the audio file, have the user press an input right at the beat. Find
+      out what the frame index it thinks the user pressed it at and make sure
+      that is correct.
+ 0. Expose JACK options in `jack_client_open`
+ 0. Allow calling functions from outside the callbacks as long as they first
+    call lock and then unlock when done.
+ 0. Should pause/resume be callable from outside the callbacks?
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
       it can return
  0. use a documentation generator and host the docs somewhere
- 0. -fvisibility=hidden and then explicitly export stuff
+ 0. -fvisibility=hidden and then explicitly export stuff, or
+    explicitly make the unexported stuff private
  0. Integrate into libgroove and test with Groove Basin
  0. look at microphone example and determine if fewer memcpys can be done
     with the audio data

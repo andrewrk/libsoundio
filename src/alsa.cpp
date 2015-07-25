@@ -1013,11 +1013,13 @@ void outstream_thread_run(void *arg) {
                 }
                 continue;
             case SND_PCM_STATE_PREPARED:
+            {
                 if ((err = snd_pcm_start(osa->handle)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
+            }
             case SND_PCM_STATE_RUNNING:
             {
                 if ((err = wait_for_poll(osa)) < 0) {

@@ -16,7 +16,8 @@
 #cmakedefine SOUNDIO_OS_BIG_ENDIAN
 #cmakedefine SOUNDIO_OS_LITTLE_ENDIAN
 
-#cmakedefine SOUNDIO_HAVE_ALSA
+#cmakedefine SOUNDIO_HAVE_JACK
 #cmakedefine SOUNDIO_HAVE_PULSEAUDIO
+#cmakedefine SOUNDIO_HAVE_ALSA
 
 #endif

@@ -11,6 +11,10 @@
 #include "os.hpp"
 #include "config.h"
 
+#ifdef SOUNDIO_HAVE_JACK
+#include "jack.hpp"
+#endif
+
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
 #include "pulseaudio.hpp"
 #endif
@@ -23,6 +27,9 @@
 #include <assert.h>
 
 static const SoundIoBackend available_backends[] = {
+#ifdef SOUNDIO_HAVE_JACK
+    SoundIoBackendJack,
+#endif
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
     SoundIoBackendPulseAudio,
 #endif
@@ -30,6 +37,26 @@ static const SoundIoBackend available_backends[] = {
     SoundIoBackendAlsa,
 #endif
     SoundIoBackendDummy,
+};
+
+static int (*backend_init_fns[])(SoundIoPrivate *) = {
+    nullptr, // SoundIoBackendNone
+#ifdef SOUNDIO_HAVE_JACK
+    soundio_jack_init,
+#else
+    nullptr,
+#endif
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
+    soundio_pulseaudio_init,
+#else
+    nullptr,
+#endif
+#ifdef SOUNDIO_HAVE_ALSA
+    soundio_alsa_init,
+#else
+    nullptr,
+#endif
+    soundio_dummy_init,
 };
 
 const char *soundio_strerror(int error) {
@@ -43,6 +70,8 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorBackendUnavailable: return "backend unavailable";
         case SoundIoErrorStreaming: return "unrecoverable streaming failure";
         case SoundIoErrorIncompatibleDevice: return "incompatible device";
+        case SoundIoErrorNameNotUnique: return "name not unique";
+        case SoundIoErrorNoSuchClient: return "no such client";
     }
     soundio_panic("invalid error enum value: %d", error);
 }
@@ -105,6 +134,7 @@ const char * soundio_format_string(enum SoundIoFormat format) {
 const char *soundio_backend_name(enum SoundIoBackend backend) {
     switch (backend) {
         case SoundIoBackendNone: return "(none)";
+        case SoundIoBackendJack: return "JACK";
         case SoundIoBackendPulseAudio: return "PulseAudio";
         case SoundIoBackendAlsa: return "ALSA";
         case SoundIoBackendDummy: return "Dummy";
@@ -158,41 +188,20 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
     if (si->current_backend)
         return SoundIoErrorInvalid;
 
-    int err;
-    switch (backend) {
-    case SoundIoBackendPulseAudio:
-#ifdef SOUNDIO_HAVE_PULSEAUDIO
-        si->current_backend = SoundIoBackendPulseAudio;
-        if ((err = soundio_pulseaudio_init(si))) {
-            soundio_disconnect(soundio);
-            return err;
-        }
-        return 0;
-#else
-        return SoundIoErrorBackendUnavailable;
-#endif
-    case SoundIoBackendAlsa:
-#ifdef SOUNDIO_HAVE_ALSA
-        si->current_backend = SoundIoBackendAlsa;
-        if ((err = soundio_alsa_init(si))) {
-            soundio_disconnect(soundio);
-            return err;
-        }
-        return 0;
-#else
-        return SoundIoErrorBackendUnavailable;
-#endif
-    case SoundIoBackendDummy:
-        si->current_backend = SoundIoBackendDummy;
-        if ((err = soundio_dummy_init(si))) {
-            soundio_disconnect(soundio);
-            return err;
-        }
-        return 0;
-    case SoundIoBackendNone:
+    if (backend <= 0 || backend > SoundIoBackendDummy)
         return SoundIoErrorInvalid;
+
+    int (*fn)(SoundIoPrivate *) = backend_init_fns[backend];
+
+    if (!fn)
+        return SoundIoErrorBackendUnavailable;
+
+    int err;
+    if ((err = backend_init_fns[backend](si))) {
+        soundio_disconnect(soundio);
+        return err;
     }
-    return SoundIoErrorInvalid;
+    return 0;
 }
 
 void soundio_disconnect(struct SoundIo *soundio) {
@@ -528,25 +537,9 @@ void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
 }
 
 bool soundio_have_backend(SoundIoBackend backend) {
-    switch (backend) {
-    case SoundIoBackendPulseAudio:
-#ifdef SOUNDIO_HAVE_PULSEAUDIO
-        return true;
-#else
-        return false;
-#endif
-    case SoundIoBackendAlsa:
-#ifdef SOUNDIO_HAVE_ALSA
-        return true;
-#else
-        return false;
-#endif
-    case SoundIoBackendDummy:
-        return true;
-    case SoundIoBackendNone:
-        return false;
-    }
-    return false;
+    assert(backend > 0);
+    assert(backend <= SoundIoBackendDummy);
+    return backend_init_fns[backend];
 }
 
 int soundio_backend_count(struct SoundIo *soundio) {

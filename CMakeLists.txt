@@ -23,6 +23,16 @@ else(Threads_FOUND)
     set(STATUS_THREADS "not found")
 endif(Threads_FOUND)
 
+find_package(JACK)
+if(JACK_FOUND)
+    set(STATUS_JACK "OK")
+    set(SOUNDIO_HAVE_JACK true)
+    include_directories(${JACK_INCLUDE_DIR})
+else()
+    set(STATUS_JACK "not found")
+    set(SOUNDIO_HAVE_JACK false)
+    set(JACK_LIBRARY "")
+endif()
 
 find_package(PulseAudio)
 if(PULSEAUDIO_FOUND)
@@ -71,6 +81,14 @@ set(TEST_SOURCES
     "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
 )
 
+if(SOUNDIO_HAVE_JACK)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/jack.cpp"
+    )
+    set(TEST_SOURCES ${TEST_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/jack.cpp"
+    )
+endif()
 if(SOUNDIO_HAVE_PULSEAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
@@ -132,6 +150,7 @@ include_directories(
     ${ALSA_INCLUDE_DIRS}
 )
 target_link_libraries(libsoundio_shared LINK_PUBLIC
+    ${JACK_LIBRARY}
     ${PULSEAUDIO_LIBRARY}
     ${ALSA_LIBRARIES}
     m
@@ -182,6 +201,7 @@ enable_testing()
 add_executable(unit_tests ${TEST_SOURCES})
 target_link_libraries(unit_tests LINK_PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
+    ${JACK_LIBRARY}
     ${PULSEAUDIO_LIBRARY}
     ${ALSA_LIBRARIES}
     m
@@ -218,6 +238,7 @@ message(
     "System Dependencies\n"
     "-------------------\n"
     "* threads                      : ${STATUS_THREADS}\n"
-    "* pulseaudio                   : ${STATUS_PULSEAUDIO}\n"
-    "* ALSA                         : ${STATUS_ALSA}\n"
+    "* JACK (optional)              : ${STATUS_JACK}\n"
+    "* PulseAudio (optional)        : ${STATUS_PULSEAUDIO}\n"
+    "* ALSA (optional)              : ${STATUS_ALSA}\n"
 )

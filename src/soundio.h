@@ -26,6 +26,8 @@ enum SoundIoError {
     SoundIoErrorBackendUnavailable,
     SoundIoErrorStreaming,
     SoundIoErrorIncompatibleDevice,
+    SoundIoErrorNameNotUnique,
+    SoundIoErrorNoSuchClient,
 };
 
 enum SoundIoChannelId {
@@ -98,6 +100,7 @@ enum SoundIoChannelLayoutId {
 
 enum SoundIoBackend {
     SoundIoBackendNone,
+    SoundIoBackendJack,
     SoundIoBackendPulseAudio,
     SoundIoBackendAlsa,
     SoundIoBackendDummy,
@@ -205,7 +208,9 @@ struct SoundIo {
     // variable to wake up. Called when soundio_wait_events would be woken up.
     void (*on_events_signal)(struct SoundIo *);
 
-    // Optional: Application name. Used by PulseAudio. Defaults to "SoundIo".
+    // Optional: Application name.
+    // PulseAudio uses this for "application name".
+    // JACK uses this for `client_name`.
     const char *app_name;
 };
 
