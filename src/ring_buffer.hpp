@@ -12,11 +12,10 @@
 #include "os.hpp"
 
 struct SoundIoRingBuffer {
-    char *address;
-    int capacity;
+    SoundIoOsMirroredMemory mem;
     atomic_long write_offset;
     atomic_long read_offset;
-    SoundIoOsMirroredMemory *mem;
+    int capacity;
 };
 
 int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacity);

@@ -51,15 +51,16 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
 
 int soundio_os_page_size(void);
 
-// The size of this struct is not part of the API or ABI.
+// You may rely on the size of this struct as part of the API and ABI.
 struct SoundIoOsMirroredMemory {
     size_t capacity;
     char *address;
+    void *priv;
 };
 
 // returned capacity might be increased from capacity to be a multiple of the
 // system page size
-struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t capacity);
-void soundio_os_destroy_mirrored_memory(struct SoundIoOsMirroredMemory *mem);
+int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t capacity);
+void soundio_os_deinit_mirrored_memory(struct SoundIoOsMirroredMemory *mem);
 
 #endif

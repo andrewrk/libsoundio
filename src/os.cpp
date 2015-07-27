@@ -132,14 +132,6 @@ pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int page_size;
 
-struct SoundIoOsMirroredMemoryPrivate {
-    SoundIoOsMirroredMemory pub;
-#if defined(SOUNDIO_OS_WINDOWS)
-    HANDLE handle;
-#endif
-};
-
-
 double soundio_os_get_time(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
     unsigned __int64 time;
@@ -613,19 +605,14 @@ int soundio_os_page_size(void) {
     return page_size;
 }
 
-struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t requested_capacity) {
-    SoundIoOsMirroredMemoryPrivate *m = create<SoundIoOsMirroredMemoryPrivate>();
-    if (!m)
-        return nullptr;
-    SoundIoOsMirroredMemory *mem = &m->pub;
-
+int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t requested_capacity) {
     size_t actual_capacity = ceil(requested_capacity / (double)page_size) * page_size;
 
 #if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;
     HANDLE hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, actual_capacity * 2, NULL);
     if (!hMapFile)
-        return nullptr;
+        return SoundIoErrorNoMem;
 
     for (;;) {
         // find a free address space with the correct size
@@ -633,7 +620,7 @@ struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t request
         if (!address) {
             ok = CloseHandle(hMapFile);
             assert(ok);
-            return nullptr;
+            return SoundIoErrorNoMem;
         }
 
         // found a big enough address space. hopefully it will remain free
@@ -649,7 +636,7 @@ struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t request
             } else {
                 ok = CloseHandle(hMapFile);
                 assert(ok);
-                return nullptr;
+                return SoundIoErrorNoMem;
             }
         }
 
@@ -665,30 +652,31 @@ struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t request
             } else {
                 ok = CloseHandle(hMapFile);
                 assert(ok);
-                return nullptr;
+                return SoundIoErrorNoMem;
             }
         }
 
+        mem->priv = hMapFile;
         mem->address = address;
         break;
     }
 #else
     char *address = (char*)mmap(NULL, actual_capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (address == MAP_FAILED)
-        return nullptr;
+        return SoundIoErrorNoMem;
 
     char *other_address = (char*)mmap(address, actual_capacity, PROT_READ|PROT_WRITE,
             MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != address) {
         munmap(address, 2 * actual_capacity);
-        return nullptr;
+        return SoundIoErrorNoMem;
     }
 
     other_address = (char*)mmap(address + actual_capacity, actual_capacity,
             PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
     if (other_address != address + actual_capacity) {
         munmap(address, 2 * actual_capacity);
-        return nullptr;
+        return SoundIoErrorNoMem;
     }
 
     mem->address = address;
@@ -696,24 +684,20 @@ struct SoundIoOsMirroredMemory *soundio_os_create_mirrored_memory(size_t request
 #endif
 
     mem->capacity = actual_capacity;
-    return mem;
+    return 0;
 }
 
-void soundio_os_destroy_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
-    if (!mem)
-        return;
-    SoundIoOsMirroredMemoryPrivate *m = (SoundIoOsMirroredMemoryPrivate *)mem;
+void soundio_os_deinit_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
 #if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;
     ok = UnmapViewOfFile(mem->address);
     assert(ok);
     ok = UnmapViewOfFile(mem->address + mem->capacity);
     assert(ok);
-    ok = CloseHandle(m->handle);
+    ok = CloseHandle((HANDLE)mem->priv);
     assert(ok);
 #else
     int err = munmap(mem->address, 2 * mem->capacity);
     assert(!err);
 #endif
-    destroy(m);
 }
