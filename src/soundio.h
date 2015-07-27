@@ -489,6 +489,9 @@ const char *soundio_get_channel_name(enum SoundIoChannelId id);
 int soundio_channel_layout_builtin_count(void);
 const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);
 
+// Get the default builtin channel layout for the given number of channels.
+const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channel_count);
+
 int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel);
 

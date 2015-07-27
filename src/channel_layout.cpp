@@ -73,16 +73,6 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
         }
     },
     {
-        "4.1",
-        4,
-        {
-            SoundIoChannelIdFrontLeft,
-            SoundIoChannelIdFrontRight,
-            SoundIoChannelIdFrontCenter,
-            SoundIoChannelIdLfe,
-        }
-    },
-    {
         "Quad",
         4,
         {
@@ -100,6 +90,17 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontRight,
             SoundIoChannelIdSideLeft,
             SoundIoChannelIdSideRight,
+        }
+    },
+    {
+        "4.1",
+        5,
+        {
+            SoundIoChannelIdFrontLeft,
+            SoundIoChannelIdFrontRight,
+            SoundIoChannelIdFrontCenter,
+            SoundIoChannelIdBackCenter,
+            SoundIoChannelIdLfe,
         }
     },
     {
@@ -394,4 +395,18 @@ bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout) 
     }
     layout->name = nullptr;
     return false;
+}
+
+const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channel_count) {
+    switch (channel_count) {
+        case 1: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
+        case 2: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+        case 3: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId2Point1);
+        case 4: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdQuad);
+        case 5: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId4Point1);
+        case 6: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId5Point1);
+        case 7: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId6Point1);
+        case 8: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point1);
+    }
+    return nullptr;
 }
