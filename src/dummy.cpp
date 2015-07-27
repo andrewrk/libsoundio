@@ -7,7 +7,6 @@
 
 #include "dummy.hpp"
 #include "soundio.hpp"
-#include "os.hpp"
 #include "atomics.hpp"
 #include "ring_buffer.hpp"
 
@@ -37,12 +36,6 @@ struct SoundIoInStreamDummy {
     struct SoundIoRingBuffer ring_buffer;
     int hole_size;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-};
-
-struct SoundIoDummy {
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
-    bool devices_emitted;
 };
 
 static void playback_thread_run(void *arg) {
@@ -127,23 +120,18 @@ static void capture_thread_run(void *arg) {
 }
 
 static void destroy_dummy(SoundIoPrivate *si) {
-    SoundIoDummy *sid = (SoundIoDummy *)si->backend_data;
-    if (!sid)
-        return;
+    SoundIoDummy *sid = &si->backend_data.dummy;
 
     if (sid->cond)
         soundio_os_cond_destroy(sid->cond);
 
     if (sid->mutex)
         soundio_os_mutex_destroy(sid->mutex);
-
-    destroy(sid);
-    si->backend_data = nullptr;
 }
 
 static void flush_events(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
-    SoundIoDummy *sid = (SoundIoDummy *)si->backend_data;
+    SoundIoDummy *sid = &si->backend_data.dummy;
     if (sid->devices_emitted)
         return;
     sid->devices_emitted = true;
@@ -151,13 +139,13 @@ static void flush_events(SoundIoPrivate *si) {
 }
 
 static void wait_events(SoundIoPrivate *si) {
-    SoundIoDummy *sid = (SoundIoDummy *)si->backend_data;
+    SoundIoDummy *sid = &si->backend_data.dummy;
     flush_events(si);
     soundio_os_cond_wait(sid->cond, nullptr);
 }
 
 static void wakeup(SoundIoPrivate *si) {
-    SoundIoDummy *sid = (SoundIoDummy *)si->backend_data;
+    SoundIoDummy *sid = &si->backend_data.dummy;
     soundio_os_cond_signal(sid->cond, nullptr);
 }
 
@@ -468,13 +456,7 @@ static int set_all_device_channel_layouts(SoundIoDevice *device) {
 
 int soundio_dummy_init(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
-    assert(!si->backend_data);
-    SoundIoDummy *sid = create<SoundIoDummy>();
-    if (!sid) {
-        destroy_dummy(si);
-        return SoundIoErrorNoMem;
-    }
-    si->backend_data = sid;
+    SoundIoDummy *sid = &si->backend_data.dummy;
 
     sid->mutex = soundio_os_mutex_create();
     if (!sid->mutex) {

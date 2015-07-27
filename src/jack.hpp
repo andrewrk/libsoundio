@@ -8,7 +8,26 @@
 #ifndef SOUNDIO_JACK_HPP
 #define SOUNDIO_JACK_HPP
 
+#include "os.hpp"
+
+#include <jack/jack.h>
+
 int soundio_jack_init(struct SoundIoPrivate *si);
+
+struct SoundIoDeviceJack {
+
+};
+
+struct SoundIoJack {
+    jack_client_t *client;
+    SoundIoOsMutex *mutex;
+    SoundIoOsCond *cond;
+    // this one is ready to be read with flush_events. protected by mutex
+    struct SoundIoDevicesInfo *ready_devices_info;
+    bool initialized;
+    int sample_rate;
+    int buffer_size;
+};
 
 #endif
 

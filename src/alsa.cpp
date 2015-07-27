@@ -7,8 +7,6 @@
 
 #include "alsa.hpp"
 #include "soundio.hpp"
-#include "os.hpp"
-#include "atomics.hpp"
 
 #include <alsa/asoundlib.h>
 #include <sys/inotify.h>
@@ -24,21 +22,6 @@ static snd_pcm_access_t prioritized_access_types[] = {
     SND_PCM_ACCESS_RW_NONINTERLEAVED,
 };
 
-
-struct SoundIoAlsa {
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
-
-    struct SoundIoOsThread *thread;
-    atomic_flag abort_flag;
-    int notify_fd;
-    int notify_wd;
-    atomic_bool have_devices_flag;
-    int notify_pipe_fd[2];
-
-    // this one is ready to be read with flush_events. protected by mutex
-    struct SoundIoDevicesInfo *ready_devices_info;
-};
 
 struct SoundIoOutStreamAlsa {
     snd_pcm_t *handle;
@@ -85,9 +68,7 @@ static void wakeup_device_poll(SoundIoAlsa *sia) {
 }
 
 static void destroy_alsa(SoundIoPrivate *si) {
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
-    if (!sia)
-        return;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
 
     if (sia->thread) {
         sia->abort_flag.clear();
@@ -108,9 +89,6 @@ static void destroy_alsa(SoundIoPrivate *si) {
     close(sia->notify_pipe_fd[0]);
     close(sia->notify_pipe_fd[1]);
     close(sia->notify_fd);
-
-    destroy(sia);
-    si->backend_data = nullptr;
 }
 
 static char * str_partition_on_char(char *str, char c) {
@@ -517,7 +495,7 @@ static inline bool str_has_prefix(const char *big_str, const char *prefix) {
 
 static int refresh_devices(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
 
     SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
     if (!devices_info)
@@ -761,7 +739,7 @@ static int refresh_devices(SoundIoPrivate *si) {
 
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
 
     // Some systems cannot read integer variables if they are not
     // properly aligned. On other systems, incorrect alignment may
@@ -864,7 +842,7 @@ static void block_until_have_devices(SoundIoAlsa *sia) {
 
 static void flush_events(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
     block_until_have_devices(sia);
 
     bool change = false;
@@ -888,7 +866,7 @@ static void flush_events(SoundIoPrivate *si) {
 }
 
 static void wait_events(SoundIoPrivate *si) {
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
     flush_events(si);
     soundio_os_mutex_lock(sia->mutex);
     soundio_os_cond_wait(sia->cond, sia->mutex);
@@ -896,7 +874,7 @@ static void wait_events(SoundIoPrivate *si) {
 }
 
 static void wakeup(SoundIoPrivate *si) {
-    SoundIoAlsa *sia = (SoundIoAlsa *)si->backend_data;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
     soundio_os_mutex_lock(sia->mutex);
     soundio_os_cond_signal(sia->cond, sia->mutex);
     soundio_os_mutex_unlock(sia->mutex);
@@ -1695,15 +1673,9 @@ static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
 }
 
 int soundio_alsa_init(SoundIoPrivate *si) {
+    SoundIoAlsa *sia = &si->backend_data.alsa;
     int err;
 
-    assert(!si->backend_data);
-    SoundIoAlsa *sia = create<SoundIoAlsa>();
-    if (!sia) {
-        destroy_alsa(si);
-        return SoundIoErrorNoMem;
-    }
-    si->backend_data = sia;
     sia->notify_fd = -1;
     sia->notify_wd = -1;
     sia->have_devices_flag.store(false);

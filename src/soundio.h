@@ -27,6 +27,7 @@ enum SoundIoError {
     SoundIoErrorStreaming,
     SoundIoErrorIncompatibleDevice,
     SoundIoErrorNoSuchClient,
+    SoundIoErrorIncompatibleBackend,
 };
 
 enum SoundIoChannelId {
@@ -210,6 +211,7 @@ struct SoundIo {
     // Optional: Application name.
     // PulseAudio uses this for "application name".
     // JACK uses this for `client_name`.
+    // Must not contain a colon (":").
     const char *app_name;
 
     // Optional: JACK info and error callbacks.
@@ -371,7 +373,13 @@ struct SoundIoOutStream {
     // PulseAudio uses this for the stream name.
     // JACK uses this for the client name of the client that connects when you
     // open the stream.
+    // Must not contain a colon (":").
     const char *name;
+
+    // Optional: Hint that this output stream is nonterminal. This is used by
+    // JACK and it means that the output stream data originates from an input
+    // stream. Defaults to `false`.
+    bool non_terminal_hint;
 
 
     // computed automatically when you call soundio_outstream_open
@@ -425,6 +433,7 @@ struct SoundIoInStream {
     // PulseAudio uses this for the stream name.
     // JACK uses this for the client name of the client that connects when you
     // open the stream.
+    // Must not contain a colon (":").
     const char *name;
 
     // computed automatically when you call soundio_instream_open

@@ -8,6 +8,18 @@
 #ifndef SOUNDIO_DUMMY_HPP
 #define SOUNDIO_DUMMY_HPP
 
+#include "os.hpp"
+
 int soundio_dummy_init(struct SoundIoPrivate *si);
+
+struct SoundIoDummy {
+    SoundIoOsMutex *mutex;
+    SoundIoOsCond *cond;
+    bool devices_emitted;
+};
+
+struct SoundIoDeviceDummy {
+
+};
 
 #endif

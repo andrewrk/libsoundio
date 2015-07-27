@@ -7,21 +7,8 @@
 
 #include "soundio.hpp"
 #include "util.hpp"
-#include "dummy.hpp"
 #include "os.hpp"
 #include "config.h"
-
-#ifdef SOUNDIO_HAVE_JACK
-#include "jack.hpp"
-#endif
-
-#ifdef SOUNDIO_HAVE_PULSEAUDIO
-#include "pulseaudio.hpp"
-#endif
-
-#ifdef SOUNDIO_HAVE_ALSA
-#include "alsa.hpp"
-#endif
 
 #include <string.h>
 #include <assert.h>
@@ -71,6 +58,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorStreaming: return "unrecoverable streaming failure";
         case SoundIoErrorIncompatibleDevice: return "incompatible device";
         case SoundIoErrorNoSuchClient: return "no such client";
+        case SoundIoErrorIncompatibleBackend: return "incompatible backend";
     }
     soundio_panic("invalid error enum value: %d", error);
 }
@@ -198,6 +186,8 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
     if (!fn)
         return SoundIoErrorBackendUnavailable;
 
+    memset(&si->backend_data, 0, sizeof(SoundIoBackendData));
+
     int err;
     if ((err = backend_init_fns[backend](si))) {
         soundio_disconnect(soundio);
@@ -211,7 +201,6 @@ void soundio_disconnect(struct SoundIo *soundio) {
 
     if (si->destroy)
         si->destroy(si);
-    assert(!si->backend_data);
 
     soundio->current_backend = SoundIoBackendNone;
 

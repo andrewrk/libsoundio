@@ -233,12 +233,16 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement JACK backend, get examples working
+ 0. Steal PulseAudio's default channel maps per channel count
+ 0. Ability to parse PulseAudio's "front-left" "front-right" channel label strings
+ 0. When two soundio clients are talking to each other, use port names to
+    negotiate channel maps.
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
- 0. Avoid calling `panic` in PulseAudio.
+ 0. Avoid calling `soundio_panic` in PulseAudio.
  0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
     which is why we have to pre-fill the ring buffer with silence for
     the microphone example.
@@ -257,6 +261,9 @@ view `coverage/index.html` in a browser.
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
  0. Should pause/resume be callable from outside the callbacks?
+ 0. device.name -> device.id, device.description -> device.name
+ 0. PulseAudio: when opening a device start it corked that way we can get
+    accurate buffer readings
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
       it can return
