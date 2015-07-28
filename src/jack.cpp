@@ -351,12 +351,6 @@ static void split_str(const char *input_str, int input_str_len, char c,
     }
 }
 
-static bool eql_str(const char *str1, int str1_len, const char *str2, int str2_len) {
-    if (str1_len != str2_len)
-        return false;
-    return memcmp(str1, str2, str1_len) == 0;
-}
-
 static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *clients,
         SoundIoDevicePurpose purpose, bool is_physical, const char *client_name, int client_name_len)
 {
@@ -364,7 +358,7 @@ static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *
         SoundIoJackClient *client = &clients->at(i);
         if (client->is_physical == is_physical &&
             client->purpose == purpose &&
-            eql_str(client->name, client->name_len, client_name, client_name_len))
+            soundio_streql(client->name, client->name_len, client_name, client_name_len))
         {
             return client;
         }

@@ -88,6 +88,12 @@ void soundio_panic(const char *format, ...)
 char *soundio_alloc_sprintf(int *len, const char *format, ...)
     __attribute__ ((format (printf, 2, 3)));
 
+static inline bool soundio_streql(const char *str1, int str1_len, const char *str2, int str2_len) {
+    if (str1_len != str2_len)
+        return false;
+    return memcmp(str1, str2, str1_len) == 0;
+}
+
 
 template <typename T, long n>
 constexpr long array_length(const T (&)[n]) {

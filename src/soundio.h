@@ -32,6 +32,7 @@ enum SoundIoError {
 };
 
 enum SoundIoChannelId {
+    // These channel ids are more commonly supported.
     SoundIoChannelIdInvalid,
     SoundIoChannelIdFrontLeft,
     SoundIoChannelIdFrontRight,
@@ -52,6 +53,7 @@ enum SoundIoChannelId {
     SoundIoChannelIdTopBackCenter,
     SoundIoChannelIdTopBackRight,
 
+    // These channel ids are less commonly supported.
     SoundIoChannelIdBackLeftCenter,
     SoundIoChannelIdBackRightCenter,
     SoundIoChannelIdFrontLeftWide,
@@ -78,9 +80,9 @@ enum SoundIoChannelLayoutId {
     SoundIoChannelLayoutId3Point0Back,
     SoundIoChannelLayoutId3Point1,
     SoundIoChannelLayoutId4Point0,
-    SoundIoChannelLayoutId4Point1,
     SoundIoChannelLayoutIdQuad,
     SoundIoChannelLayoutIdQuadSide,
+    SoundIoChannelLayoutId4Point1,
     SoundIoChannelLayoutId5Point0,
     SoundIoChannelLayoutId5Point0Back,
     SoundIoChannelLayoutId5Point1,

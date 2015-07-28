@@ -10,14 +10,14 @@
 #include <stdio.h>
 
 static struct SoundIoChannelLayout builtin_channel_layouts[] = {
-    {
+    [SoundIoChannelLayoutIdMono] = {
         "Mono",
         1,
         {
             SoundIoChannelIdFrontCenter,
         },
     },
-    {
+    [SoundIoChannelLayoutIdStereo] = {
         "Stereo",
         2,
         {
@@ -25,7 +25,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontRight,
         },
     },
-    {
+    [SoundIoChannelLayoutId2Point1] = {
         "2.1",
         3,
         {
@@ -34,7 +34,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         },
     },
-    {
+    [SoundIoChannelLayoutId3Point0] = {
         "3.0",
         3,
         {
@@ -43,7 +43,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutId3Point0Back] = {
         "3.0 (back)",
         3,
         {
@@ -52,7 +52,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutId3Point1] = {
         "3.1",
         4,
         {
@@ -62,7 +62,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId4Point0] = {
         "4.0",
         4,
         {
@@ -72,7 +72,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutIdQuad] = {
         "Quad",
         4,
         {
@@ -82,7 +82,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackRight,
         },
     },
-    {
+    [SoundIoChannelLayoutIdQuadSide] = {
         "Quad (side)",
         4,
         {
@@ -92,7 +92,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdSideRight,
         }
     },
-    {
+    [SoundIoChannelLayoutId4Point1] = {
         "4.1",
         5,
         {
@@ -103,7 +103,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId5Point0] = {
         "5.0",
         5,
         {
@@ -114,7 +114,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdSideRight,
         }
     },
-    {
+    [SoundIoChannelLayoutId5Point0Back] = {
         "5.0 (back)",
         5,
         {
@@ -125,7 +125,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackRight,
         }
     },
-    {
+    [SoundIoChannelLayoutId5Point1] = {
         "5.1",
         6,
         {
@@ -137,7 +137,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId5Point1Back] = {
         "5.1 (back)",
         6,
         {
@@ -149,7 +149,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId6Point0] = {
         "6.0",
         6,
         {
@@ -161,7 +161,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutId6Point0Front] = {
         "6.0 (front)",
         6,
         {
@@ -173,7 +173,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontRightCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutIdHexagonal] = {
         "Hexagonal",
         6,
         {
@@ -185,7 +185,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutId6Point1] = {
         "6.1",
         7,
         {
@@ -198,7 +198,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId6Point1Back] = {
         "6.1 (back)",
         7,
         {
@@ -211,7 +211,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId6Point1Front] = {
         "6.1 (front)",
         7,
         {
@@ -224,7 +224,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId7Point0] = {
         "7.0",
         7,
         {
@@ -237,7 +237,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdBackRight,
         }
     },
-    {
+    [SoundIoChannelLayoutId7Point0Front] = {
         "7.0 (front)",
         7,
         {
@@ -250,7 +250,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontRightCenter,
         }
     },
-    {
+    [SoundIoChannelLayoutId7Point1] = {
         "7.1",
         8,
         {
@@ -264,7 +264,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId7Point1Wide] = {
         "7.1 (wide)",
         8,
         {
@@ -278,7 +278,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutId7Point1WideBack] = {
         "7.1 (wide) (back)",
         8,
         {
@@ -292,7 +292,7 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    {
+    [SoundIoChannelLayoutIdOctagonal] = {
         "Octagonal",
         8,
         {
@@ -308,46 +308,190 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
     },
 };
 
-const char *soundio_get_channel_name(enum SoundIoChannelId id) {
-    switch (id) {
-    case SoundIoChannelIdInvalid: return "(Invalid Channel)";
+static const int channel_name_alias_count = 3;
+static const char *channel_names[][channel_name_alias_count] = {
+    [SoundIoChannelIdInvalid] = {
+        "(Invalid Channel)",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontLeft] = {
+        "Front Left",
+        "FL",
+        "front-left",
+    },
+    [SoundIoChannelIdFrontRight] = {
+        "Front Right",
+        "FR",
+        "front-right",
+    },
+    [SoundIoChannelIdFrontCenter] = {
+        "Front Center",
+        "FC",
+        "front-center",
+    },
+    [SoundIoChannelIdLfe] = {
+        "LFE",
+        "LFE",
+        "lfe",
+    },
+    [SoundIoChannelIdBackLeft] = {
+        "Back Left",
+        "BL",
+        "rear-left",
+    },
+    [SoundIoChannelIdBackRight] = {
+        "Back Right",
+        "BR",
+        "rear-right",
+    },
+    [SoundIoChannelIdFrontLeftCenter] = {
+        "Front Left Center",
+        "FLC",
+        "front-left-of-center",
+    },
+    [SoundIoChannelIdFrontRightCenter] = {
+        "Front Right Center",
+        "FRC",
+        "front-right-of-center",
+    },
+    [SoundIoChannelIdBackCenter] = {
+        "Back Center",
+        "BC",
+        "rear-center",
+    },
+    [SoundIoChannelIdSideLeft] = {
+        "Side Left",
+        "SL",
+        "side-left",
+    },
+    [SoundIoChannelIdSideRight] = {
+        "Side Right",
+        "SR",
+        "side-right",
+    },
+    [SoundIoChannelIdTopCenter] = {
+        "Top Center",
+        "TC",
+        "top-center",
+    },
+    [SoundIoChannelIdTopFrontLeft] = {
+        "Top Front Left",
+        "TFL",
+        "top-front-left",
+    },
+    [SoundIoChannelIdTopFrontCenter] = {
+        "Top Front Center",
+        "TFC",
+        "top-front-center",
+    },
+    [SoundIoChannelIdTopFrontRight] = {
+        "Top Front Right",
+        "TFR",
+        "top-front-right",
+    },
+    [SoundIoChannelIdTopBackLeft] = {
+        "Top Back Left",
+        "TBL",
+        "top-rear-left",
+    },
+    [SoundIoChannelIdTopBackCenter] = {
+        "Top Back Center",
+        "TBC",
+        "top-rear-center",
+    },
+    [SoundIoChannelIdTopBackRight] = {
+        "Top Back Right",
+        "TBR",
+        "top-rear-right",
+    },
+    [SoundIoChannelIdBackLeftCenter] = {
+        "Back Left Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdBackRightCenter] = {
+        "Back Right Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontLeftWide] = {
+        "Front Left Wide",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontRightWide] = {
+        "Front Right Wide",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontLeftHigh] = {
+        "Front Left High",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontCenterHigh] = {
+        "Front Center High",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdFrontRightHigh] = {
+        "Front Right High",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdTopFrontLeftCenter] = {
+        "Top Front Left Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdTopFrontRightCenter] = {
+        "Top Front Right Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdTopSideLeft] = {
+        "Top Side Left",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdTopSideRight] = {
+        "Top Side Right",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdLeftLfe] = {
+        "Left LFE",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdRightLfe] = {
+        "Right LFE",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdBottomCenter] = {
+        "Bottom Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdBottomLeftCenter] = {
+        "Bottom Left Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdBottomRightCenter] = {
+        "Bottom Right Center",
+        nullptr,
+        nullptr,
+    },
+};
 
-    case SoundIoChannelIdFrontLeft: return "Front Left";
-    case SoundIoChannelIdFrontRight: return "Front Right";
-    case SoundIoChannelIdFrontCenter: return "Front Center";
-    case SoundIoChannelIdLfe: return "LFE";
-    case SoundIoChannelIdBackLeft:  return "Back Left";
-    case SoundIoChannelIdBackRight: return "Back Right";
-    case SoundIoChannelIdFrontLeftCenter: return "Front Left Center";
-    case SoundIoChannelIdFrontRightCenter: return "Front Right Center";
-    case SoundIoChannelIdBackCenter: return "Back Center";
-    case SoundIoChannelIdSideLeft: return "Side Left";
-    case SoundIoChannelIdSideRight: return "Side Right";
-    case SoundIoChannelIdTopCenter: return "Top Center";
-    case SoundIoChannelIdTopFrontLeft: return "Top Front Left";
-    case SoundIoChannelIdTopFrontCenter: return "Top Front Center";
-    case SoundIoChannelIdTopFrontRight: return "Top Front Right";
-    case SoundIoChannelIdTopBackLeft: return "Top Back Left";
-    case SoundIoChannelIdTopBackCenter: return "Top Back Center";
-    case SoundIoChannelIdTopBackRight: return "Top Back Right";
-    case SoundIoChannelIdBackLeftCenter: return "Back Left Center";
-    case SoundIoChannelIdBackRightCenter: return "Back Right Center";
-    case SoundIoChannelIdFrontLeftWide: return "Front Left Wide";
-    case SoundIoChannelIdFrontRightWide: return "Front Right Wide";
-    case SoundIoChannelIdFrontLeftHigh: return "Front Left High";
-    case SoundIoChannelIdFrontCenterHigh: return "Front Center High";
-    case SoundIoChannelIdFrontRightHigh: return "Front Right High";
-    case SoundIoChannelIdTopFrontLeftCenter: return "Top Front Left Center";
-    case SoundIoChannelIdTopFrontRightCenter: return "Top Front Right Center";
-    case SoundIoChannelIdTopSideLeft: return "Top Side Left";
-    case SoundIoChannelIdTopSideRight: return "Top Side Right";
-    case SoundIoChannelIdLeftLfe: return "Left LFE";
-    case SoundIoChannelIdRightLfe: return "Right LFE";
-    case SoundIoChannelIdBottomCenter: return "Bottom Center";
-    case SoundIoChannelIdBottomLeftCenter: return "Bottom Left Center";
-    case SoundIoChannelIdBottomRightCenter: return "Bottom Right Center";
-    }
-    return "(Invalid Channel)";
+const char *soundio_get_channel_name(enum SoundIoChannelId id) {
+    if (id < 0 || id > array_length(channel_names))
+        return "(Invalid Channel)";
+    else
+        return channel_names[id][0];
 }
 
 bool soundio_channel_layout_equal(
@@ -412,6 +556,15 @@ const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channe
 }
 
 enum SoundIoChannelId soundio_parse_channel_id(const char *str, int str_len) {
-    // TODO actually parse
+    for (int id = 0; id < array_length(channel_names); id += 1) {
+        for (int i = 0; i < channel_name_alias_count; i += 1) {
+            const char *alias = channel_names[id][i];
+            if (!alias)
+                break;
+            int alias_len = strlen(alias);
+            if (soundio_streql(alias, alias_len, str, str_len))
+                return (SoundIoChannelId)id;
+        }
+    }
     return SoundIoChannelIdInvalid;
 }

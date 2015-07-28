@@ -27,23 +27,23 @@ static const SoundIoBackend available_backends[] = {
 };
 
 static int (*backend_init_fns[])(SoundIoPrivate *) = {
-    nullptr, // SoundIoBackendNone
+    [SoundIoBackendNone] = nullptr,
 #ifdef SOUNDIO_HAVE_JACK
-    soundio_jack_init,
+    [SoundIoBackendJack] = soundio_jack_init,
 #else
-    nullptr,
+    [SoundIoBackendJack] = nullptr,
 #endif
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
-    soundio_pulseaudio_init,
+    [SoundIoBackendPulseAudio] = soundio_pulseaudio_init,
 #else
-    nullptr,
+    [SoundIoBackendPulseAudio] = nullptr,
 #endif
 #ifdef SOUNDIO_HAVE_ALSA
-    soundio_alsa_init,
+    [SoundIoBackendAlsa] = soundio_alsa_init,
 #else
-    nullptr,
+    [SoundIoBackendAlsa] = nullptr,
 #endif
-    soundio_dummy_init,
+    [SoundIoBackendDummy] = soundio_dummy_init,
 };
 
 const char *soundio_strerror(int error) {

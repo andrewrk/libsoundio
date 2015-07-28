@@ -234,9 +234,6 @@ view `coverage/index.html` in a browser.
 
  0. JACK: input
  0. Steal PulseAudio's default channel maps per channel count
- 0. Ability to parse PulseAudio's "front-left" "front-right" channel label strings
- 0. When two soundio clients are talking to each other, use port names to
-    negotiate channel maps.
  0. JACK: implement prebuffering
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
