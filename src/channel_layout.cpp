@@ -103,17 +103,6 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    [SoundIoChannelLayoutId5Point0] = {
-        "5.0",
-        5,
-        {
-            SoundIoChannelIdFrontLeft,
-            SoundIoChannelIdFrontRight,
-            SoundIoChannelIdFrontCenter,
-            SoundIoChannelIdSideLeft,
-            SoundIoChannelIdSideRight,
-        }
-    },
     [SoundIoChannelLayoutId5Point0Back] = {
         "5.0 (back)",
         5,
@@ -123,6 +112,17 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdFrontCenter,
             SoundIoChannelIdBackLeft,
             SoundIoChannelIdBackRight,
+        }
+    },
+    [SoundIoChannelLayoutId5Point0Side] = {
+        "5.0 (side)",
+        5,
+        {
+            SoundIoChannelIdFrontLeft,
+            SoundIoChannelIdFrontRight,
+            SoundIoChannelIdFrontCenter,
+            SoundIoChannelIdSideLeft,
+            SoundIoChannelIdSideRight,
         }
     },
     [SoundIoChannelLayoutId5Point1] = {
@@ -149,8 +149,8 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
             SoundIoChannelIdLfe,
         }
     },
-    [SoundIoChannelLayoutId6Point0] = {
-        "6.0",
+    [SoundIoChannelLayoutId6Point0Side] = {
+        "6.0 (side)",
         6,
         {
             SoundIoChannelIdFrontLeft,
@@ -545,10 +545,10 @@ const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channe
     switch (channel_count) {
         case 1: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdMono);
         case 2: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-        case 3: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId2Point1);
-        case 4: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdQuad);
-        case 5: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId4Point1);
-        case 6: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId5Point1);
+        case 3: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId3Point0);
+        case 4: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId4Point0);
+        case 5: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId5Point0Back);
+        case 6: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId5Point1Back);
         case 7: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId6Point1);
         case 8: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point1);
     }

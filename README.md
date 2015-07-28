@@ -233,7 +233,6 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. JACK: input
- 0. Steal PulseAudio's default channel maps per channel count
  0. JACK: implement prebuffering
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
