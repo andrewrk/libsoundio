@@ -51,6 +51,32 @@ union SoundIoDeviceBackendData {
     SoundIoDeviceDummy dummy;
 };
 
+union SoundIoOutStreamBackendData {
+#ifdef SOUNDIO_HAVE_JACK
+    SoundIoOutStreamJack jack;
+#endif
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
+    SoundIoOutStreamPulseAudio pulseaudio;
+#endif
+#ifdef SOUNDIO_HAVE_ALSA
+    SoundIoOutStreamAlsa alsa;
+#endif
+    SoundIoOutStreamDummy dummy;
+};
+
+union SoundIoInStreamBackendData {
+#ifdef SOUNDIO_HAVE_JACK
+    SoundIoInStreamJack jack;
+#endif
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
+    SoundIoInStreamPulseAudio pulseaudio;
+#endif
+#ifdef SOUNDIO_HAVE_ALSA
+    SoundIoInStreamAlsa alsa;
+#endif
+    SoundIoInStreamDummy dummy;
+};
+
 struct SoundIoDevicesInfo {
     SoundIoList<SoundIoDevice *> input_devices;
     SoundIoList<SoundIoDevice *> output_devices;
@@ -60,13 +86,13 @@ struct SoundIoDevicesInfo {
 };
 
 struct SoundIoOutStreamPrivate {
-    struct SoundIoOutStream pub;
-    void *backend_data;
+    SoundIoOutStream pub;
+    SoundIoOutStreamBackendData backend_data;
 };
 
 struct SoundIoInStreamPrivate {
-    struct SoundIoInStream pub;
-    void *backend_data;
+    SoundIoInStream pub;
+    SoundIoInStreamBackendData backend_data;
 };
 
 struct SoundIoPrivate {

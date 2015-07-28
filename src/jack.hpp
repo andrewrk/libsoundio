@@ -8,6 +8,7 @@
 #ifndef SOUNDIO_JACK_HPP
 #define SOUNDIO_JACK_HPP
 
+#include "soundio.h"
 #include "os.hpp"
 
 #include <jack/jack.h>
@@ -29,5 +30,13 @@ struct SoundIoJack {
     int buffer_size;
 };
 
-#endif
+struct SoundIoOutStreamJack {
+    jack_client_t *client;
+    jack_port_t *ports[SOUNDIO_MAX_CHANNELS];
+};
 
+struct SoundIoInStreamJack {
+
+};
+
+#endif

@@ -8,6 +8,7 @@
 #ifndef SOUNDIO_PULSEAUDIO_HPP
 #define SOUNDIO_PULSEAUDIO_HPP
 
+#include "soundio.h"
 #include "atomics.hpp"
 
 #include <pulse/pulseaudio.h>
@@ -41,6 +42,21 @@ struct SoundIoPulseAudio {
 
     pa_threaded_mainloop *main_loop;
     pa_proplist *props;
+};
+
+struct SoundIoOutStreamPulseAudio {
+    pa_stream *stream;
+    atomic_bool stream_ready;
+    pa_buffer_attr buffer_attr;
+    char *write_ptr;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+};
+
+struct SoundIoInStreamPulseAudio {
+    pa_stream *stream;
+    atomic_bool stream_ready;
+    pa_buffer_attr buffer_attr;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

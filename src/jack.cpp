@@ -14,11 +14,6 @@
 
 static atomic_flag global_msg_callback_flag = ATOMIC_FLAG_INIT;
 
-struct SoundIoOutStreamJack {
-    jack_client_t *client;
-    jack_port_t *ports[SOUNDIO_MAX_CHANNELS];
-};
-
 struct SoundIoJackPort {
     const char *name;
     int name_len;
@@ -80,30 +75,19 @@ static int outstream_process_callback(jack_nframes_t nframes, void *arg) {
 }
 
 static void outstream_destroy_jack(struct SoundIoPrivate *is, struct SoundIoOutStreamPrivate *os) {
-    SoundIoOutStreamJack *osj = (SoundIoOutStreamJack *) os->backend_data;
-    if (!osj)
-        return;
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
 
     jack_client_close(osj->client);
-
-    destroy(osj);
-    os->backend_data = nullptr;
 }
 
 static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
     SoundIoOutStream *outstream = &os->pub;
     //TODO SoundIoDevice *device = outstream->device;
 
     outstream->buffer_duration = 0.0; // TODO
     outstream->period_duration = 0.0; // TODO
     outstream->prebuf_duration = 0.0; // TODO
-
-    SoundIoOutStreamJack *osj = create<SoundIoOutStreamJack>();
-    if (!osj) {
-        outstream_destroy_jack(si, os);
-        return SoundIoErrorNoMem;
-    }
-    os->backend_data = osj;
 
     outstream->layout_error = SoundIoErrorIncompatibleBackend;
 
@@ -145,7 +129,7 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
 }
 
 static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
-    SoundIoOutStreamJack *osj = (SoundIoOutStreamJack *) os->backend_data;
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
     SoundIoOutStream *outstream = &os->pub;
     int err;
     if (pause) {

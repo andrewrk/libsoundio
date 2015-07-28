@@ -8,8 +8,11 @@
 #ifndef SOUNDIO_ALSA_HPP
 #define SOUNDIO_ALSA_HPP
 
+#include "soundio.h"
 #include "os.hpp"
 #include "atomics.hpp"
+
+#include <alsa/asoundlib.h>
 
 int soundio_alsa_init(struct SoundIoPrivate *si);
 
@@ -30,6 +33,39 @@ struct SoundIoAlsa {
 
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
+};
+
+struct SoundIoOutStreamAlsa {
+    snd_pcm_t *handle;
+    snd_pcm_chmap_t *chmap;
+    int chmap_size;
+    snd_pcm_uframes_t offset;
+    snd_pcm_access_t access;
+    int sample_buffer_size;
+    char *sample_buffer;
+    int poll_fd_count;
+    struct pollfd *poll_fds;
+    SoundIoOsThread *thread;
+    atomic_flag thread_exit_flag;
+    int period_size;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+};
+
+struct SoundIoInStreamAlsa {
+    snd_pcm_t *handle;
+    snd_pcm_chmap_t *chmap;
+    int chmap_size;
+    snd_pcm_uframes_t offset;
+    snd_pcm_access_t access;
+    int sample_buffer_size;
+    char *sample_buffer;
+    int poll_fd_count;
+    struct pollfd *poll_fds;
+    SoundIoOsThread *thread;
+    atomic_flag thread_exit_flag;
+    int period_size;
+    int read_frame_count;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

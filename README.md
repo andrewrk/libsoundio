@@ -280,8 +280,6 @@ view `coverage/index.html` in a browser.
  0. Support PulseAudio proplist properties for main context and streams
  0. custom allocator support
  0. mlock memory which is accessed in the real time path
- 0. instead of `void *backend_data` use a union for better cache locality
-    and smaller mlock requirements
  0. Consider testing on FreeBSD
  0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state

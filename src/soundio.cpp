@@ -186,8 +186,6 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
     if (!fn)
         return SoundIoErrorBackendUnavailable;
 
-    memset(&si->backend_data, 0, sizeof(SoundIoBackendData));
-
     int err;
     if ((err = backend_init_fns[backend](si))) {
         soundio_disconnect(soundio);
@@ -201,10 +199,12 @@ void soundio_disconnect(struct SoundIo *soundio) {
 
     if (si->destroy)
         si->destroy(si);
+    memset(&si->backend_data, 0, sizeof(SoundIoBackendData));
 
     soundio->current_backend = SoundIoBackendNone;
 
     soundio_destroy_devices_info(si->safe_devices_info);
+
     si->safe_devices_info = nullptr;
 
     si->destroy = nullptr;
