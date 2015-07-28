@@ -237,6 +237,7 @@ view `coverage/index.html` in a browser.
  0. Ability to parse PulseAudio's "front-left" "front-right" channel label strings
  0. When two soundio clients are talking to each other, use port names to
     negotiate channel maps.
+ 0. JACK: implement prebuffering
  0. why does pulseaudio microphone use up all the CPU?
  0. merge in/out stream structures and functions?
  0. implement CoreAudio (OSX) backend, get examples working
@@ -248,7 +249,11 @@ view `coverage/index.html` in a browser.
     the microphone example.
  0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
- 0. Create a test for clearing the playback buffer.
+ 0. Verify that JACK xrun callback context is the same as process callback.
+    If not, might need to hav xrun callback set a flag and have process callback
+    call the underflow callback.
+ 0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
+ 0. Create a test for clearing the playback buffer and prebuffering.
  0. Create a test for pausing and resuming input and output streams.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when

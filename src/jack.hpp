@@ -35,6 +35,8 @@ struct SoundIoJack {
     bool initialized;
     int sample_rate;
     int buffer_size;
+    bool is_shutdown;
+    bool emitted_shutdown_cb;
 };
 
 struct SoundIoOutStreamJackPort {

@@ -59,6 +59,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorIncompatibleDevice: return "incompatible device";
         case SoundIoErrorNoSuchClient: return "no such client";
         case SoundIoErrorIncompatibleBackend: return "incompatible backend";
+        case SoundIoErrorBackendDisconnected: return "backend disconnected";
     }
     soundio_panic("invalid error enum value: %d", error);
 }
@@ -139,8 +140,7 @@ void soundio_destroy(struct SoundIo *soundio) {
     destroy(si);
 }
 
-static void default_on_devices_change(struct SoundIo *) { }
-static void default_on_events_signal(struct SoundIo *) { }
+static void do_nothing_cb(struct SoundIo *) { }
 static void default_msg_callback(const char *msg) { }
 
 struct SoundIo * soundio_create(void) {
@@ -149,8 +149,9 @@ struct SoundIo * soundio_create(void) {
     if (!si)
         return NULL;
     SoundIo *soundio = &si->pub;
-    soundio->on_devices_change = default_on_devices_change;
-    soundio->on_events_signal = default_on_events_signal;
+    soundio->on_devices_change = do_nothing_cb;
+    soundio->on_backend_disconnect = do_nothing_cb;
+    soundio->on_events_signal = do_nothing_cb;
     soundio->app_name = "SoundIo";
     soundio->jack_info_callback = default_msg_callback;
     soundio->jack_error_callback = default_msg_callback;

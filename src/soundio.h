@@ -28,6 +28,7 @@ enum SoundIoError {
     SoundIoErrorIncompatibleDevice,
     SoundIoErrorNoSuchClient,
     SoundIoErrorIncompatibleBackend,
+    SoundIoErrorBackendDisconnected,
 };
 
 enum SoundIoChannelId {
@@ -203,6 +204,12 @@ struct SoundIo {
     // Optional callback. Called when the list of devices change. Only called
     // during a call to soundio_flush_events or soundio_wait_events.
     void (*on_devices_change)(struct SoundIo *);
+    // Optional callback. Called when the backend disconnects. For example,
+    // when the JACK server shuts down. When this happens, listing devices
+    // and opening streams will always fail with
+    // SoundIoErrorBackendDisconnected. This callback is only called during a
+    // call to soundio_flush_events or soundio_wait_events.
+    void (*on_backend_disconnect)(struct SoundIo *);
     // Optional callback. Called from an unknown thread that you should not use
     // to call any soundio functions. You may use this to signal a condition
     // variable to wake up. Called when soundio_wait_events would be woken up.
@@ -349,6 +356,9 @@ struct SoundIoOutStream {
     // How many seconds need to be in the buffer before playback will commence.
     // If a buffer underflow occurs, this prebuffering will be again enabled.
     // This value defaults to being the same as `buffer_duration`.
+    // After you call `soundio_outstream_open` this value is replaced with the
+    // actual `prebuf_duration`, as near to this value as possible.
+    // JACK does not support prebuffering; `prebuf_duration` is effectively 0.
     double prebuf_duration;
 
     // Defaults to NULL. Put whatever you want here.
