@@ -494,6 +494,10 @@ bool soundio_channel_layout_equal(
         const struct SoundIoChannelLayout *b);
 
 const char *soundio_get_channel_name(enum SoundIoChannelId id);
+// Given UTF-8 encoded text which is the name of a channel such as
+// "Front Left", "FL", or "front-left", return the corresponding
+// SoundIoChannelId. Returns SoundIoChannelIdInvalid for no match.
+enum SoundIoChannelId soundio_parse_channel_id(const char *str, int str_len);
 
 int soundio_channel_layout_builtin_count(void);
 const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);

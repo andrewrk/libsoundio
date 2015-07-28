@@ -15,8 +15,11 @@
 static atomic_flag global_msg_callback_flag = ATOMIC_FLAG_INIT;
 
 struct SoundIoJackPort {
+    const char *full_name;
+    int full_name_len;
     const char *name;
     int name_len;
+    SoundIoChannelId channel_id;
 };
 
 struct SoundIoJackClient {
@@ -24,8 +27,8 @@ struct SoundIoJackClient {
     int name_len;
     bool is_physical;
     SoundIoDevicePurpose purpose;
-    SoundIoJackPort ports[SOUNDIO_MAX_CHANNELS];
     int port_count;
+    SoundIoJackPort ports[SOUNDIO_MAX_CHANNELS];
 };
 
 static void flush_events_jack(struct SoundIoPrivate *si) {
@@ -80,16 +83,30 @@ static void outstream_destroy_jack(struct SoundIoPrivate *is, struct SoundIoOutS
     jack_client_close(osj->client);
 }
 
+static SoundIoDeviceJackPort *find_port_matching_channel(SoundIoDevice *device, SoundIoChannelId id) {
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceJack *dj = &dev->backend_data.jack;
+
+    for (int ch = 0; ch < device->current_layout.channel_count; ch += 1) {
+        SoundIoChannelId chan_id = device->current_layout.channels[ch];
+        if (chan_id == id)
+            return &dj->ports[ch];
+    }
+
+    return nullptr;
+}
+
 static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
     SoundIoOutStream *outstream = &os->pub;
-    //TODO SoundIoDevice *device = outstream->device;
+    SoundIoDevice *device = outstream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceJack *dj = &dev->backend_data.jack;
+
 
     outstream->buffer_duration = 0.0; // TODO
     outstream->period_duration = 0.0; // TODO
     outstream->prebuf_duration = 0.0; // TODO
-
-    outstream->layout_error = SoundIoErrorIncompatibleBackend;
 
     jack_status_t status;
     osj->client = jack_client_open(outstream->name, JackNoStartServer, &status);
@@ -111,18 +128,41 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     // TODO register the other callbacks and emit a stream error if they're called
 
 
-    // register ports
+    // register ports and map channels
+    int connected_count = 0;
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-        const char *channel_name = soundio_get_channel_name(outstream->layout.channels[ch]);
+        SoundIoChannelId my_channel_id = outstream->layout.channels[ch];
+        const char *channel_name = soundio_get_channel_name(my_channel_id);
         unsigned long flags = JackPortIsOutput;
         if (!outstream->non_terminal_hint)
             flags |= JackPortIsTerminal;
-        jack_port_t *port = jack_port_register(osj->client, channel_name, JACK_DEFAULT_AUDIO_TYPE, flags, 0);
-        if (!port) {
+        jack_port_t *jport = jack_port_register(osj->client, channel_name, JACK_DEFAULT_AUDIO_TYPE, flags, 0);
+        if (!jport) {
             outstream_destroy_jack(si, os);
             return SoundIoErrorOpeningDevice;
         }
-        osj->ports[ch] = port;
+        SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+        osjp->source_port = jport;
+        // figure out which dest port this connects to
+        SoundIoDeviceJackPort *djp = find_port_matching_channel(device, my_channel_id);
+        if (djp) {
+            osjp->dest_port_name = djp->full_name;
+            osjp->dest_port_name_len = djp->full_name_len;
+            connected_count += 1;
+        }
+    }
+    // If nothing got connected, channel layouts aren't working. Just send the
+    // data in the order of the ports.
+    if (connected_count == 0) {
+        outstream->layout_error = SoundIoErrorIncompatibleDevice;
+
+        int ch_count = min(outstream->layout.channel_count, dj->port_count);
+        for (int ch = 0; ch < ch_count; ch += 1) {
+            SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+            SoundIoDeviceJackPort *djp = &dj->ports[ch];
+            osjp->dest_port_name = djp->full_name;
+            osjp->dest_port_name_len = djp->full_name_len;
+        }
     }
 
     return 0;
@@ -131,6 +171,9 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
 static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
     SoundIoOutStream *outstream = &os->pub;
+    // TODO SoundIoDevice *device = outstream->device;
+    // TODO SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    // TODO SoundIoDeviceJack *dj = &dev->backend_data.jack;
     int err;
     if (pause) {
         if ((err = jack_deactivate(osj->client)))
@@ -140,9 +183,14 @@ static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
             return SoundIoErrorStreaming;
 
         for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-            // TODO figure out source port name and dest port name
-            //if ((err = jack_connect(osj->client, source_port, dest_port)))
-            //    return SoundIoErrorStreaming;
+            SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+            const char *dest_port_name = osjp->dest_port_name;
+            // allow unconnected ports
+            if (!dest_port_name)
+                continue;
+            const char *source_port_name = jack_port_name(osjp->source_port);
+            if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
+                return SoundIoErrorStreaming;
         }
     }
 
@@ -153,14 +201,29 @@ static int outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
     return outstream_pause_jack(si, os, false);
 }
 
-static int outstream_begin_write_jack(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
+static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         SoundIoChannelArea **out_areas, int *frame_count)
 {
-    soundio_panic("TODO begin write");
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
+    SoundIoJack *sij = &si->backend_data.jack;
+    assert(*frame_count <= sij->buffer_size);
+
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+        if (!(osj->areas[ch].ptr = (char*)jack_port_get_buffer(osjp->source_port, *frame_count)))
+            return SoundIoErrorStreaming;
+
+        osj->areas[ch].step = outstream->bytes_per_sample;
+    }
+
+    *out_areas = osj->areas;
+
+    return 0;
 }
 
 static int outstream_end_write_jack(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, int frame_count) {
-    soundio_panic("TODO end write");
+    return 0;
 }
 
 static int outstream_clear_buffer_jack(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *) {
@@ -250,6 +313,15 @@ static char *dupe_str(const char *str, int str_len) {
     return out;
 }
 
+static void destruct_device(SoundIoDevicePrivate *dp) {
+    SoundIoDeviceJack *dj = &dp->backend_data.jack;
+    for (int i = 0; i < dj->port_count; i += 1) {
+        SoundIoDeviceJackPort *djp = &dj->ports[i];
+        destroy(djp->full_name);
+    }
+    deallocate(dj->ports, dj->port_count);
+}
+
 static int refresh_devices(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoJack *sij = &si->backend_data.jack;
@@ -270,6 +342,7 @@ static int refresh_devices(SoundIoPrivate *si) {
     const char **port_name_ptr = port_names;
     while (*port_name_ptr) {
         const char *client_and_port_name = *port_name_ptr;
+        int client_and_port_name_len = strlen(client_and_port_name);
         jack_port_t *jport = jack_port_by_name(sij->client, client_and_port_name);
         int flags = jack_port_flags(jport);
 
@@ -287,7 +360,7 @@ static int refresh_devices(SoundIoPrivate *si) {
         const char *port_name = nullptr;
         int client_name_len;
         int port_name_len;
-        split_str(client_and_port_name, strlen(client_and_port_name), ':',
+        split_str(client_and_port_name, client_and_port_name_len, ':',
                 &client_name, &client_name_len, &port_name, &port_name_len);
         if (!client_name || !port_name) {
             // device does not have colon, skip it
@@ -305,9 +378,11 @@ static int refresh_devices(SoundIoPrivate *si) {
             continue;
         }
         SoundIoJackPort *port = &client->ports[client->port_count++];
+        port->full_name = client_and_port_name;
+        port->full_name_len = client_and_port_name_len;
         port->name = port_name;
         port->name_len = port_name_len;
-
+        port->channel_id = soundio_parse_channel_id(port_name, port_name_len);
 
         port_name_ptr += 1;
     }
@@ -317,17 +392,21 @@ static int refresh_devices(SoundIoPrivate *si) {
         if (client->port_count <= 0)
             continue;
 
-        SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device) {
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev) {
             jack_free(port_names);
             destroy(devices_info);
             return SoundIoErrorNoMem;
         }
+        SoundIoDevice *device = &dev->pub;
+        SoundIoDeviceJack *dj = &dev->backend_data.jack;
         int description_len = client->name_len + 3 + 2 * client->port_count;
         for (int port_index = 0; port_index < client->port_count; port_index += 1) {
             SoundIoJackPort *port = &client->ports[port_index];
             description_len += port->name_len;
         }
+
+        dev->destruct = destruct_device;
 
         device->ref_count = 1;
         device->soundio = soundio;
@@ -346,12 +425,29 @@ static int refresh_devices(SoundIoPrivate *si) {
         device->buffer_duration_min = sij->buffer_size / (double) sij->sample_rate;
         device->buffer_duration_max = device->buffer_duration_min;
         device->buffer_duration_current = device->buffer_duration_min;
+        dj->port_count = client->port_count;
+        dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
 
-        if (!device->name || !device->description || !device->layouts || !device->formats) {
+        if (!device->name || !device->description || !device->layouts || !device->formats || !dj->ports) {
             jack_free(port_names);
             soundio_device_unref(device);
             destroy(devices_info);
             return SoundIoErrorNoMem;
+        }
+
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+            SoundIoDeviceJackPort *djp = &dj->ports[port_index];
+            djp->full_name = dupe_str(port->full_name, port->full_name_len);
+            djp->full_name_len = port->full_name_len;
+            djp->channel_id = port->channel_id;
+
+            if (!djp->full_name) {
+                jack_free(port_names);
+                soundio_device_unref(device);
+                destroy(devices_info);
+                return SoundIoErrorNoMem;
+            }
         }
 
         memcpy(device->description, client->name, client->name_len);
@@ -367,12 +463,19 @@ static int refresh_devices(SoundIoPrivate *si) {
             }
         }
 
-        const struct SoundIoChannelLayout *layout = soundio_channel_layout_get_default(client->port_count);
-        if (layout) {
-            device->current_layout = *layout;
+        device->current_layout.channel_count = client->port_count;
+        bool any_invalid = false;
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+            device->current_layout.channels[port_index] = port->channel_id;
+            any_invalid = any_invalid || (port->channel_id == SoundIoChannelIdInvalid);
+        }
+        if (any_invalid) {
+            const struct SoundIoChannelLayout *layout = soundio_channel_layout_get_default(client->port_count);
+            if (layout)
+                device->current_layout = *layout;
         } else {
-            for (int port_index = 0; port_index < client->port_count; port_index += 1)
-                device->current_layout.channels[port_index] = SoundIoChannelIdInvalid;
+            soundio_channel_layout_detect_builtin(&device->current_layout);
         }
 
         device->layouts[0] = device->current_layout;
@@ -434,11 +537,11 @@ static int sample_rate_callback(jack_nframes_t nframes, void *arg) {
     return 0;
 }
 
+/* TODO
 static int xrun_callback(void *arg) {
-    //SoundIoPrivate *si = (SoundIoPrivate *)arg;
-    soundio_panic("TODO xrun callback");
     return 0;
 }
+*/
 
 static void port_registration_callback(jack_port_id_t port_id, int reg, void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
@@ -529,10 +632,12 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
         destroy_jack(si);
         return SoundIoErrorInitAudioBackend;
     }
+    /* TODO
     if ((err = jack_set_xrun_callback(sij->client, xrun_callback, si))) {
         destroy_jack(si);
         return SoundIoErrorInitAudioBackend;
     }
+    */
     if ((err = jack_set_port_registration_callback(sij->client, port_registration_callback, si))) {
         destroy_jack(si);
         return SoundIoErrorInitAudioBackend;

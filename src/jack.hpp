@@ -15,8 +15,15 @@
 
 int soundio_jack_init(struct SoundIoPrivate *si);
 
-struct SoundIoDeviceJack {
+struct SoundIoDeviceJackPort {
+    char *full_name;
+    int full_name_len;
+    SoundIoChannelId channel_id;
+};
 
+struct SoundIoDeviceJack {
+    int port_count;
+    SoundIoDeviceJackPort *ports;
 };
 
 struct SoundIoJack {
@@ -30,9 +37,16 @@ struct SoundIoJack {
     int buffer_size;
 };
 
+struct SoundIoOutStreamJackPort {
+    jack_port_t *source_port;
+    const char *dest_port_name;
+    int dest_port_name_len;
+};
+
 struct SoundIoOutStreamJack {
     jack_client_t *client;
-    jack_port_t *ports[SOUNDIO_MAX_CHANNELS];
+    SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamJack {

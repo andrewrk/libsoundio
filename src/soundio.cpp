@@ -295,11 +295,16 @@ void soundio_device_unref(struct SoundIoDevice *device) {
     assert(device->ref_count >= 0);
 
     if (device->ref_count == 0) {
+        SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+        if (dev->destruct)
+            dev->destruct(dev);
+
         free(device->name);
         free(device->description);
         deallocate(device->formats, device->format_count);
         deallocate(device->layouts, device->layout_count);
-        destroy(device);
+
+        destroy(dev);
     }
 }
 

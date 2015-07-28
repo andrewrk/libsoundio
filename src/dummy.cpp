@@ -434,11 +434,12 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
     // create output device
     {
-        SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device) {
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev) {
             destroy_dummy(si);
             return SoundIoErrorNoMem;
         }
+        SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;
@@ -482,11 +483,12 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
     // create input device
     {
-        SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device) {
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev) {
             destroy_dummy(si);
             return SoundIoErrorNoMem;
         }
+        SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;

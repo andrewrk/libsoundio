@@ -530,14 +530,15 @@ static int refresh_devices(SoundIoPrivate *si) {
             }
 
 
-            SoundIoDevice *device = create<SoundIoDevice>();
-            if (!device) {
+            SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+            if (!dev) {
                 free(name);
                 free(descr);
                 destroy(devices_info);
                 snd_device_name_free_hint(hints);
                 return SoundIoErrorNoMem;
             }
+            SoundIoDevice *device = &dev->pub;
             device->ref_count = 1;
             device->soundio = soundio;
             device->is_raw = false;
@@ -647,12 +648,13 @@ static int refresh_devices(SoundIoPrivate *si) {
 
                 const char *device_name = snd_pcm_info_get_name(pcm_info);
 
-                SoundIoDevice *device = create<SoundIoDevice>();
-                if (!device) {
+                SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+                if (!dev) {
                     snd_ctl_close(handle);
                     destroy(devices_info);
                     return SoundIoErrorNoMem;
                 }
+                SoundIoDevice *device = &dev->pub;
                 device->ref_count = 1;
                 device->soundio = soundio;
                 device->name = soundio_alloc_sprintf(nullptr, "hw:%d,%d", card_index, device_index);

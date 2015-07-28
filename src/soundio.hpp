@@ -129,6 +129,7 @@ struct SoundIoPrivate {
 struct SoundIoDevicePrivate {
     SoundIoDevice pub;
     SoundIoDeviceBackendData backend_data;
+    void (*destruct)(SoundIoDevicePrivate *);
 };
 
 void soundio_destroy_devices_info(struct SoundIoDevicesInfo *devices_info);

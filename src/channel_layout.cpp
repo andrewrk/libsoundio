@@ -410,3 +410,8 @@ const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channe
     }
     return nullptr;
 }
+
+enum SoundIoChannelId soundio_parse_channel_id(const char *str, int str_len) {
+    // TODO actually parse
+    return SoundIoChannelIdInvalid;
+}

@@ -256,9 +256,10 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         sipa->have_sink_list = true;
         finish_device_query(si);
     } else {
-        SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device)
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev)
             soundio_panic("out of memory");
+        SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;
@@ -306,9 +307,10 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         sipa->have_source_list = true;
         finish_device_query(si);
     } else {
-        SoundIoDevice *device = create<SoundIoDevice>();
-        if (!device)
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev)
             soundio_panic("out of memory");
+        SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;

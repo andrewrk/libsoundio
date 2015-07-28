@@ -232,7 +232,7 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. implement JACK backend, get examples working
+ 0. JACK: input
  0. Steal PulseAudio's default channel maps per channel count
  0. Ability to parse PulseAudio's "front-left" "front-right" channel label strings
  0. When two soundio clients are talking to each other, use port names to
@@ -280,10 +280,10 @@ view `coverage/index.html` in a browser.
  0. Support PulseAudio proplist properties for main context and streams
  0. custom allocator support
  0. mlock memory which is accessed in the real time path
- 0. Consider testing on FreeBSD
  0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
+ 0. Consider testing on FreeBSD
 
 ## Planned Uses for libsoundio
 
