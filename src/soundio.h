@@ -368,7 +368,8 @@ struct SoundIoOutStream {
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
     // In this callback, you call `soundio_outstream_begin_write` and
-    // `soundio_outstream_end_write`.
+    // `soundio_outstream_end_write`. `requested_frame_count` will always be
+    // greater than 0.
     void (*write_callback)(struct SoundIoOutStream *, int requested_frame_count);
     // This optional callback happens when the sound device runs out of buffered
     // audio data to play. After this occurs, the outstream waits until the
@@ -631,7 +632,8 @@ int soundio_outstream_start(struct SoundIoOutStream *outstream);
 //  * `areas` - (out) The memory addresses you can write data to. It is OK to
 //     modify the pointers if that helps you iterate.
 //  * `frame_count` - (in/out) Provide the number of frames you want to write.
-//    Returned will be the number of frames you actually can write.
+//    Returned will be the number of frames you actually can write. Must be
+//    greater than 0 frames.
 // It is your responsibility to call this function no more and no fewer than the
 // correct number of times as determined by `requested_frame_count` from
 // `write_callback`. See sine.c for an example.

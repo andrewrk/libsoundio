@@ -698,7 +698,9 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
+
     size_t byte_count = *frame_count * outstream->bytes_per_frame;
+
     if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &byte_count))
         return SoundIoErrorStreaming;
 
