@@ -556,16 +556,17 @@ static int refresh_devices(SoundIoPrivate *si) {
             }
 
             SoundIoList<SoundIoDevice *> *device_list;
+            bool is_default = str_has_prefix(name, "default:") || strcmp(name, "default") == 0;
             if (stream == SND_PCM_STREAM_PLAYBACK) {
                 device->purpose = SoundIoDevicePurposeOutput;
                 device_list = &devices_info->output_devices;
-                if (devices_info->default_output_index < 0 && str_has_prefix(name, "default:"))
+                if (devices_info->default_output_index < 0 && is_default)
                     devices_info->default_output_index = device_list->length;
             } else {
                 assert(stream == SND_PCM_STREAM_CAPTURE);
                 device->purpose = SoundIoDevicePurposeInput;
                 device_list = &devices_info->input_devices;
-                if (devices_info->default_input_index < 0 && str_has_prefix(name, "default:"))
+                if (devices_info->default_input_index < 0 && is_default)
                     devices_info->default_input_index = device_list->length;
             }
 

@@ -273,8 +273,6 @@ view `coverage/index.html` in a browser.
     call lock and then unlock when done.
  0. Should pause/resume be callable from outside the callbacks?
  0. device.name -> device.id, device.description -> device.name
- 0. PulseAudio: when opening a device start it corked that way we can get
-    accurate buffer readings
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
       it can return
