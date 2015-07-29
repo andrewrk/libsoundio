@@ -286,7 +286,8 @@ struct SoundIoDevice {
     int sample_rate_current;
 
     // Buffer duration in seconds. If any values are unknown, they are set to
-    // 0.0. These values are unknown for PulseAudio.
+    // 0.0. These values are unknown for PulseAudio. These values are sometimes
+    // unknown for JACK.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;
@@ -447,6 +448,12 @@ struct SoundIoInStream {
     // open the stream.
     // Must not contain a colon (":").
     const char *name;
+
+    // Optional: Hint that this input stream is nonterminal. This is used by
+    // JACK and it means that the data received by the stream will be
+    // passed on or made available to another stream. Defaults to `false`.
+    // stream. Defaults to `false`.
+    bool non_terminal_hint;
 
     // computed automatically when you call soundio_instream_open
     int bytes_per_frame;

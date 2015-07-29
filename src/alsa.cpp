@@ -888,6 +888,7 @@ static int xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
 
 static int instream_xrun_recovery(SoundIoInStreamPrivate *is, int err) {
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
+    // TODO do something with this overflow
     if (err == -EPIPE) {
         err = snd_pcm_prepare(isa->handle);
     } else if (err == -ESTRPIPE) {

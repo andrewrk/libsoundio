@@ -34,7 +34,7 @@ struct SoundIoJack {
     struct SoundIoDevicesInfo *ready_devices_info;
     bool initialized;
     int sample_rate;
-    int buffer_size;
+    int period_size;
     bool is_shutdown;
     bool emitted_shutdown_cb;
 };
@@ -47,12 +47,22 @@ struct SoundIoOutStreamJackPort {
 
 struct SoundIoOutStreamJack {
     jack_client_t *client;
+    int period_size;
     SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
-struct SoundIoInStreamJack {
+struct SoundIoInStreamJackPort {
+    jack_port_t *dest_port;
+    const char *source_port_name;
+    int source_port_name_len;
+};
 
+struct SoundIoInStreamJack {
+    jack_client_t *client;
+    int period_size;
+    SoundIoInStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

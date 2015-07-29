@@ -1,14 +1,21 @@
 # libsoundio
 
-C library which provides cross-platform audio input and output. The API is
+C99 library providing cross-platform audio input and output. The API is
 suitable for real-time software such as digital audio workstations as well
 as consumer software such as music players.
 
-This library is an abstraction; however it prioritizes performance and power
-over API convenience. Features that only exist in some sound backends are
-exposed.
+This library is an abstraction; however in the delicate balance between
+performance and power, and API convenience, the scale is tipped closer to
+the former. Features that only exist in some sound backends are exposed.
 
-**This library is a work-in-progress.**
+The goal of this library is to be the only resource needed to implement top
+quality audio playback and capture on desktop and laptop systems. This
+includes detailed documentation explaining how audio works on each supported
+backend, how they are abstracted to provide the libsoundio API, and what
+assumptions you can and cannot make in order to guarantee consistent, reliable
+behavior on every platform.
+
+**This project is a work-in-progress.**
 
 ## Features and Limitations
 
@@ -16,18 +23,20 @@ exposed.
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
    - Dummy (silence)
-   - (planned) [JACK](http://jackaudio.org/)
+   - [JACK](http://jackaudio.org/)
    - (planned) [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - (planned) [ASIO](http://www.asio4all.com/)
  * C library. Depends only on the respective backend API libraries and libc.
    Does *not* depend on libstdc++, and does *not* have exceptions, run-time type
    information, or [setjmp](http://latentcontent.net/2007/12/05/libpng-worst-api-ever/).
- * Does not write anything to stdio. I'm looking at you,
-  [PortAudio](http://www.portaudio.com/).
+ * Errors are communicated via return codes, not logging to stdio. This is one
+   of my many complaints against [PortAudio](http://www.portaudio.com/).
  * Supports channel layouts (also known as channel maps), important for
    surround sound applications.
  * Ability to monitor devices and get an event when available devices change.
+ * Ability to get an event when the backend is disconnected, for example when
+   the JACK server or PulseAudio server shuts down.
  * Detects which input device is default and which output device is default.
  * Ability to connect to multiple backends at once. For example you could have
    an ALSA device open and a JACK device open at the same time.
@@ -249,6 +258,7 @@ view `coverage/index.html` in a browser.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
+ 0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
  0. Create a test for clearing the playback buffer and prebuffering.
  0. Create a test for pausing and resuming input and output streams.
  0. Create a test for the latency / synchronization API.
@@ -258,6 +268,7 @@ view `coverage/index.html` in a browser.
     - Play the audio file, have the user press an input right at the beat. Find
       out what the frame index it thinks the user pressed it at and make sure
       that is correct.
+ 0. Create a test for input stream overflow handling.
  0. Expose JACK options in `jack_client_open`
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.

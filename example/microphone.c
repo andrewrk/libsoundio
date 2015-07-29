@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));
 
-    int capacity = instream->buffer_duration * instream->sample_rate * instream->bytes_per_frame;
+    int capacity = fmax(1.0, instream->buffer_duration) * instream->sample_rate * instream->bytes_per_frame;
     ring_buffer = soundio_ring_buffer_create(soundio, capacity);
     if (!ring_buffer)
         panic("unable to create ring buffer: out of memory");

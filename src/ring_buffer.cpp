@@ -15,6 +15,8 @@
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity) {
     SoundIoRingBuffer *rb = create<SoundIoRingBuffer>();
 
+    assert(requested_capacity > 0);
+
     if (!rb) {
         soundio_ring_buffer_destroy(rb);
         return nullptr;
