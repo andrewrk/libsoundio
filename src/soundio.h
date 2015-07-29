@@ -29,6 +29,7 @@ enum SoundIoError {
     SoundIoErrorNoSuchClient,
     SoundIoErrorIncompatibleBackend,
     SoundIoErrorBackendDisconnected,
+    SoundIoErrorInterrupted,
 };
 
 enum SoundIoChannelId {
@@ -491,15 +492,23 @@ enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
 // Returns whether libsoundio was compiled with `backend`.
 bool soundio_have_backend(enum SoundIoBackend backend);
 
-// when you call this, the on_devices_change and on_events_signal callbacks
+// When you call this, the `on_devices_change` and `on_events_signal` callbacks
 // might be called. This is the only time those callbacks will be called.
+// This must be called from the same thread as the thread in which you call
+// these functions:
+// * `soundio_input_device_count`
+// * `soundio_output_device_count`
+// * `soundio_get_input_device`
+// * `soundio_get_output_device`
+// * `soundio_default_input_device_index`
+// * `soundio_default_output_device_index`
 void soundio_flush_events(struct SoundIo *soundio);
 
-// flushes events as they occur, blocks until you call soundio_wakeup
-// be ready for spurious wakeups
+// This function calls `soundio_flush_events` then blocks until another event
+// is ready or you call `soundio_wakeup`. Be ready for spurious wakeups.
 void soundio_wait_events(struct SoundIo *soundio);
 
-// makes soundio_wait_events stop blocking
+// Makes `soundio_wait_events` stop blocking.
 void soundio_wakeup(struct SoundIo *soundio);
 
 

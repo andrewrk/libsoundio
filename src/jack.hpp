@@ -10,6 +10,7 @@
 
 #include "soundio.h"
 #include "os.hpp"
+#include "atomics.hpp"
 
 #include <jack/jack.h>
 
@@ -30,9 +31,7 @@ struct SoundIoJack {
     jack_client_t *client;
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
-    // this one is ready to be read with flush_events. protected by mutex
-    struct SoundIoDevicesInfo *ready_devices_info;
-    bool initialized;
+    atomic_flag refresh_devices_flag;
     int sample_rate;
     int period_size;
     bool is_shutdown;

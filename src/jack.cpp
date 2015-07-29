@@ -7,7 +7,6 @@
 
 #include "jack.hpp"
 #include "soundio.hpp"
-#include "atomics.hpp"
 #include "list.hpp"
 
 #include <stdio.h>
@@ -32,22 +31,286 @@ struct SoundIoJackClient {
     SoundIoJackPort ports[SOUNDIO_MAX_CHANNELS];
 };
 
-static void flush_events_jack(struct SoundIoPrivate *si) {
+static void split_str(const char *input_str, int input_str_len, char c,
+        const char **out_1, int *out_len_1, const char **out_2, int *out_len_2)
+{
+    *out_1 = input_str;
+    while (*input_str) {
+        if (*input_str == c) {
+            *out_len_1 = input_str - *out_1;
+            *out_2 = input_str + 1;
+            *out_len_2 = input_str_len - 1 - *out_len_1;
+            return;
+        }
+        input_str += 1;
+    }
+}
+
+static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *clients,
+        SoundIoDevicePurpose purpose, bool is_physical, const char *client_name, int client_name_len)
+{
+    for (int i = 0; i < clients->length; i += 1) {
+        SoundIoJackClient *client = &clients->at(i);
+        if (client->is_physical == is_physical &&
+            client->purpose == purpose &&
+            soundio_streql(client->name, client->name_len, client_name, client_name_len))
+        {
+            return client;
+        }
+    }
+    int err;
+    if ((err = clients->add_one()))
+        return nullptr;
+    SoundIoJackClient *client = &clients->last();
+    client->is_physical = is_physical;
+    client->purpose = purpose;
+    client->name = client_name;
+    client->name_len = client_name_len;
+    client->port_count = 0;
+    return client;
+}
+
+static char *dupe_str(const char *str, int str_len) {
+    char *out = allocate_nonzero<char>(str_len + 1);
+    if (!out)
+        return nullptr;
+    memcpy(out, str, str_len);
+    out[str_len] = 0;
+    return out;
+}
+
+static void destruct_device(SoundIoDevicePrivate *dp) {
+    SoundIoDeviceJack *dj = &dp->backend_data.jack;
+    for (int i = 0; i < dj->port_count; i += 1) {
+        SoundIoDeviceJackPort *djp = &dj->ports[i];
+        destroy(djp->full_name);
+    }
+    deallocate(dj->ports, dj->port_count);
+}
+
+static int refresh_devices_bare(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoJack *sij = &si->backend_data.jack;
 
-    bool change_devices = false;
+    if (sij->is_shutdown)
+        return SoundIoErrorBackendDisconnected;
+
+
+    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
+    if (!devices_info)
+        return SoundIoErrorNoMem;
+
+    devices_info->default_output_index = -1;
+    devices_info->default_input_index = -1;
+    const char **port_names = jack_get_ports(sij->client, nullptr, nullptr, 0);
+    if (!port_names) {
+        destroy(devices_info);
+        return SoundIoErrorNoMem;
+    }
+
+    SoundIoList<SoundIoJackClient> clients;
+    const char **port_name_ptr = port_names;
+    while (*port_name_ptr) {
+        const char *client_and_port_name = *port_name_ptr;
+        int client_and_port_name_len = strlen(client_and_port_name);
+        jack_port_t *jport = jack_port_by_name(sij->client, client_and_port_name);
+        if (!jport) {
+            // This refresh devices scan is already outdated. Just give up and
+            // let refresh_devices be called again.
+            jack_free(port_names);
+            destroy(devices_info);
+            return SoundIoErrorInterrupted;
+        }
+
+        int flags = jack_port_flags(jport);
+        const char *port_type = jack_port_type(jport);
+        if (strcmp(port_type, JACK_DEFAULT_AUDIO_TYPE) != 0) {
+            // we don't know how to support such a port
+            continue;
+        }
+
+        SoundIoDevicePurpose purpose = (flags & JackPortIsInput) ?
+            SoundIoDevicePurposeOutput : SoundIoDevicePurposeInput;
+        bool is_physical = flags & JackPortIsPhysical;
+
+        const char *client_name = nullptr;
+        const char *port_name = nullptr;
+        int client_name_len;
+        int port_name_len;
+        split_str(client_and_port_name, client_and_port_name_len, ':',
+                &client_name, &client_name_len, &port_name, &port_name_len);
+        if (!client_name || !port_name) {
+            // device does not have colon, skip it
+            continue;
+        }
+        SoundIoJackClient *client = find_or_create_client(&clients, purpose, is_physical,
+                client_name, client_name_len);
+        if (!client) {
+            jack_free(port_names);
+            destroy(devices_info);
+            return SoundIoErrorNoMem;
+        }
+        if (client->port_count >= SOUNDIO_MAX_CHANNELS) {
+            // we hit the channel limit, skip the leftovers
+            continue;
+        }
+        SoundIoJackPort *port = &client->ports[client->port_count++];
+        port->full_name = client_and_port_name;
+        port->full_name_len = client_and_port_name_len;
+        port->name = port_name;
+        port->name_len = port_name_len;
+        port->channel_id = soundio_parse_channel_id(port_name, port_name_len);
+
+        jack_latency_callback_mode_t latency_mode = (purpose == SoundIoDevicePurposeOutput) ?
+            JackPlaybackLatency : JackCaptureLatency;
+        jack_port_get_latency_range(jport, latency_mode, &port->latency_range);
+
+        port_name_ptr += 1;
+    }
+
+    for (int i = 0; i < clients.length; i += 1) {
+        SoundIoJackClient *client = &clients.at(i);
+        if (client->port_count <= 0)
+            continue;
+
+        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        if (!dev) {
+            jack_free(port_names);
+            destroy(devices_info);
+            return SoundIoErrorNoMem;
+        }
+        SoundIoDevice *device = &dev->pub;
+        SoundIoDeviceJack *dj = &dev->backend_data.jack;
+        int description_len = client->name_len + 3 + 2 * client->port_count;
+        jack_nframes_t max_buffer_frames = 0;
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+
+            description_len += port->name_len;
+
+            max_buffer_frames = max(max_buffer_frames, port->latency_range.max);
+        }
+
+        dev->destruct = destruct_device;
+
+        device->ref_count = 1;
+        device->soundio = soundio;
+        device->is_raw = false;
+        device->purpose = client->purpose;
+        device->name = dupe_str(client->name, client->name_len);
+        device->description = allocate<char>(description_len);
+        device->layout_count = 1;
+        device->layouts = create<SoundIoChannelLayout>();
+        device->format_count = 1;
+        device->formats = create<SoundIoFormat>();
+        device->current_format = SoundIoFormatFloat32NE;
+        device->sample_rate_min = sij->sample_rate;
+        device->sample_rate_max = sij->sample_rate;
+        device->sample_rate_current = sij->sample_rate;
+        device->period_duration_min = sij->period_size / (double) sij->sample_rate;
+        device->period_duration_max = device->period_duration_min;
+        device->period_duration_current = device->period_duration_min;
+        device->buffer_duration_min = max_buffer_frames / (double) sij->sample_rate;
+        device->buffer_duration_max = device->buffer_duration_min;
+        device->buffer_duration_current = device->buffer_duration_min;
+        dj->port_count = client->port_count;
+        dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
+
+        if (!device->name || !device->description || !device->layouts || !device->formats || !dj->ports) {
+            jack_free(port_names);
+            soundio_device_unref(device);
+            destroy(devices_info);
+            return SoundIoErrorNoMem;
+        }
+
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+            SoundIoDeviceJackPort *djp = &dj->ports[port_index];
+            djp->full_name = dupe_str(port->full_name, port->full_name_len);
+            djp->full_name_len = port->full_name_len;
+            djp->channel_id = port->channel_id;
+
+            if (!djp->full_name) {
+                jack_free(port_names);
+                soundio_device_unref(device);
+                destroy(devices_info);
+                return SoundIoErrorNoMem;
+            }
+        }
+
+        memcpy(device->description, client->name, client->name_len);
+        memcpy(&device->description[client->name_len], ": ", 2);
+        int index = client->name_len + 2;
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+            memcpy(&device->description[index], port->name, port->name_len);
+            index += port->name_len;
+            if (port_index + 1 < client->port_count) {
+                memcpy(&device->description[index], ", ", 2);
+                index += 2;
+            }
+        }
+
+        device->current_layout.channel_count = client->port_count;
+        bool any_invalid = false;
+        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
+            SoundIoJackPort *port = &client->ports[port_index];
+            device->current_layout.channels[port_index] = port->channel_id;
+            any_invalid = any_invalid || (port->channel_id == SoundIoChannelIdInvalid);
+        }
+        if (any_invalid) {
+            const struct SoundIoChannelLayout *layout = soundio_channel_layout_get_default(client->port_count);
+            if (layout)
+                device->current_layout = *layout;
+        } else {
+            soundio_channel_layout_detect_builtin(&device->current_layout);
+        }
+
+        device->layouts[0] = device->current_layout;
+        device->formats[0] = device->current_format;
+
+        SoundIoList<SoundIoDevice *> *device_list;
+        if (device->purpose == SoundIoDevicePurposeOutput) {
+            device_list = &devices_info->output_devices;
+            if (devices_info->default_output_index < 0 && client->is_physical)
+                devices_info->default_output_index = device_list->length;
+        } else {
+            assert(device->purpose == SoundIoDevicePurposeInput);
+            device_list = &devices_info->input_devices;
+            if (devices_info->default_input_index < 0 && client->is_physical)
+                devices_info->default_input_index = device_list->length;
+        }
+
+        if (device_list->append(device)) {
+            soundio_device_unref(device);
+            destroy(devices_info);
+            return SoundIoErrorNoMem;
+        }
+
+    }
+    jack_free(port_names);
+
+    soundio_destroy_devices_info(si->safe_devices_info);
+    si->safe_devices_info = devices_info;
+
+    return 0;
+}
+
+static int refresh_devices(SoundIoPrivate *si) {
+    int err = SoundIoErrorInterrupted;
+    while (err == SoundIoErrorInterrupted)
+        err = refresh_devices_bare(si);
+    return err;
+}
+
+static void flush_events_jack(struct SoundIoPrivate *si) {
+    SoundIo *soundio = &si->pub;
+    SoundIoJack *sij = &si->backend_data.jack;
+    int err;
+
     bool cb_shutdown = false;
-    SoundIoDevicesInfo *old_devices_info = nullptr;
 
     soundio_os_mutex_lock(sij->mutex);
-
-    if (sij->ready_devices_info) {
-        old_devices_info = si->safe_devices_info;
-        si->safe_devices_info = sij->ready_devices_info;
-        sij->ready_devices_info = nullptr;
-        change_devices = true;
-    }
 
     if (sij->is_shutdown && !sij->emitted_shutdown_cb) {
         sij->emitted_shutdown_cb = true;
@@ -56,12 +319,17 @@ static void flush_events_jack(struct SoundIoPrivate *si) {
 
     soundio_os_mutex_unlock(sij->mutex);
 
-    if (change_devices)
-        soundio->on_devices_change(soundio);
-    soundio_destroy_devices_info(old_devices_info);
-
-    if (cb_shutdown)
+    if (cb_shutdown) {
         soundio->on_backend_disconnect(soundio);
+    } else {
+        if (!sij->refresh_devices_flag.test_and_set()) {
+            if ((err = refresh_devices(si))) {
+                sij->refresh_devices_flag.clear();
+            } else {
+                soundio->on_devices_change(soundio);
+            }
+        }
+    }
 }
 
 static void wait_events_jack(struct SoundIoPrivate *si) {
@@ -507,276 +775,21 @@ static int instream_end_read_jack(struct SoundIoPrivate *si, struct SoundIoInStr
     return 0;
 }
 
-static void split_str(const char *input_str, int input_str_len, char c,
-        const char **out_1, int *out_len_1, const char **out_2, int *out_len_2)
-{
-    *out_1 = input_str;
-    while (*input_str) {
-        if (*input_str == c) {
-            *out_len_1 = input_str - *out_1;
-            *out_2 = input_str + 1;
-            *out_len_2 = input_str_len - 1 - *out_len_1;
-            return;
-        }
-        input_str += 1;
-    }
-}
-
-static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *clients,
-        SoundIoDevicePurpose purpose, bool is_physical, const char *client_name, int client_name_len)
-{
-    for (int i = 0; i < clients->length; i += 1) {
-        SoundIoJackClient *client = &clients->at(i);
-        if (client->is_physical == is_physical &&
-            client->purpose == purpose &&
-            soundio_streql(client->name, client->name_len, client_name, client_name_len))
-        {
-            return client;
-        }
-    }
-    int err;
-    if ((err = clients->add_one()))
-        return nullptr;
-    SoundIoJackClient *client = &clients->last();
-    client->is_physical = is_physical;
-    client->purpose = purpose;
-    client->name = client_name;
-    client->name_len = client_name_len;
-    client->port_count = 0;
-    return client;
-}
-
-static char *dupe_str(const char *str, int str_len) {
-    char *out = allocate_nonzero<char>(str_len + 1);
-    if (!out)
-        return nullptr;
-    memcpy(out, str, str_len);
-    out[str_len] = 0;
-    return out;
-}
-
-static void destruct_device(SoundIoDevicePrivate *dp) {
-    SoundIoDeviceJack *dj = &dp->backend_data.jack;
-    for (int i = 0; i < dj->port_count; i += 1) {
-        SoundIoDeviceJackPort *djp = &dj->ports[i];
-        destroy(djp->full_name);
-    }
-    deallocate(dj->ports, dj->port_count);
-}
-
-static int refresh_devices(SoundIoPrivate *si) {
+static void notify_devices_change(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoJack *sij = &si->backend_data.jack;
-
-    if (sij->is_shutdown)
-        return SoundIoErrorBackendDisconnected;
-
-
-    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
-    if (!devices_info)
-        return SoundIoErrorNoMem;
-
-    devices_info->default_output_index = -1;
-    devices_info->default_input_index = -1;
-    const char **port_names = jack_get_ports(sij->client, nullptr, nullptr, 0);
-    if (!port_names) {
-        destroy(devices_info);
-        return SoundIoErrorNoMem;
-    }
-
-    SoundIoList<SoundIoJackClient> clients;
-    const char **port_name_ptr = port_names;
-    while (*port_name_ptr) {
-        const char *client_and_port_name = *port_name_ptr;
-        int client_and_port_name_len = strlen(client_and_port_name);
-        jack_port_t *jport = jack_port_by_name(sij->client, client_and_port_name);
-        int flags = jack_port_flags(jport);
-
-
-        const char *port_type = jack_port_type(jport);
-        if (strcmp(port_type, JACK_DEFAULT_AUDIO_TYPE) != 0) {
-            // we don't know how to support such a port
-            continue;
-        }
-
-        SoundIoDevicePurpose purpose = (flags & JackPortIsInput) ?
-            SoundIoDevicePurposeOutput : SoundIoDevicePurposeInput;
-        bool is_physical = flags & JackPortIsPhysical;
-
-        const char *client_name = nullptr;
-        const char *port_name = nullptr;
-        int client_name_len;
-        int port_name_len;
-        split_str(client_and_port_name, client_and_port_name_len, ':',
-                &client_name, &client_name_len, &port_name, &port_name_len);
-        if (!client_name || !port_name) {
-            // device does not have colon, skip it
-            continue;
-        }
-        SoundIoJackClient *client = find_or_create_client(&clients, purpose, is_physical,
-                client_name, client_name_len);
-        if (!client) {
-            jack_free(port_names);
-            destroy(devices_info);
-            return SoundIoErrorNoMem;
-        }
-        if (client->port_count >= SOUNDIO_MAX_CHANNELS) {
-            // we hit the channel limit, skip the leftovers
-            continue;
-        }
-        SoundIoJackPort *port = &client->ports[client->port_count++];
-        port->full_name = client_and_port_name;
-        port->full_name_len = client_and_port_name_len;
-        port->name = port_name;
-        port->name_len = port_name_len;
-        port->channel_id = soundio_parse_channel_id(port_name, port_name_len);
-
-        jack_latency_callback_mode_t latency_mode = (purpose == SoundIoDevicePurposeOutput) ?
-            JackPlaybackLatency : JackCaptureLatency;
-        jack_port_get_latency_range(jport, latency_mode, &port->latency_range);
-
-        port_name_ptr += 1;
-    }
-
-    for (int i = 0; i < clients.length; i += 1) {
-        SoundIoJackClient *client = &clients.at(i);
-        if (client->port_count <= 0)
-            continue;
-
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
-        if (!dev) {
-            jack_free(port_names);
-            destroy(devices_info);
-            return SoundIoErrorNoMem;
-        }
-        SoundIoDevice *device = &dev->pub;
-        SoundIoDeviceJack *dj = &dev->backend_data.jack;
-        int description_len = client->name_len + 3 + 2 * client->port_count;
-        jack_nframes_t max_buffer_frames = 0;
-        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
-            SoundIoJackPort *port = &client->ports[port_index];
-
-            description_len += port->name_len;
-
-            max_buffer_frames = max(max_buffer_frames, port->latency_range.max);
-        }
-
-        dev->destruct = destruct_device;
-
-        device->ref_count = 1;
-        device->soundio = soundio;
-        device->is_raw = false;
-        device->purpose = client->purpose;
-        device->name = dupe_str(client->name, client->name_len);
-        device->description = allocate<char>(description_len);
-        device->layout_count = 1;
-        device->layouts = create<SoundIoChannelLayout>();
-        device->format_count = 1;
-        device->formats = create<SoundIoFormat>();
-        device->current_format = SoundIoFormatFloat32NE;
-        device->sample_rate_min = sij->sample_rate;
-        device->sample_rate_max = sij->sample_rate;
-        device->sample_rate_current = sij->sample_rate;
-        device->period_duration_min = sij->period_size / (double) sij->sample_rate;
-        device->period_duration_max = device->period_duration_min;
-        device->period_duration_current = device->period_duration_min;
-        device->buffer_duration_min = max_buffer_frames / (double) sij->sample_rate;
-        device->buffer_duration_max = device->buffer_duration_min;
-        device->buffer_duration_current = device->buffer_duration_min;
-        dj->port_count = client->port_count;
-        dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
-
-        if (!device->name || !device->description || !device->layouts || !device->formats || !dj->ports) {
-            jack_free(port_names);
-            soundio_device_unref(device);
-            destroy(devices_info);
-            return SoundIoErrorNoMem;
-        }
-
-        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
-            SoundIoJackPort *port = &client->ports[port_index];
-            SoundIoDeviceJackPort *djp = &dj->ports[port_index];
-            djp->full_name = dupe_str(port->full_name, port->full_name_len);
-            djp->full_name_len = port->full_name_len;
-            djp->channel_id = port->channel_id;
-
-            if (!djp->full_name) {
-                jack_free(port_names);
-                soundio_device_unref(device);
-                destroy(devices_info);
-                return SoundIoErrorNoMem;
-            }
-        }
-
-        memcpy(device->description, client->name, client->name_len);
-        memcpy(&device->description[client->name_len], ": ", 2);
-        int index = client->name_len + 2;
-        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
-            SoundIoJackPort *port = &client->ports[port_index];
-            memcpy(&device->description[index], port->name, port->name_len);
-            index += port->name_len;
-            if (port_index + 1 < client->port_count) {
-                memcpy(&device->description[index], ", ", 2);
-                index += 2;
-            }
-        }
-
-        device->current_layout.channel_count = client->port_count;
-        bool any_invalid = false;
-        for (int port_index = 0; port_index < client->port_count; port_index += 1) {
-            SoundIoJackPort *port = &client->ports[port_index];
-            device->current_layout.channels[port_index] = port->channel_id;
-            any_invalid = any_invalid || (port->channel_id == SoundIoChannelIdInvalid);
-        }
-        if (any_invalid) {
-            const struct SoundIoChannelLayout *layout = soundio_channel_layout_get_default(client->port_count);
-            if (layout)
-                device->current_layout = *layout;
-        } else {
-            soundio_channel_layout_detect_builtin(&device->current_layout);
-        }
-
-        device->layouts[0] = device->current_layout;
-        device->formats[0] = device->current_format;
-
-        SoundIoList<SoundIoDevice *> *device_list;
-        if (device->purpose == SoundIoDevicePurposeOutput) {
-            device_list = &devices_info->output_devices;
-            if (devices_info->default_output_index < 0 && client->is_physical)
-                devices_info->default_output_index = device_list->length;
-        } else {
-            assert(device->purpose == SoundIoDevicePurposeInput);
-            device_list = &devices_info->input_devices;
-            if (devices_info->default_input_index < 0 && client->is_physical)
-                devices_info->default_input_index = device_list->length;
-        }
-
-        if (device_list->append(device)) {
-            soundio_device_unref(device);
-            destroy(devices_info);
-            return SoundIoErrorNoMem;
-        }
-
-    }
-    jack_free(port_names);
-
-
+    sij->refresh_devices_flag.clear();
     soundio_os_mutex_lock(sij->mutex);
-    soundio_destroy_devices_info(sij->ready_devices_info);
-    sij->ready_devices_info = devices_info;
     soundio_os_cond_signal(sij->cond, sij->mutex);
     soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sij->mutex);
-
-    return 0;
 }
 
 static int buffer_size_callback(jack_nframes_t nframes, void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
     SoundIoJack *sij = &si->backend_data.jack;
     sij->period_size = nframes;
-    if (sij->initialized)
-        refresh_devices(si);
+    notify_devices_change(si);
     return 0;
 }
 
@@ -784,25 +797,20 @@ static int sample_rate_callback(jack_nframes_t nframes, void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
     SoundIoJack *sij = &si->backend_data.jack;
     sij->sample_rate = nframes;
-    if (sij->initialized)
-        refresh_devices(si);
+    notify_devices_change(si);
     return 0;
 }
 
 static void port_registration_callback(jack_port_id_t port_id, int reg, void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
-    SoundIoJack *sij = &si->backend_data.jack;
-    if (sij->initialized)
-        refresh_devices(si);
+    notify_devices_change(si);
 }
 
 static int port_rename_calllback(jack_port_id_t port_id,
         const char *old_name, const char *new_name, void *arg)
 {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
-    SoundIoJack *sij = &si->backend_data.jack;
-    if (sij->initialized)
-        refresh_devices(si);
+    notify_devices_change(si);
     return 0;
 }
 
@@ -827,8 +835,6 @@ static void destroy_jack(SoundIoPrivate *si) {
 
     if (sij->mutex)
         soundio_os_mutex_destroy(sij->mutex);
-
-    soundio_destroy_devices_info(sij->ready_devices_info);
 }
 
 int soundio_jack_init(struct SoundIoPrivate *si) {
@@ -889,6 +895,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     }
     jack_on_shutdown(sij->client, shutdown_callback, si);
 
+    sij->refresh_devices_flag.clear();
     sij->period_size = jack_get_buffer_size(sij->client);
     sij->sample_rate = jack_get_sample_rate(sij->client);
 
@@ -897,7 +904,6 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
         return SoundIoErrorInitAudioBackend;
     }
 
-    sij->initialized = true;
     if ((err = refresh_devices(si))) {
         destroy_jack(si);
         return err;

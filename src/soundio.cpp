@@ -60,6 +60,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorNoSuchClient: return "no such client";
         case SoundIoErrorIncompatibleBackend: return "incompatible backend";
         case SoundIoErrorBackendDisconnected: return "backend disconnected";
+        case SoundIoErrorInterrupted: return "interrupted; try again";
     }
     soundio_panic("invalid error enum value: %d", error);
 }

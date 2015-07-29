@@ -717,7 +717,7 @@ static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *o
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
-    assert(frame_count > 0);
+    assert(frame_count >= 0);
     size_t byte_count = frame_count * outstream->bytes_per_frame;
     assert(byte_count < 1 * 1024 * 1024 * 1024); // attempting to write > 1GB is certainly a mistake
     if (pa_stream_write(stream, ospa->write_ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
