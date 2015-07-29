@@ -746,7 +746,7 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    if (pause != !pa_stream_is_corked(ospa->stream)) {
+    if (pause != pa_stream_is_corked(ospa->stream)) {
         pa_operation *op = pa_stream_cork(ospa->stream, pause, NULL, NULL);
         if (!op)
             return SoundIoErrorStreaming;
@@ -929,7 +929,7 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    if (pause != !pa_stream_is_corked(ispa->stream)) {
+    if (pause != pa_stream_is_corked(ispa->stream)) {
         pa_operation *op = pa_stream_cork(ispa->stream, pause, NULL, NULL);
         if (!op)
             return SoundIoErrorStreaming;
