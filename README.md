@@ -245,8 +245,7 @@ view `coverage/index.html` in a browser.
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
- 0. JACK: implement prebuffering
- 0. why does pulseaudio microphone use up all the CPU?
+ 0. JACK: implement prebuffering ...or delete prebuffering as a concept
  0. Avoid calling `soundio_panic` in PulseAudio.
  0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
     which is why we have to pre-fill the ring buffer with silence for

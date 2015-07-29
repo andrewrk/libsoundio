@@ -460,7 +460,9 @@ static void flush_events(SoundIoPrivate *si) {
 static void wait_events(SoundIoPrivate *si) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     flush_events(si);
+    pa_threaded_mainloop_lock(sipa->main_loop);
     pa_threaded_mainloop_wait(sipa->main_loop);
+    pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
 static void wakeup(SoundIoPrivate *si) {
