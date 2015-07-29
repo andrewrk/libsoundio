@@ -14,7 +14,7 @@
 // list or keep a watch on audio devices
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--watch] [--dummy] [--alsa] [--pulseaudio]\n", exe);
+    fprintf(stderr, "Usage: %s [--watch] [--dummy] [--alsa] [--pulseaudio] [--jack]\n", exe);
     return 1;
 }
 
@@ -120,6 +120,8 @@ int main(int argc, char **argv) {
             backend = SoundIoBackendAlsa;
         } else if (strcmp("--pulseaudio", arg) == 0) {
             backend = SoundIoBackendPulseAudio;
+        } else if (strcmp("--jack", arg) == 0) {
+            backend = SoundIoBackendJack;
         } else {
             return usage(exe);
         }

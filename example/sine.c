@@ -26,7 +26,7 @@ static void panic(const char *format, ...) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio]\n", exe);
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack]\n", exe);
     return 1;
 }
 
@@ -86,6 +86,8 @@ int main(int argc, char **argv) {
             backend = SoundIoBackendAlsa;
         } else if (strcmp("--pulseaudio", arg) == 0) {
             backend = SoundIoBackendPulseAudio;
+        } else if (strcmp("--jack", arg) == 0) {
+            backend = SoundIoBackendJack;
         } else {
             return usage(exe);
         }
