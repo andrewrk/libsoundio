@@ -48,8 +48,10 @@ struct SoundIoOutStreamJackPort {
 struct SoundIoOutStreamJack {
     jack_client_t *client;
     int period_size;
+    int frames_left;
     SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    char *buf_ptrs[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamJackPort {

@@ -81,8 +81,14 @@ static void wakeup_jack(struct SoundIoPrivate *si) {
 
 static int outstream_process_callback(jack_nframes_t nframes, void *arg) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)arg;
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
     SoundIoOutStream *outstream = &os->pub;
-    outstream->write_callback(outstream, nframes);
+    osj->frames_left = nframes;
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+        osj->buf_ptrs[ch] = (char*)jack_port_get_buffer(osjp->source_port, osj->frames_left);
+    }
+    outstream->write_callback(outstream, osj->frames_left);
     return 0;
 }
 
@@ -268,14 +274,11 @@ static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoO
 {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
-    SoundIoJack *sij = &si->backend_data.jack;
-    assert(*frame_count <= sij->period_size);
+
+    *frame_count = min(*frame_count, osj->frames_left);
 
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-        SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
-        if (!(osj->areas[ch].ptr = (char*)jack_port_get_buffer(osjp->source_port, *frame_count)))
-            return SoundIoErrorStreaming;
-
+        osj->areas[ch].ptr = osj->buf_ptrs[ch];
         osj->areas[ch].step = outstream->bytes_per_sample;
     }
 
@@ -287,6 +290,17 @@ static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoO
 static int outstream_end_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         int frame_count)
 {
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
+    assert(frame_count <= osj->frames_left);
+
+    osj->frames_left -= frame_count;
+    if (osj->frames_left > 0) {
+        for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+            osj->buf_ptrs[ch] += frame_count * outstream->bytes_per_sample;
+        }
+    }
+
     return 0;
 }
 

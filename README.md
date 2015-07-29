@@ -241,13 +241,12 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. JACK: input
- 0. JACK: implement prebuffering
- 0. why does pulseaudio microphone use up all the CPU?
- 0. merge in/out stream structures and functions?
+ 0. Integrate into libgroove and test with Groove Basin
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
+ 0. JACK: implement prebuffering
+ 0. why does pulseaudio microphone use up all the CPU?
  0. Avoid calling `soundio_panic` in PulseAudio.
  0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
     which is why we have to pre-fill the ring buffer with silence for
@@ -282,7 +281,6 @@ view `coverage/index.html` in a browser.
  0. use a documentation generator and host the docs somewhere
  0. -fvisibility=hidden and then explicitly export stuff, or
     explicitly make the unexported stuff private
- 0. Integrate into libgroove and test with Groove Basin
  0. look at microphone example and determine if fewer memcpys can be done
     with the audio data
     - test that sending the frame count to begin read works with PulseAudio
@@ -295,6 +293,7 @@ view `coverage/index.html` in a browser.
  0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
+ 0. API to trigger playback even if prebuf condition isn't met yet.
  0. Consider testing on FreeBSD
 
 ## Planned Uses for libsoundio
