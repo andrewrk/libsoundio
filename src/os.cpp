@@ -5,8 +5,8 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "os.h"
-#include "soundio.h"
+#include "soundio/os.h"
+#include "soundio/soundio.h"
 #include "util.hpp"
 #include "atomics.hpp"
 

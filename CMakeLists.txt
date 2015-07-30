@@ -67,8 +67,8 @@ set(LIBSOUNDIO_SOURCES
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
-    "${CMAKE_SOURCE_DIR}/src/soundio.h"
-    "${CMAKE_SOURCE_DIR}/src/os.h"
+    "${CMAKE_SOURCE_DIR}/soundio/soundio.h"
+    "${CMAKE_SOURCE_DIR}/soundio/os.h"
     ${CONFIGURE_OUT_FILE}
 )
 
@@ -148,7 +148,6 @@ set_target_properties(libsoundio_shared PROPERTIES
 include_directories(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_BINARY_DIR}
-    ${ALSA_INCLUDE_DIRS}
 )
 target_link_libraries(libsoundio_shared LINK_PUBLIC
     ${JACK_LIBRARY}
@@ -175,26 +174,29 @@ install(FILES
 
 # Example Programs
 
-add_executable(sine example/sine.c)
-set_target_properties(sine PROPERTIES
+add_executable(sio_sine example/sio_sine.c)
+set_target_properties(sio_sine PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
-target_link_libraries(sine libsoundio_shared)
+target_link_libraries(sio_sine libsoundio_shared)
+install(TARGETS sio_sine DESTINATION bin)
 
-add_executable(list_devices example/list_devices.c)
-set_target_properties(list_devices PROPERTIES
+add_executable(sio_list_devices example/sio_list_devices.c)
+set_target_properties(sio_list_devices PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
-target_link_libraries(list_devices libsoundio_shared)
+target_link_libraries(sio_list_devices libsoundio_shared)
+install(TARGETS sio_list_devices DESTINATION bin)
 
-add_executable(microphone example/microphone.c)
-set_target_properties(microphone PROPERTIES
+add_executable(sio_microphone example/sio_microphone.c)
+set_target_properties(sio_microphone PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
-target_link_libraries(microphone libsoundio_shared)
+target_link_libraries(sio_microphone libsoundio_shared)
+install(TARGETS sio_microphone DESTINATION bin)
 
 
 
@@ -221,6 +223,7 @@ set_target_properties(underflow PROPERTIES
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(underflow libsoundio_shared)
+add_test(Underflow underflow)
 
 
 

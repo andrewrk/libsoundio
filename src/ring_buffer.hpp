@@ -9,7 +9,7 @@
 #define SOUNDIO_RING_BUFFER_HPP
 
 #include "atomics.hpp"
-#include "os.h"
+#include "soundio/os.h"
 
 struct SoundIoRingBuffer {
     SoundIoOsMirroredMemory mem;

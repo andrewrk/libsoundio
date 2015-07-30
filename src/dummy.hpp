@@ -8,8 +8,8 @@
 #ifndef SOUNDIO_DUMMY_HPP
 #define SOUNDIO_DUMMY_HPP
 
-#include "soundio.h"
-#include "os.h"
+#include "soundio/soundio.h"
+#include "soundio/os.h"
 #include "atomics.hpp"
 #include "ring_buffer.hpp"
 

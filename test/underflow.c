@@ -5,8 +5,8 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include <soundio.h>
-#include <os.h>
+#include <soundio/soundio.h>
+#include <soundio/os.h>
 
 #include <stdio.h>
 #include <stdarg.h>

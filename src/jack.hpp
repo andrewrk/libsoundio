@@ -8,8 +8,8 @@
 #ifndef SOUNDIO_JACK_HPP
 #define SOUNDIO_JACK_HPP
 
-#include "soundio.h"
-#include "os.h"
+#include "soundio/soundio.h"
+#include "soundio/os.h"
 #include "atomics.hpp"
 
 #include <jack/jack.h>
