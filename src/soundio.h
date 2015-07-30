@@ -246,6 +246,10 @@ struct SoundIoDevice {
 
     // `id` is a string of bytes that uniquely identifies this device.
     // `name` is user-friendly UTF-8 encoded text to describe the device.
+    // If the same physical device supports both input and output, that makes
+    // one SoundIoDevice for the input and one SoundIoDevice for the output.
+    // In this case, the `id` of each SoundIoDevice will be the same, and the
+    // `aim` field will be different.
     char *id;
     char *name;
 

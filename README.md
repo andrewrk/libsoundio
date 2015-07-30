@@ -249,8 +249,6 @@ view `coverage/index.html` in a browser.
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
- 0. API: devices should reference to their "other" device when the same
-    hardware has input and output. This is important due to clock timing.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
  0. Create a test for underflow handling. It just makes a sine wave for 5
