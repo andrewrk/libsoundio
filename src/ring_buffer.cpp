@@ -8,7 +8,6 @@
 #include "ring_buffer.hpp"
 #include "soundio.hpp"
 #include "util.hpp"
-#include "os.hpp"
 
 #include <stdlib.h>
 

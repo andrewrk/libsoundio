@@ -7,7 +7,7 @@
 
 #include "soundio.hpp"
 #include "util.hpp"
-#include "os.hpp"
+#include "os.h"
 #include "config.h"
 
 #include <string.h>

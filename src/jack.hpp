@@ -9,7 +9,7 @@
 #define SOUNDIO_JACK_HPP
 
 #include "soundio.h"
-#include "os.hpp"
+#include "os.h"
 #include "atomics.hpp"
 
 #include <jack/jack.h>

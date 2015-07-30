@@ -68,6 +68,7 @@ set(LIBSOUNDIO_SOURCES
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${CMAKE_SOURCE_DIR}/src/soundio.h"
+    "${CMAKE_SOURCE_DIR}/src/os.h"
     ${CONFIGURE_OUT_FILE}
 )
 
@@ -213,6 +214,14 @@ set_target_properties(unit_tests PROPERTIES
 )
 include_directories(${TEST_INCLUDES})
 add_test(UnitTests unit_tests)
+
+add_executable(underflow test/underflow.c)
+set_target_properties(underflow PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+include_directories(${EXAMPLE_INCLUDES})
+target_link_libraries(underflow libsoundio_shared)
+
 
 
 add_custom_target(coverage

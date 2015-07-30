@@ -9,7 +9,7 @@
 #define SOUNDIO_ALSA_HPP
 
 #include "soundio.h"
-#include "os.hpp"
+#include "os.h"
 #include "atomics.hpp"
 
 #include <alsa/asoundlib.h>

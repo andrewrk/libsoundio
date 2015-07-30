@@ -9,7 +9,7 @@
 #define SOUNDIO_DUMMY_HPP
 
 #include "soundio.h"
-#include "os.hpp"
+#include "os.h"
 #include "atomics.hpp"
 #include "ring_buffer.hpp"
 

@@ -249,10 +249,6 @@ view `coverage/index.html` in a browser.
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
- 0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
- 0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
- 0. Create a test for underflow handling. It just makes a sine wave for 5
-    seconds, then on next audio callback, sleep for 2 seconds.
  0. Create a test for pausing and resuming input and output streams.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
@@ -292,6 +288,7 @@ view `coverage/index.html` in a browser.
     `soundio_outstream_start` is called, switch to the real callback, then call
     `pa_stream_flush`, then uncork the stream.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
+ 0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
 
 ## Planned Uses for libsoundio
 
