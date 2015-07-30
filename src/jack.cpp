@@ -317,7 +317,7 @@ static void flush_events_jack(struct SoundIoPrivate *si) {
     soundio_os_mutex_unlock(sij->mutex);
 
     if (cb_shutdown) {
-        soundio->on_backend_disconnect(soundio);
+        soundio->on_backend_disconnect(soundio, SoundIoErrorBackendDisconnected);
     } else {
         if (!sij->refresh_devices_flag.test_and_set()) {
             if ((err = refresh_devices(si))) {

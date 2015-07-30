@@ -33,6 +33,9 @@ struct SoundIoAlsa {
 
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
+
+    int shutdown_err;
+    bool emitted_shutdown_cb;
 };
 
 struct SoundIoOutStreamAlsa {

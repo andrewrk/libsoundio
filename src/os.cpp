@@ -165,16 +165,6 @@ static DWORD WINAPI run_win32_thread(LPVOID userdata) {
     thread->run(thread->arg);
     return 0;
 }
-
-static void win32_panic(const char *str) {
-    DWORD err = GetLastError();
-    LPSTR messageBuffer = nullptr;
-    size_t size = FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-    soundio_panic(str, messageBuffer);
-    LocalFree(messageBuffer);
-}
 #else
 static void assert_no_err(int err) {
     assert(!err);
@@ -433,8 +423,8 @@ void soundio_os_cond_signal(struct SoundIoOsCond *cond,
 
     if (kevent(kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
         if (errno == EINTR)
-            return;
-        soundio_panic("kevent signal error: %s", strerror(errno));
+            return 0;
+        assert(0); // kevent signal error
     }
 #else
     if (locked_mutex) {
@@ -479,7 +469,7 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
     if (kevent(kq_id, &kev, 1, &out_kev, 1, &timeout) == -1) {
         if (errno == EINTR)
             return;
-        soundio_panic("kevent wait error: %s", strerror(errno));
+        assert(0); // kevent wait error
     }
 #else
     pthread_mutex_t *target_mutex;
@@ -531,7 +521,7 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
     if (kevent(kq_id, &kev, 1, &out_kev, 1, NULL) == -1) {
         if (errno == EINTR)
             return;
-        soundio_panic("kevent wait error: %s", strerror(errno));
+        assert(0); // kevent wait error
     }
 #else
     pthread_mutex_t *target_mutex;
@@ -551,11 +541,11 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
 #endif
 }
 
-static void internal_init(void) {
+static int internal_init(void) {
 #if defined(SOUNDIO_OS_KQUEUE)
     kq_id = kqueue();
     if (kq_id == -1)
-        soundio_panic("unable to create kqueue: %s", strerror(errno));
+        return SoundIoErrorSystemResources;
     next_notify_ident.store(1);
 #endif
 #if defined(SOUNDIO_OS_WINDOWS)
@@ -563,42 +553,49 @@ static void internal_init(void) {
     if (QueryPerformanceFrequency((LARGE_INTEGER*) &frequency)) {
         win32_time_resolution = 1.0 / (double) frequency;
     } else {
-        win32_panic("unable to initialize high precision timer: %s");
+        return SoundIoErrorSystemResources;
     }
     GetSystemInfo(&win32_system_info);
     page_size = win32_system_info.dwAllocationGranularity;
 #else
     page_size = getpagesize();
 #endif
+    return 0;
 }
 
-void soundio_os_init(void) {
+int soundio_os_init(void) {
+    int err;
 #if defined(SOUNDIO_OS_WINDOWS)
     PVOID lpContext;
     BOOL pending;
 
     if (!InitOnceBeginInitialize(&win32_init_once, INIT_ONCE_ASYNC, &pending, &lpContext))
-      win32_panic("InitOnceBeginInitialize failed: %s");
+        return SoundIoErrorSystemResources;
 
     if (!pending)
-        return;
+        return 0;
 
-    internal_init();
+    if ((err = internal_init()))
+        return err;
 
     if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, nullptr))
-        win32_panic("InitOnceComplete failed: %s");
+        return SoundIoErrorSystemResources;
 #else
     if (initialized.load())
-        return;
+        return 0;
+
     assert_no_err(pthread_mutex_lock(&init_mutex));
     if (initialized.load()) {
         assert_no_err(pthread_mutex_unlock(&init_mutex));
-        return;
+        return 0;
     }
     initialized.store(true);
-    internal_init();
+    if ((err = internal_init()))
+        return err;
     assert_no_err(pthread_mutex_unlock(&init_mutex));
 #endif
+
+    return 0;
 }
 
 int soundio_os_page_size(void) {

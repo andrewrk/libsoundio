@@ -73,7 +73,8 @@ static snd_pcm_stream_t purpose_to_stream(SoundIoDevicePurpose purpose) {
         case SoundIoDevicePurposeOutput: return SND_PCM_STREAM_PLAYBACK;
         case SoundIoDevicePurposeInput: return SND_PCM_STREAM_CAPTURE;
     }
-    soundio_panic("invalid purpose");
+    assert(0); // Invalid purpose
+    return SND_PCM_STREAM_PLAYBACK;
 }
 
 static SoundIoChannelId from_alsa_chmap_pos(unsigned int pos) {
@@ -507,11 +508,10 @@ static int refresh_devices(SoundIoPrivate *si) {
             if (strcmp(io, "Input") == 0) {
                 is_playback = false;
                 is_capture = true;
-            } else if (strcmp(io, "Output") == 0) {
+            } else {
+                assert(strcmp(io, "Output") == 0);
                 is_playback = true;
                 is_capture = false;
-            } else {
-                soundio_panic("invalid io hint value");
             }
             free(io);
         } else {
@@ -706,6 +706,15 @@ static int refresh_devices(SoundIoPrivate *si) {
     return 0;
 }
 
+static void shutdown_backend(SoundIoPrivate *si, int err) {
+    SoundIo *soundio = &si->pub;
+    SoundIoAlsa *sia = &si->backend_data.alsa;
+    soundio_os_mutex_lock(sia->mutex);
+    sia->shutdown_err = err;
+    soundio->on_events_signal(soundio);
+    soundio_os_mutex_unlock(sia->mutex);
+}
+
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
     SoundIoAlsa *sia = &si->backend_data.alsa;
@@ -737,7 +746,9 @@ static void device_thread_run(void *arg) {
             assert(errno != EFAULT);
             assert(errno != EINVAL);
             assert(errno == ENOMEM);
-            soundio_panic("kernel ran out of polling memory");
+            // Kernel ran out of polling memory.
+            shutdown_backend(si, SoundIoErrorSystemResources);
+            return;
         }
         if (poll_num <= 0)
             continue;
@@ -794,8 +805,10 @@ static void device_thread_run(void *arg) {
             }
         }
         if (got_rescan_event) {
-            if ((err = refresh_devices(si)))
-                soundio_panic("error refreshing devices: %s", soundio_strerror(err));
+            if ((err = refresh_devices(si))) {
+                shutdown_backend(si, err);
+                return;
+            }
         }
     }
 }
@@ -815,11 +828,15 @@ static void flush_events(SoundIoPrivate *si) {
     block_until_have_devices(sia);
 
     bool change = false;
+    bool cb_shutdown = false;
     SoundIoDevicesInfo *old_devices_info = nullptr;
 
     soundio_os_mutex_lock(sia->mutex);
 
-    if (sia->ready_devices_info) {
+    if (sia->shutdown_err && !sia->emitted_shutdown_cb) {
+        sia->emitted_shutdown_cb = true;
+        cb_shutdown = true;
+    } else if (sia->ready_devices_info) {
         old_devices_info = si->safe_devices_info;
         si->safe_devices_info = sia->ready_devices_info;
         sia->ready_devices_info = nullptr;
@@ -828,7 +845,9 @@ static void flush_events(SoundIoPrivate *si) {
 
     soundio_os_mutex_unlock(sia->mutex);
 
-    if (change)
+    if (cb_shutdown)
+        soundio->on_backend_disconnect(soundio, sia->shutdown_err);
+    else if (change)
         soundio->on_devices_change(soundio);
 
     soundio_destroy_devices_info(old_devices_info);

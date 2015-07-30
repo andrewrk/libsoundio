@@ -22,15 +22,15 @@ static void subscribe_callback(pa_context *context,
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
 
-static void subscribe_to_events(SoundIoPrivate *si) {
+static int subscribe_to_events(SoundIoPrivate *si) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_subscription_mask_t events = (pa_subscription_mask_t)(
             PA_SUBSCRIPTION_MASK_SINK|PA_SUBSCRIPTION_MASK_SOURCE|PA_SUBSCRIPTION_MASK_SERVER);
-    pa_operation *subscribe_op = pa_context_subscribe(sipa->pulse_context,
-            events, nullptr, si);
+    pa_operation *subscribe_op = pa_context_subscribe(sipa->pulse_context, events, nullptr, si);
     if (!subscribe_op)
-        soundio_panic("pa_context_subscribe failed: %s", pa_strerror(pa_context_errno(sipa->pulse_context)));
+        return SoundIoErrorNoMem;
     pa_operation_unref(subscribe_op);
+    return 0;
 }
 
 static void context_state_callback(pa_context *context, void *userdata) {
@@ -47,8 +47,6 @@ static void context_state_callback(pa_context *context, void *userdata) {
     case PA_CONTEXT_SETTING_NAME: // The client is passing its application name to the daemon.
         return;
     case PA_CONTEXT_READY: // The connection is established, the context is ready to execute operations.
-        sipa->device_scan_queued = true;
-        subscribe_to_events(si);
         sipa->ready_flag = true;
         pa_threaded_mainloop_signal(sipa->main_loop, 0);
         return;
@@ -56,15 +54,10 @@ static void context_state_callback(pa_context *context, void *userdata) {
         pa_threaded_mainloop_signal(sipa->main_loop, 0);
         return;
     case PA_CONTEXT_FAILED: // The connection failed or was disconnected.
-        {
-            int err_number = pa_context_errno(context);
-            if (err_number == PA_ERR_CONNECTIONREFUSED) {
-                sipa->connection_refused = true;
-            } else {
-                soundio_panic("pulseaudio connect failure: %s", pa_strerror(pa_context_errno(context)));
-            }
-            return;
-        }
+        sipa->connection_err = SoundIoErrorInitAudioBackend;
+        sipa->ready_flag = true;
+        pa_threaded_mainloop_signal(sipa->main_loop, 0);
+        return;
     }
 }
 
@@ -135,8 +128,7 @@ static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     case PA_CHANNEL_POSITION_TOP_REAR_RIGHT: return SoundIoChannelIdTopBackRight;
     case PA_CHANNEL_POSITION_TOP_REAR_CENTER: return SoundIoChannelIdTopBackCenter;
 
-    default:
-        soundio_panic("cannot map pulseaudio channel to libsoundio");
+    default: return SoundIoChannelIdInvalid;
     }
 }
 
@@ -184,6 +176,8 @@ static int set_all_device_formats(SoundIoDevice *device) {
 }
 
 static int perform_operation(SoundIoPrivate *si, pa_operation *op) {
+    if (!op)
+        return SoundIoErrorNoMem;
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     for (;;) {
         switch (pa_operation_get_state(op)) {
@@ -195,7 +189,7 @@ static int perform_operation(SoundIoPrivate *si, pa_operation *op) {
             return 0;
         case PA_OPERATION_CANCELLED:
             pa_operation_unref(op);
-            return -1;
+            return SoundIoErrorInterrupted;
         }
     }
 }
@@ -208,6 +202,11 @@ static void finish_device_query(SoundIoPrivate *si) {
         !sipa->have_source_list ||
         !sipa->have_default_sink)
     {
+        return;
+    }
+
+    if (sipa->device_query_err) {
+        sipa->device_scan_queued.store(true);
         return;
     }
 
@@ -255,18 +254,25 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
     if (eol) {
         sipa->have_sink_list = true;
         finish_device_query(si);
-    } else {
+    } else if (!sipa->device_query_err) {
         SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
-        if (!dev)
-            soundio_panic("out of memory");
+        if (!dev) {
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
         SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup(info->name);
         device->description = strdup(info->description);
-        if (!device->name || !device->description)
-            soundio_panic("out of memory");
+        if (!device->name || !device->description) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         device->sample_rate_current = info->sample_spec.rate;
         // PulseAudio performs resampling, so any value is valid. Let's pick
@@ -277,13 +283,21 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         device->current_format = from_pulseaudio_format(info->sample_spec);
         // PulseAudio performs sample format conversion, so any PulseAudio
         // value is valid.
-        if ((err = set_all_device_formats(device)))
-            soundio_panic("out of memory");
+        if ((err = set_all_device_formats(device))) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         set_from_pulseaudio_channel_map(info->channel_map, &device->current_layout);
         // PulseAudio does channel layout remapping, so any channel layout is valid.
-        if ((err = set_all_device_channel_layouts(device)))
-            soundio_panic("out of memory");
+        if ((err = set_all_device_channel_layouts(device))) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         device->buffer_duration_min = 0.10;
         device->buffer_duration_max = 4.0;
@@ -292,8 +306,12 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
 
         device->purpose = SoundIoDevicePurposeOutput;
 
-        if (sipa->current_devices_info->output_devices.append(device))
-            soundio_panic("out of memory");
+        if (sipa->current_devices_info->output_devices.append(device)) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
     }
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
@@ -306,18 +324,25 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
     if (eol) {
         sipa->have_source_list = true;
         finish_device_query(si);
-    } else {
+    } else if (!sipa->device_query_err) {
         SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
-        if (!dev)
-            soundio_panic("out of memory");
+        if (!dev) {
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
         SoundIoDevice *device = &dev->pub;
 
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup(info->name);
         device->description = strdup(info->description);
-        if (!device->name || !device->description)
-            soundio_panic("out of memory");
+        if (!device->name || !device->description) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         device->sample_rate_current = info->sample_spec.rate;
         // PulseAudio performs resampling, so any value is valid. Let's pick
@@ -328,24 +353,35 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         device->current_format = from_pulseaudio_format(info->sample_spec);
         // PulseAudio performs sample format conversion, so any PulseAudio
         // value is valid.
-        if ((err = set_all_device_formats(device)))
-            soundio_panic("out of memory");
+        if ((err = set_all_device_formats(device))) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         set_from_pulseaudio_channel_map(info->channel_map, &device->current_layout);
         // PulseAudio does channel layout remapping, so any channel layout is valid.
-        if ((err = set_all_device_channel_layouts(device)))
-            soundio_panic("out of memory");
+        if ((err = set_all_device_channel_layouts(device))) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
 
         device->buffer_duration_min = 0.10;
         device->buffer_duration_max = 4.0;
-        device->buffer_duration_current = -1.0;
 
         // "period" is not a recognized concept in PulseAudio.
 
         device->purpose = SoundIoDevicePurposeInput;
 
-        if (sipa->current_devices_info->input_devices.append(device))
-            soundio_panic("out of memory");
+        if (sipa->current_devices_info->input_devices.append(device)) {
+            soundio_device_unref(device);
+            sipa->device_query_err = SoundIoErrorNoMem;
+            pa_threaded_mainloop_signal(sipa->main_loop, 0);
+            return;
+        }
     }
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
@@ -361,15 +397,18 @@ static void server_info_callback(pa_context *pulse_context, const pa_server_info
     sipa->default_sink_name = strdup(info->default_sink_name);
     sipa->default_source_name = strdup(info->default_source_name);
 
-    if (!sipa->default_sink_name || !sipa->default_source_name)
-        soundio_panic("out of memory");
+    if (!sipa->default_sink_name || !sipa->default_source_name) {
+        free(sipa->default_sink_name);
+        free(sipa->default_source_name);
+        sipa->device_query_err = SoundIoErrorNoMem;
+    }
 
     sipa->have_default_sink = true;
     finish_device_query(si);
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
 
-static void scan_devices(SoundIoPrivate *si) {
+static int scan_devices(SoundIoPrivate *si) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     sipa->have_sink_list = false;
@@ -379,27 +418,32 @@ static void scan_devices(SoundIoPrivate *si) {
     soundio_destroy_devices_info(sipa->current_devices_info);
     sipa->current_devices_info = create<SoundIoDevicesInfo>();
     if (!sipa->current_devices_info)
-        soundio_panic("out of memory");
+        return SoundIoErrorNoMem;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_operation *list_sink_op = pa_context_get_sink_info_list(sipa->pulse_context,
-            sink_info_callback, si);
-    pa_operation *list_source_op = pa_context_get_source_info_list(sipa->pulse_context,
-            source_info_callback, si);
-    pa_operation *server_info_op = pa_context_get_server_info(sipa->pulse_context,
-            server_info_callback, si);
+    pa_operation *list_sink_op = pa_context_get_sink_info_list(sipa->pulse_context, sink_info_callback, si);
+    pa_operation *list_source_op = pa_context_get_source_info_list(sipa->pulse_context, source_info_callback, si);
+    pa_operation *server_info_op = pa_context_get_server_info(sipa->pulse_context, server_info_callback, si);
 
-    if (perform_operation(si, list_sink_op))
-        soundio_panic("list sinks failed");
-    if (perform_operation(si, list_source_op))
-        soundio_panic("list sources failed");
-    if (perform_operation(si, server_info_op))
-        soundio_panic("get server info failed");
+    int err;
+    if ((err = perform_operation(si, list_sink_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
+    if ((err = perform_operation(si, list_source_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
+    if ((err = perform_operation(si, server_info_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
 
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
-
     pa_threaded_mainloop_unlock(sipa->main_loop);
+
+    return 0;
 }
 
 static void block_until_have_devices(SoundIoPrivate *si) {
@@ -426,13 +470,13 @@ static void block_until_ready(SoundIoPrivate *si) {
 
 static void flush_events(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
-    block_until_ready(si);
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
+    int err;
     if (sipa->device_scan_queued) {
-        sipa->device_scan_queued = false;
-        scan_devices(si);
+        if (!(err = scan_devices(si)))
+            sipa->device_scan_queued = false;
     }
 
     SoundIoDevicesInfo *old_devices_info = nullptr;
@@ -544,8 +588,7 @@ static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *chan
     pa_channel_map channel_map;
     channel_map.channels = channel_layout->channel_count;
 
-    if ((unsigned)channel_layout->channel_count > PA_CHANNELS_MAX)
-        soundio_panic("channel layout greater than pulseaudio max channels");
+    assert((unsigned)channel_layout->channel_count <= PA_CHANNELS_MAX);
 
     for (int i = 0; i < channel_layout->channel_count; i += 1)
         channel_map.map[i] = to_pulseaudio_channel_pos(channel_layout->channels[i]);
@@ -570,7 +613,7 @@ static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
-            soundio_panic("pulseaudio stream error: %s", pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            outstream->error_callback(outstream, SoundIoErrorStreaming);
             break;
     }
 }
@@ -610,6 +653,11 @@ static void outstream_destroy_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os
 static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     SoundIoOutStream *outstream = &os->pub;
+
+    if (outstream->layout.channel_count > SOUNDIO_MAX_CHANNELS)
+        return SoundIoErrorInvalid;
+    if ((unsigned)outstream->layout.channel_count > PA_CHANNELS_MAX)
+        return SoundIoErrorIncompatibleBackend;
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     ospa->stream_ready = false;
@@ -771,8 +819,7 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
-            soundio_panic("pulseaudio stream error: %s",
-                    pa_strerror(pa_context_errno(pa_stream_get_context(stream))));
+            instream->error_callback(instream, SoundIoErrorStreaming);
             break;
     }
 }
@@ -807,6 +854,11 @@ static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) 
 static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     SoundIoInStream *instream = &is->pub;
+
+    if (instream->layout.channel_count > SOUNDIO_MAX_CHANNELS)
+        return SoundIoErrorInvalid;
+    if ((unsigned)instream->layout.channel_count > PA_CHANNELS_MAX)
+        return SoundIoErrorIncompatibleBackend;
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     ispa->stream_ready = false;
@@ -949,10 +1001,9 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
-    sipa->connection_refused = false;
-    sipa->device_scan_queued = false;
-    sipa->ready_flag = false;
-    sipa->have_devices_flag = false;
+    sipa->device_scan_queued.store(false);
+    sipa->ready_flag.store(false);
+    sipa->have_devices_flag.store(false);
 
     sipa->main_loop = pa_threaded_mainloop_new();
     if (!sipa->main_loop) {
@@ -983,14 +1034,22 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
         return SoundIoErrorInitAudioBackend;
     }
 
-    if (sipa->connection_refused) {
-        destroy_pa(si);
-        return SoundIoErrorInitAudioBackend;
-    }
-
     if (pa_threaded_mainloop_start(sipa->main_loop)) {
         destroy_pa(si);
         return SoundIoErrorNoMem;
+    }
+
+    block_until_ready(si);
+
+    if (sipa->connection_err) {
+        destroy_pa(si);
+        return sipa->connection_err;
+    }
+
+    sipa->device_scan_queued.store(true);
+    if ((err = subscribe_to_events(si))) {
+        destroy_pa(si);
+        return err;
     }
 
     si->destroy = destroy_pa;

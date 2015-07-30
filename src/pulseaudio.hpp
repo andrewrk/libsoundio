@@ -20,7 +20,7 @@ struct SoundIoDevicePulseAudio {
 };
 
 struct SoundIoPulseAudio {
-    bool connection_refused;
+    int connection_err;
 
     pa_context *pulse_context;
     atomic_bool device_scan_queued;
@@ -33,6 +33,7 @@ struct SoundIoPulseAudio {
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
 
+    int device_query_err;
     bool have_sink_list;
     bool have_source_list;
     bool have_default_sink;

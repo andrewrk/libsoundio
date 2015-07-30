@@ -213,7 +213,7 @@ struct SoundIo {
     // and opening streams will always fail with
     // SoundIoErrorBackendDisconnected. This callback is only called during a
     // call to soundio_flush_events or soundio_wait_events.
-    void (*on_backend_disconnect)(struct SoundIo *);
+    void (*on_backend_disconnect)(struct SoundIo *, int err);
     // Optional callback. Called from an unknown thread that you should not use
     // to call any soundio functions. You may use this to signal a condition
     // variable to wake up. Called when soundio_wait_events would be woken up.
@@ -287,9 +287,12 @@ struct SoundIoDevice {
     int sample_rate_max;
     int sample_rate_current;
 
-    // Buffer duration in seconds. If any values are unknown, they are set to
-    // 0.0. These values are unknown for PulseAudio. For JACK, buffer duration
-    // and period duration are the same.
+    // Buffer duration in seconds. If `buffer_duration_current` is unknown or
+    // irrelevant, it is set to 0.0.
+    // PulseAudio allows any value and so reasonable min/max of 0.10 and 4.0
+    // are used. You may check that the current backend is PulseAudio and
+    // ignore these min/max values.
+    // For JACK, buffer duration and period duration are the same.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;
@@ -561,6 +564,7 @@ void soundio_sort_channel_layouts(struct SoundIoChannelLayout *layouts, int layo
 
 // Sample Formats
 
+// Returns -1 on invalid format.
 int soundio_get_bytes_per_sample(enum SoundIoFormat format);
 
 static inline int soundio_get_bytes_per_frame(enum SoundIoFormat format, int channel_count) {

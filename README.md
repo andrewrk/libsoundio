@@ -245,7 +245,6 @@ view `coverage/index.html` in a browser.
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
  0. Integrate into libgroove and test with Groove Basin
- 0. Avoid calling `soundio_panic` in PulseAudio.
  0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
  0. clear buffer maybe could take an argument to say how many frames to not clear
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
@@ -257,6 +256,8 @@ view `coverage/index.html` in a browser.
     callback be a callback that just provides silence. Once
     `soundio_outstream_start` is called, switch to the real callback, then call
     `pa_stream_flush`, then uncork the stream.
+ 0. API: devices should reference to their "other" device when the same
+    hardware has input and output. This is important due to clock timing.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
  0. Create a test for underflow handling. It just makes a sine wave for 5
