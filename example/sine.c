@@ -30,7 +30,6 @@ static int usage(char *exe) {
     return 1;
 }
 
-
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
@@ -61,8 +60,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_end_write(outstream, frame_count)))
+        if ((err = soundio_outstream_end_write(outstream, frame_count))) {
+            if (err == SoundIoErrorUnderflow)
+                return;
             panic("%s", soundio_strerror(err));
+        }
 
         requested_frame_count -= frame_count;
         if (requested_frame_count <= 0)

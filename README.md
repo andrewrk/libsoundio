@@ -241,10 +241,10 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. Integrate into libgroove and test with Groove Basin
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
+ 0. Integrate into libgroove and test with Groove Basin
  0. Avoid calling `soundio_panic` in PulseAudio.
  0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
  0. clear buffer maybe could take an argument to say how many frames to not clear
@@ -259,6 +259,8 @@ view `coverage/index.html` in a browser.
     `pa_stream_flush`, then uncork the stream.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
+ 0. Create a test for underflow handling. It just makes a sine wave for 5
+    seconds, then on next audio callback, sleep for 2 seconds.
  0. Create a test for pausing and resuming input and output streams.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when

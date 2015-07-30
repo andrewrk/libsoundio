@@ -867,7 +867,7 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     deallocate(osa->sample_buffer, osa->sample_buffer_size);
 }
 
-static int xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
+static int os_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     if (err == -EPIPE) {
@@ -950,11 +950,13 @@ void outstream_thread_run(void *arg) {
         snd_pcm_state_t state = snd_pcm_state(osa->handle);
         switch (state) {
             case SND_PCM_STATE_SETUP:
+            {
                 if ((err = snd_pcm_prepare(osa->handle)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
+            }
             case SND_PCM_STATE_PREPARED:
             {
                 if ((err = snd_pcm_start(osa->handle)) < 0) {
@@ -976,7 +978,7 @@ void outstream_thread_run(void *arg) {
 
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
                 if (avail < 0) {
-                    if ((err = xrun_recovery(os, avail)) < 0) {
+                    if ((err = os_xrun_recovery(os, avail)) < 0) {
                         outstream->error_callback(outstream, SoundIoErrorStreaming);
                         return;
                     }
@@ -987,13 +989,13 @@ void outstream_thread_run(void *arg) {
                 continue;
             }
             case SND_PCM_STATE_XRUN:
-                if ((err = xrun_recovery(os, -EPIPE)) < 0) {
+                if ((err = os_xrun_recovery(os, -EPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
             case SND_PCM_STATE_SUSPENDED:
-                if ((err = xrun_recovery(os, -ESTRPIPE)) < 0) {
+                if ((err = os_xrun_recovery(os, -ESTRPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
@@ -1240,20 +1242,11 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 }
 
 static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
 
     assert(!osa->thread);
 
-    // Give the API user a chance to fill the buffer before playback commences.
-    snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
     int err;
-    if (avail < 0) {
-        if ((err = xrun_recovery(os, avail)) < 0)
-            return SoundIoErrorStreaming;
-    }
-    outstream->write_callback(outstream, avail);
-
     osa->thread_exit_flag.test_and_set();
     if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osa->thread)))
         return err;
@@ -1288,7 +1281,9 @@ int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
         int err;
 
         if ((err = snd_pcm_mmap_begin(osa->handle, &areas, &osa->offset, &frames)) < 0) {
-            if ((err = xrun_recovery(os, err)) < 0)
+            if (err == -EPIPE || err == -ESTRPIPE)
+                return SoundIoErrorUnderflow;
+            else
                 return SoundIoErrorStreaming;
         }
 
@@ -1326,7 +1321,9 @@ static int outstream_end_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate 
 
     if (commitres < 0 || commitres != frame_count) {
         int err = (commitres >= 0) ? -EPIPE : commitres;
-        if ((err = xrun_recovery(os, err)) < 0)
+        if (err == -EPIPE || err == -ESTRPIPE)
+            return SoundIoErrorUnderflow;
+        else
             return SoundIoErrorStreaming;
     }
 

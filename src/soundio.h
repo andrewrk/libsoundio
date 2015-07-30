@@ -30,6 +30,7 @@ enum SoundIoError {
     SoundIoErrorIncompatibleBackend,
     SoundIoErrorBackendDisconnected,
     SoundIoErrorInterrupted,
+    SoundIoErrorUnderflow,
 };
 
 enum SoundIoChannelId {
@@ -653,6 +654,7 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
 
 // Commits the write that you began with `soundio_outstream_begin_write`.
 // You must call this function only from the `write_callback` thread context.
+// This function might return `SoundIoErrorUnderflow` but don't count on it.
 int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_count);
 
 // Clears the output stream buffer.

@@ -61,6 +61,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorIncompatibleBackend: return "incompatible backend";
         case SoundIoErrorBackendDisconnected: return "backend disconnected";
         case SoundIoErrorInterrupted: return "interrupted; try again";
+        case SoundIoErrorUnderflow: return "buffer underflow";
     }
     soundio_panic("invalid error enum value: %d", error);
 }
