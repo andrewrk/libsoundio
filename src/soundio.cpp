@@ -359,8 +359,6 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
     outstream->error_callback = default_outstream_error_callback;
     outstream->underflow_callback = default_underflow_callback;
 
-    outstream->prebuf_duration = -1.0;
-
     return outstream;
 }
 

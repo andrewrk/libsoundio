@@ -17,15 +17,12 @@ static void playback_thread_run(void *arg) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
 
-    double start_time = soundio_os_get_time();
-    osd->playback_start_time = start_time;
-    osd->frames_consumed = 0;
     int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
     int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
-    int fill_frames = fill_bytes / outstream->bytes_per_frame;
     int free_frames = free_bytes / outstream->bytes_per_frame;
-    osd->prebuf_frames_left = osd->prebuf_frame_count - fill_frames;
     outstream->write_callback(outstream, free_frames);
+    double start_time = soundio_os_get_time();
+    long frames_consumed = 0;
 
     while (osd->abort_flag.test_and_set()) {
         double now = soundio_os_get_time();
@@ -39,22 +36,20 @@ static void playback_thread_run(void *arg) {
         int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
         int fill_frames = fill_bytes / outstream->bytes_per_frame;
         int free_frames = free_bytes / outstream->bytes_per_frame;
-        if (osd->prebuf_frames_left > 0) {
-            outstream->write_callback(outstream, free_frames);
-            continue;
-        }
 
-        double total_time = soundio_os_get_time() - osd->playback_start_time;
+        double total_time = soundio_os_get_time() - start_time;
         long total_frames = total_time * outstream->sample_rate;
-        int frames_to_kill = total_frames - osd->frames_consumed;
+        int frames_to_kill = total_frames - frames_consumed;
         int read_count = min(frames_to_kill, fill_frames);
         int byte_count = read_count * outstream->bytes_per_frame;
         soundio_ring_buffer_advance_read_ptr(&osd->ring_buffer, byte_count);
-        osd->frames_consumed += read_count;
+        frames_consumed += read_count;
 
-        if (frames_to_kill > read_count) {
-            osd->prebuf_frames_left = osd->prebuf_frame_count;
+        if (frames_to_kill > fill_frames) {
             outstream->underflow_callback(outstream);
+            outstream->write_callback(outstream, free_frames);
+            frames_consumed = 0;
+            start_time = soundio_os_get_time();
         } else if (free_frames > 0) {
             outstream->write_callback(outstream, free_frames);
         }
@@ -70,26 +65,33 @@ static void capture_thread_run(void *arg) {
     double start_time = soundio_os_get_time();
     while (isd->abort_flag.test_and_set()) {
         double now = soundio_os_get_time();
-        double total_time = now - start_time;
-        long total_frames = total_time * instream->sample_rate;
-        int frames_to_kill = total_frames - frames_consumed;
-        int free_bytes = soundio_ring_buffer_free_count(&isd->ring_buffer);
-        int free_frames = free_bytes / instream->bytes_per_frame;
-        int write_count = min(frames_to_kill, free_frames);
-        int frames_left = max(frames_to_kill - write_count, 0);
-        int byte_count = write_count * instream->bytes_per_frame;
-        soundio_ring_buffer_advance_write_ptr(&isd->ring_buffer, byte_count);
-        frames_consumed += write_count;
-
-        isd->hole_size += frames_left;
-        if (write_count > 0)
-            instream->read_callback(instream, write_count);
-        now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
             ceil(time_passed / instream->period_duration) * instream->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(isd->cond, nullptr, relative_time);
+
+        int fill_bytes = soundio_ring_buffer_fill_count(&isd->ring_buffer);
+        int free_bytes = soundio_ring_buffer_capacity(&isd->ring_buffer) - fill_bytes;
+        int fill_frames = fill_bytes / instream->bytes_per_frame;
+        int free_frames = free_bytes / instream->bytes_per_frame;
+
+        double total_time = soundio_os_get_time() - start_time;
+        long total_frames = total_time * instream->sample_rate;
+        int frames_to_kill = total_frames - frames_consumed;
+        int write_count = min(frames_to_kill, free_frames);
+        int byte_count = write_count * instream->bytes_per_frame;
+        soundio_ring_buffer_advance_write_ptr(&isd->ring_buffer, byte_count);
+        frames_consumed += write_count;
+
+        if (frames_to_kill > free_frames) {
+            // TODO overflow callback
+            frames_consumed = 0;
+            start_time = soundio_os_get_time();
+        }
+        if (fill_frames > 0) {
+            instream->read_callback(instream, fill_frames);
+        }
     }
 }
 
@@ -160,11 +162,6 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     osd->buffer_frame_count = actual_capacity / outstream->bytes_per_frame;
     outstream->buffer_duration = osd->buffer_frame_count / (double) outstream->sample_rate;
 
-    if (outstream->prebuf_duration == -1.0)
-        outstream->prebuf_duration = outstream->buffer_duration;
-    outstream->prebuf_duration = min(outstream->prebuf_duration, outstream->buffer_duration);
-    osd->prebuf_frame_count = ceil(outstream->prebuf_duration * (double) outstream->sample_rate);
-
     osd->cond = soundio_os_cond_create();
     if (!osd->cond) {
         outstream_destroy_dummy(si, os);
@@ -231,20 +228,12 @@ static int outstream_end_write_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate
     SoundIoOutStream *outstream = &os->pub;
     int byte_count = frame_count * outstream->bytes_per_frame;
     soundio_ring_buffer_advance_write_ptr(&osd->ring_buffer, byte_count);
-    if (osd->prebuf_frames_left > 0) {
-        osd->prebuf_frames_left -= frame_count;
-        if (osd->prebuf_frames_left <= 0) {
-            osd->playback_start_time = soundio_os_get_time();
-            osd->frames_consumed = 0;
-        }
-    }
     return 0;
 }
 
 static int outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
     soundio_ring_buffer_clear(&osd->ring_buffer);
-    osd->prebuf_frames_left = osd->prebuf_frame_count;
     return 0;
 }
 
@@ -329,13 +318,6 @@ static int instream_begin_read_dummy(SoundIoPrivate *si,
     assert(*frame_count >= 0);
     assert(*frame_count <= isd->buffer_frame_count);
 
-    if (isd->hole_size > 0) {
-        *out_areas = nullptr;
-        isd->read_frame_count = min(isd->hole_size, *frame_count);
-        *frame_count = isd->read_frame_count;
-        return 0;
-    }
-
     int fill_byte_count = soundio_ring_buffer_fill_count(&isd->ring_buffer);
     int fill_frame_count = fill_byte_count / instream->bytes_per_frame;
     isd->read_frame_count = min(*frame_count, fill_frame_count);
@@ -357,14 +339,8 @@ static int instream_begin_read_dummy(SoundIoPrivate *si,
 static int instream_end_read_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamDummy *isd = &is->backend_data.dummy;
     SoundIoInStream *instream = &is->pub;
-
-    if (isd->hole_size > 0) {
-        isd->hole_size -= isd->read_frame_count;
-        return 0;
-    }
-
     int byte_count = isd->read_frame_count * instream->bytes_per_frame;
-    soundio_ring_buffer_advance_write_ptr(&isd->ring_buffer, byte_count);
+    soundio_ring_buffer_advance_read_ptr(&isd->ring_buffer, byte_count);
     return 0;
 }
 
@@ -493,7 +469,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         device->ref_count = 1;
         device->soundio = soundio;
         device->name = strdup("dummy-in");
-        device->description = strdup("Dummy input device");
+        device->description = strdup("Dummy Input Device");
         if (!device->name || !device->description) {
             soundio_device_unref(device);
             destroy_dummy(si);

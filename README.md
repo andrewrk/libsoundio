@@ -20,10 +20,10 @@ behavior on every platform.
 ## Features and Limitations
 
  * Supported backends:
+   - [JACK](http://jackaudio.org/)
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
    - Dummy (silence)
-   - [JACK](http://jackaudio.org/)
    - (planned) [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - (planned) [ASIO](http://www.asio4all.com/)
@@ -245,19 +245,15 @@ view `coverage/index.html` in a browser.
  0. implement CoreAudio (OSX) backend, get examples working
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
- 0. JACK: implement prebuffering ...or delete prebuffering as a concept
  0. Avoid calling `soundio_panic` in PulseAudio.
- 0. Figure out a way to test prebuf. I suspect prebuf not working for ALSA
-    which is why we have to pre-fill the ring buffer with silence for
-    the microphone example.
  0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
+ 0. clear buffer maybe could take an argument to say how many frames to not clear
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
- 0. Create a test for clearing the playback buffer and prebuffering.
  0. Create a test for pausing and resuming input and output streams.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
@@ -290,7 +286,6 @@ view `coverage/index.html` in a browser.
  0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
- 0. API to trigger playback even if prebuf condition isn't met yet.
  0. Consider testing on FreeBSD
 
 ## Planned Uses for libsoundio

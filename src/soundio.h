@@ -357,14 +357,6 @@ struct SoundIoOutStream {
     // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
     double period_duration;
 
-    // How many seconds need to be in the buffer before playback will commence.
-    // If a buffer underflow occurs, this prebuffering will be again enabled.
-    // This value defaults to being the same as `buffer_duration`.
-    // After you call `soundio_outstream_open` this value is replaced with the
-    // actual `prebuf_duration`, as near to this value as possible.
-    // JACK does not support prebuffering; `prebuf_duration` is effectively 0.
-    double prebuf_duration;
-
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
     // In this callback, you call `soundio_outstream_begin_write` and
@@ -619,12 +611,15 @@ bool soundio_device_supports_layout(struct SoundIoDevice *device,
 // Allocates memory and sets defaults. Next you should fill out the struct fields
 // and then call `soundio_outstream_open`.
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
-
-int soundio_outstream_open(struct SoundIoOutStream *outstream);
-
 // You may not call this function from the `write_callback` thread context.
 void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
+// After you call this function, `buffer_duration` and `period_duration` are
+// set to the correct values, if available.
+// The next thing to do is call `soundio_instream_start`.
+int soundio_outstream_open(struct SoundIoOutStream *outstream);
+
+// After you call this function, `write_callback` will be called.
 int soundio_outstream_start(struct SoundIoOutStream *outstream);
 
 // Call this function when you are ready to begin writing to the device buffer.
@@ -646,7 +641,7 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
 // You must call this function only from the `write_callback` thread context.
 int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_count);
 
-// Clears the output stream buffer and the stream goes into prebuffering mode.
+// Clears the output stream buffer.
 // You must call this function only from the `write_callback` thread context.
 int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
@@ -663,11 +658,15 @@ int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 // Allocates memory and sets defaults. Next you should fill out the struct fields
 // and then call `soundio_instream_open`.
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
-// You must not call this function from `read_callback`.
+// You may not call this function from `read_callback`.
 void soundio_instream_destroy(struct SoundIoInStream *instream);
 
+// After you call this function, `buffer_duration` and `period_duration` are
+// set to the correct values, if available.
+// The next thing to do is call `soundio_instream_start`.
 int soundio_instream_open(struct SoundIoInStream *instream);
 
+// After you call this function, `read_callback` will be called.
 int soundio_instream_start(struct SoundIoInStream *instream);
 
 // Call this function when you are ready to begin reading from the device

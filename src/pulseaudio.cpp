@@ -637,7 +637,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     ospa->buffer_attr.maxlength = UINT32_MAX;
     ospa->buffer_attr.tlength = UINT32_MAX;
-    ospa->buffer_attr.prebuf = UINT32_MAX;
+    ospa->buffer_attr.prebuf = 0;
     ospa->buffer_attr.minreq = UINT32_MAX;
     ospa->buffer_attr.fragsize = UINT32_MAX;
 
@@ -648,12 +648,6 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
         ospa->buffer_attr.maxlength = buffer_length;
         ospa->buffer_attr.tlength = buffer_length;
-    }
-    if (outstream->prebuf_duration >= 0.0) {
-        int prebuf_length = outstream->bytes_per_frame *
-            ceil(outstream->prebuf_duration * bytes_per_second / (double)outstream->bytes_per_frame);
-
-        ospa->buffer_attr.prebuf = prebuf_length;
     }
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
@@ -683,8 +677,6 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ospa->stream);
     outstream->buffer_duration = (attr->maxlength /
-        (double)outstream->bytes_per_frame) / (double)outstream->sample_rate;
-    outstream->prebuf_duration = (attr->prebuf /
         (double)outstream->bytes_per_frame) / (double)outstream->sample_rate;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
@@ -842,7 +834,7 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     ispa->buffer_attr.maxlength = UINT32_MAX;
     ispa->buffer_attr.tlength = UINT32_MAX;
-    ispa->buffer_attr.prebuf = UINT32_MAX;
+    ispa->buffer_attr.prebuf = 0;
     ispa->buffer_attr.minreq = UINT32_MAX;
     ispa->buffer_attr.fragsize = UINT32_MAX;
 

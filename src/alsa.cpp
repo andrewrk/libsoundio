@@ -1086,8 +1086,6 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         outstream->period_duration = clamp(device->period_duration_min,
                 outstream->buffer_duration / 2.0, device->period_duration_max);
     }
-    if (outstream->prebuf_duration == -1.0)
-        outstream->prebuf_duration = outstream->buffer_duration;
 
     int ch_count = outstream->layout.channel_count;
 
@@ -1196,8 +1194,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    snd_pcm_uframes_t prebuf_frames = ceil(outstream->prebuf_duration * (double)outstream->sample_rate);
-    if ((err = snd_pcm_sw_params_set_start_threshold(osa->handle, swparams, prebuf_frames)) < 0) {
+    if ((err = snd_pcm_sw_params_set_start_threshold(osa->handle, swparams, 0)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -1243,16 +1240,23 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 }
 
 static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+    SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
 
     assert(!osa->thread);
 
-    osa->thread_exit_flag.test_and_set();
+    // Give the API user a chance to fill the buffer before playback commences.
+    snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
     int err;
-    if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osa->thread))) {
-        outstream_destroy_alsa(si, os);
-        return err;
+    if (avail < 0) {
+        if ((err = xrun_recovery(os, avail)) < 0)
+            return SoundIoErrorStreaming;
     }
+    outstream->write_callback(outstream, avail);
+
+    osa->thread_exit_flag.test_and_set();
+    if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osa->thread)))
+        return err;
 
     return 0;
 }

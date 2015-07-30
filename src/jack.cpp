@@ -428,7 +428,6 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
 
     outstream->buffer_duration = 0.0;
     outstream->period_duration = device->period_duration_current;
-    outstream->prebuf_duration = 0.0;
     osj->period_size = sij->period_size;
 
     jack_status_t status;
@@ -573,8 +572,6 @@ static int outstream_end_write_jack(struct SoundIoPrivate *si, struct SoundIoOut
 }
 
 static int outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    // JACK does not support `prebuf` which is the same as a `prebuf` value of 0,
-    // which means that clearing the buffer is always successful and does nothing.
     return 0;
 }
 

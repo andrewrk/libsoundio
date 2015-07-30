@@ -61,7 +61,6 @@ static void read_callback(struct SoundIoInStream *instream, int available_frame_
     int write_count = min_int(available_frame_count, free_count);
     int frames_left = write_count;
 
-
     for (;;) {
         int frame_count = frames_left;
 
@@ -148,7 +147,7 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--in-device name] [--out-device name]\n", exe);
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack] [--in-device name] [--out-device name]\n", exe);
     return 1;
 }
 
@@ -165,6 +164,8 @@ int main(int argc, char **argv) {
             backend = SoundIoBackendAlsa;
         } else if (strcmp("--pulseaudio", arg) == 0) {
             backend = SoundIoBackendPulseAudio;
+        } else if (strcmp("--jack", arg) == 0) {
+            backend = SoundIoBackendJack;
         } else if (strcmp("--in-device", arg) == 0) {
             if (++i >= argc) {
                 return usage(exe);
@@ -290,7 +291,6 @@ int main(int argc, char **argv) {
     outstream->period_duration = 0.1;
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
-    outstream->prebuf_duration = 0.0;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));
