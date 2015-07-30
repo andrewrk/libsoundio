@@ -169,7 +169,6 @@ install(TARGETS libsoundio_static DESTINATION lib)
 
 install(FILES
     ${LIBSOUNDIO_HEADERS}
-    ${CONFIGURE_OUT_FILE}
     DESTINATION "include/soundio")
 
 # Example Programs
