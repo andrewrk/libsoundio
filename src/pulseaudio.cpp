@@ -838,8 +838,14 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     ispa->buffer_attr.minreq = UINT32_MAX;
     ispa->buffer_attr.fragsize = UINT32_MAX;
 
+    int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
+    if (instream->buffer_duration > 0.0) {
+        int buffer_length = instream->bytes_per_frame *
+            ceil(instream->buffer_duration * bytes_per_second / (double)instream->bytes_per_frame);
+        ispa->buffer_attr.maxlength = buffer_length;
+    }
+
     if (instream->period_duration > 0.0) {
-        int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
         int buffer_length = instream->bytes_per_frame *
             ceil(instream->period_duration * bytes_per_second / (double)instream->bytes_per_frame);
         ispa->buffer_attr.fragsize = buffer_length;
@@ -871,6 +877,8 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ispa->stream);
     instream->buffer_duration = (attr->maxlength /
+        (double)instream->bytes_per_frame) / (double)instream->sample_rate;
+    instream->period_duration = (attr->fragsize /
         (double)instream->bytes_per_frame) / (double)instream->sample_rate;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);

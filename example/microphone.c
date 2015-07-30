@@ -13,6 +13,8 @@
 #include <string.h>
 #include <math.h>
 
+static const double microphone_latency = 0.2; // seconds
+
 static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatFloat32NE,
     SoundIoFormatFloat32FE,
@@ -188,6 +190,9 @@ int main(int argc, char **argv) {
 
     int err = (backend == SoundIoBackendNone) ?
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
+    if (err)
+        panic("error connecting: %s", soundio_strerror(err));
+
 
     int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)
@@ -274,8 +279,7 @@ int main(int argc, char **argv) {
     instream->format = *fmt;
     instream->sample_rate = sample_rate;
     instream->layout = *layout;
-    instream->buffer_duration = 1.0;
-    instream->period_duration = 0.05;
+    instream->period_duration = microphone_latency / 4.0;
     instream->read_callback = read_callback;
 
     if ((err = soundio_instream_open(instream)))
@@ -287,20 +291,19 @@ int main(int argc, char **argv) {
     outstream->format = *fmt;
     outstream->sample_rate = sample_rate;
     outstream->layout = *layout;
-    outstream->buffer_duration = 0.2;
-    outstream->period_duration = 0.1;
+    outstream->buffer_duration = microphone_latency;
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
 
     if ((err = soundio_outstream_open(outstream)))
         panic("unable to open output stream: %s", soundio_strerror(err));
 
-    int capacity = fmax(1.0, instream->buffer_duration) * instream->sample_rate * instream->bytes_per_frame;
+    int capacity = microphone_latency * 2 * instream->sample_rate * instream->bytes_per_frame;
     ring_buffer = soundio_ring_buffer_create(soundio, capacity);
     if (!ring_buffer)
         panic("unable to create ring buffer: out of memory");
     char *buf = soundio_ring_buffer_write_ptr(ring_buffer);
-    int fill_count = 0.2 * outstream->sample_rate * outstream->bytes_per_frame;
+    int fill_count = microphone_latency * outstream->sample_rate * outstream->bytes_per_frame;
     memset(buf, 0, fill_count);
     soundio_ring_buffer_advance_write_ptr(ring_buffer, fill_count);
 

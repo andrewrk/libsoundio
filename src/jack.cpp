@@ -182,13 +182,10 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         SoundIoDevice *device = &dev->pub;
         SoundIoDeviceJack *dj = &dev->backend_data.jack;
         int description_len = client->name_len + 3 + 2 * client->port_count;
-        jack_nframes_t max_buffer_frames = 0;
         for (int port_index = 0; port_index < client->port_count; port_index += 1) {
             SoundIoJackPort *port = &client->ports[port_index];
 
             description_len += port->name_len;
-
-            max_buffer_frames = max(max_buffer_frames, port->latency_range.max);
         }
 
         dev->destruct = destruct_device;
@@ -210,9 +207,9 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->period_duration_min = sij->period_size / (double) sij->sample_rate;
         device->period_duration_max = device->period_duration_min;
         device->period_duration_current = device->period_duration_min;
-        device->buffer_duration_min = max_buffer_frames / (double) sij->sample_rate;
-        device->buffer_duration_max = device->buffer_duration_min;
-        device->buffer_duration_current = device->buffer_duration_min;
+        device->buffer_duration_min = device->period_duration_min;
+        device->buffer_duration_max = device->period_duration_min;
+        device->buffer_duration_current = device->period_duration_min;
         dj->port_count = client->port_count;
         dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
 

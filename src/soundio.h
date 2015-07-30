@@ -287,15 +287,16 @@ struct SoundIoDevice {
     int sample_rate_current;
 
     // Buffer duration in seconds. If any values are unknown, they are set to
-    // 0.0. These values are unknown for PulseAudio. These values are sometimes
-    // unknown for JACK.
+    // 0.0. These values are unknown for PulseAudio. For JACK, buffer duration
+    // and period duration are the same.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;
 
     // Period duration in seconds. After this much time passes, write_callback
     // is called. If values are unknown, they are set to 0.0. These values are
-    // unknown for PulseAudio.
+    // meaningless for PulseAudio. For JACK, buffer duration and period duration
+    // are the same.
     double period_duration_min;
     double period_duration_max;
     double period_duration_current;
@@ -338,13 +339,14 @@ struct SoundIoOutStream {
     struct SoundIoChannelLayout layout;
 
     // Buffer duration in seconds.
-    // After you call soundio_outstream_open this value is replaced with the
+    // After you call `soundio_outstream_open` this value is replaced with the
     // actual duration, as near to this value as possible.
     // Defaults to 1 second (and then clamped into range).
     // If the device has unknown buffer duration min and max values, you may
     // still set this. If you set this and the backend is PulseAudio, it
     // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength`
-    // and `tlength`.
+    // and `tlength`. With PulseAudio, this value is not replaced with the
+    // actual duration until `soundio_outstream_start`.
     double buffer_duration;
 
     // `period_duration` is the latency; how much time it takes
@@ -353,8 +355,7 @@ struct SoundIoOutStream {
     // actual period duration, as near to this value as possible.
     // Defaults to `buffer_duration / 2` (and then clamped into range).
     // If the device has unknown period duration min and max values, you may
-    // still set this. If you set this and the backend is PulseAudio, it
-    // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
+    // still set this. This value is meaningless for PulseAudio.
     double period_duration;
 
     // Defaults to NULL. Put whatever you want here.
@@ -413,14 +414,27 @@ struct SoundIoInStream {
     // Defaults to Stereo, if available, followed by the first layout supported.
     struct SoundIoChannelLayout layout;
 
-    // Buffer duration in seconds. If the captured audio frames exceeds this
-    // before they are read, a buffer overrun occurs and the frames are lost.
-    // Defaults to 1 second (and then clamped into range).
+    // Buffer duration in seconds.
+    // After you call `soundio_instream_open` this value is replaced with the
+    // actual duration, as near to this value as possible.
+    // If the captured audio frames exceeds this before they are read, a buffer
+    // overrun occurs and the frames are lost.
+    // Defaults to 1 second (and then clamped into range). For PulseAudio,
+    // defaults to PulseAudio's default value, usually large. If you set this
+    // and the backend is PulseAudio, it sets `PA_STREAM_ADJUST_LATENCY` and
+    // is the value used for `maxlength`. With PulseAudio, this value is not
+    // replaced with the actual duration until `soundio_instream_start`.
     double buffer_duration;
 
-    // The latency of the captured audio. After this many seconds pass,
-    // `read_callback` is called.
+    // The latency of the captured audio.
+    // After you call `soundio_instream_open` this value is replaced with the
+    // actual duration, as near to this value as possible.
+    // After this many seconds pass, `read_callback` is called.
     // Defaults to `buffer_duration / 8`.
+    // If you set this and the backend is PulseAudio, it sets
+    // `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
+    // With PulseAudio, this value is not replaced with the actual duration
+    // until `soundio_instream_start`.
     double period_duration;
 
     // Defaults to NULL. Put whatever you want here.

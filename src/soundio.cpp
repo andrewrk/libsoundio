@@ -193,6 +193,7 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
         soundio_disconnect(soundio);
         return err;
     }
+    soundio->current_backend = backend;
     return 0;
 }
 
@@ -229,11 +230,13 @@ void soundio_disconnect(struct SoundIo *soundio) {
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     si->flush_events(si);
 }
 
 int soundio_input_device_count(struct SoundIo *soundio) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -242,6 +245,7 @@ int soundio_input_device_count(struct SoundIo *soundio) {
 }
 
 int soundio_output_device_count(struct SoundIo *soundio) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -250,6 +254,7 @@ int soundio_output_device_count(struct SoundIo *soundio) {
 }
 
 int soundio_default_input_device_index(struct SoundIo *soundio) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -258,6 +263,7 @@ int soundio_default_input_device_index(struct SoundIo *soundio) {
 }
 
 int soundio_default_output_device_index(struct SoundIo *soundio) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
         soundio_flush_events(soundio);
@@ -266,6 +272,7 @@ int soundio_default_output_device_index(struct SoundIo *soundio) {
 }
 
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     assert(si->safe_devices_info);
     assert(index >= 0);
@@ -276,6 +283,7 @@ struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int inde
 }
 
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index) {
+    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     assert(si->safe_devices_info);
     assert(index >= 0);

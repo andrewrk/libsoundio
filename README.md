@@ -252,6 +252,11 @@ view `coverage/index.html` in a browser.
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
+ 0. In PulseAudio, to get buffer duration and period duration, fill the buffer
+    with silence before starting, start the stream corked, and have the
+    callback be a callback that just provides silence. Once
+    `soundio_outstream_start` is called, switch to the real callback, then call
+    `pa_stream_flush`, then uncork the stream.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Instead fo open(), start(), pause(), open() starts it and it starts paused.
  0. Create a test for pausing and resuming input and output streams.
