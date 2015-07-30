@@ -275,7 +275,6 @@ view `coverage/index.html` in a browser.
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
  0. Should pause/resume be callable from outside the callbacks?
- 0. device.name -> device.id, device.description -> device.name
  0. clean up API and improve documentation
     - make sure every function which can return an error documents which errors
       it can return

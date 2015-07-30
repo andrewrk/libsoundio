@@ -149,15 +149,15 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack] [--in-device name] [--out-device name]\n", exe);
+    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack] [--in-device id] [--out-device id]\n", exe);
     return 1;
 }
 
 int main(int argc, char **argv) {
     char *exe = argv[0];
     enum SoundIoBackend backend = SoundIoBackendNone;
-    char *in_device_name = NULL;
-    char *out_device_name = NULL;
+    char *in_device_id = NULL;
+    char *out_device_id = NULL;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (strcmp("--dummy", arg) == 0) {
@@ -172,13 +172,13 @@ int main(int argc, char **argv) {
             if (++i >= argc) {
                 return usage(exe);
             } else {
-                in_device_name = argv[i];
+                in_device_id = argv[i];
             }
         } else if (strcmp("--out-device", arg) == 0) {
             if (++i >= argc) {
                 return usage(exe);
             } else {
-                out_device_name = argv[i];
+                out_device_id = argv[i];
             }
         } else {
             return usage(exe);
@@ -203,11 +203,11 @@ int main(int argc, char **argv) {
         panic("no output device found");
 
     int in_device_index = default_in_device_index;
-    if (in_device_name) {
+    if (in_device_id) {
         bool found = false;
         for (int i = 0; i < soundio_input_device_count(soundio); i += 1) {
             struct SoundIoDevice *device = soundio_get_input_device(soundio, i);
-            if (strcmp(device->name, in_device_name) == 0) {
+            if (strcmp(device->id, in_device_id) == 0) {
                 in_device_index = i;
                 found = true;
                 soundio_device_unref(device);
@@ -216,15 +216,15 @@ int main(int argc, char **argv) {
             soundio_device_unref(device);
         }
         if (!found)
-            panic("invalid input device name: %s", in_device_name);
+            panic("invalid input device id: %s", in_device_id);
     }
 
     int out_device_index = default_out_device_index;
-    if (out_device_name) {
+    if (out_device_id) {
         bool found = false;
         for (int i = 0; i < soundio_output_device_count(soundio); i += 1) {
             struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
-            if (strcmp(device->name, out_device_name) == 0) {
+            if (strcmp(device->id, out_device_id) == 0) {
                 out_device_index = i;
                 found = true;
                 soundio_device_unref(device);
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
             soundio_device_unref(device);
         }
         if (!found)
-            panic("invalid output device name: %s", out_device_name);
+            panic("invalid output device id: %s", out_device_id);
     }
 
     struct SoundIoDevice *out_device = soundio_get_output_device(soundio, out_device_index);
@@ -244,8 +244,8 @@ int main(int argc, char **argv) {
     if (!in_device)
         panic("could not get input device: out of memory");
 
-    fprintf(stderr, "Input device: %s\n", in_device->description);
-    fprintf(stderr, "Output device: %s\n", out_device->description);
+    fprintf(stderr, "Input device: %s\n", in_device->name);
+    fprintf(stderr, "Output device: %s\n", out_device->name);
 
     soundio_device_sort_channel_layouts(out_device);
     const struct SoundIoChannelLayout *layout = soundio_best_matching_channel_layout(

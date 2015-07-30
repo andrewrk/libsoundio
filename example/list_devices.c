@@ -32,8 +32,8 @@ static void print_channel_layout(const struct SoundIoChannelLayout *layout) {
 static void print_device(struct SoundIoDevice *device, bool is_default) {
     const char *default_str = is_default ? " (default)" : "";
     const char *raw_str = device->is_raw ? " (raw)" : "";
-    fprintf(stderr, "%s%s%s\n", device->description, default_str, raw_str);
-    fprintf(stderr, "  name: %s\n", device->name);
+    fprintf(stderr, "%s%s%s\n", device->name, default_str, raw_str);
+    fprintf(stderr, "  id: %s\n", device->id);
 
     if (device->probe_error) {
         fprintf(stderr, "  probe error: %s\n", soundio_strerror(device->probe_error));

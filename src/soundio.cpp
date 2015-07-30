@@ -312,8 +312,8 @@ void soundio_device_unref(struct SoundIoDevice *device) {
         if (dev->destruct)
             dev->destruct(dev);
 
+        free(device->id);
         free(device->name);
-        free(device->description);
         deallocate(device->formats, device->format_count);
         deallocate(device->layouts, device->layout_count);
 

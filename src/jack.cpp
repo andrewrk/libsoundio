@@ -194,8 +194,8 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->soundio = soundio;
         device->is_raw = false;
         device->purpose = client->purpose;
-        device->name = dupe_str(client->name, client->name_len);
-        device->description = allocate<char>(description_len);
+        device->id = dupe_str(client->name, client->name_len);
+        device->name = allocate<char>(description_len);
         device->layout_count = 1;
         device->layouts = create<SoundIoChannelLayout>();
         device->format_count = 1;
@@ -213,7 +213,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         dj->port_count = client->port_count;
         dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
 
-        if (!device->name || !device->description || !device->layouts || !device->formats || !dj->ports) {
+        if (!device->id || !device->name || !device->layouts || !device->formats || !dj->ports) {
             jack_free(port_names);
             soundio_device_unref(device);
             destroy(devices_info);
@@ -235,15 +235,15 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             }
         }
 
-        memcpy(device->description, client->name, client->name_len);
-        memcpy(&device->description[client->name_len], ": ", 2);
+        memcpy(device->name, client->name, client->name_len);
+        memcpy(&device->name[client->name_len], ": ", 2);
         int index = client->name_len + 2;
         for (int port_index = 0; port_index < client->port_count; port_index += 1) {
             SoundIoJackPort *port = &client->ports[port_index];
-            memcpy(&device->description[index], port->name, port->name_len);
+            memcpy(&device->name[index], port->name, port->name_len);
             index += port->name_len;
             if (port_index + 1 < client->port_count) {
-                memcpy(&device->description[index], ", ", 2);
+                memcpy(&device->name[index], ", ", 2);
                 index += 2;
             }
         }

@@ -221,7 +221,7 @@ static void finish_device_query(SoundIoPrivate *si) {
         for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1) {
             SoundIoDevice *device = sipa->current_devices_info->input_devices.at(i);
             assert(device->purpose == SoundIoDevicePurposeInput);
-            if (strcmp(device->name, sipa->default_source_name) == 0) {
+            if (strcmp(device->id, sipa->default_source_name) == 0) {
                 sipa->current_devices_info->default_input_index = i;
             }
         }
@@ -232,7 +232,7 @@ static void finish_device_query(SoundIoPrivate *si) {
         for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1) {
             SoundIoDevice *device = sipa->current_devices_info->output_devices.at(i);
             assert(device->purpose == SoundIoDevicePurposeOutput);
-            if (strcmp(device->name, sipa->default_sink_name) == 0) {
+            if (strcmp(device->id, sipa->default_sink_name) == 0) {
                 sipa->current_devices_info->default_output_index = i;
             }
         }
@@ -265,9 +265,9 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
 
         device->ref_count = 1;
         device->soundio = soundio;
-        device->name = strdup(info->name);
-        device->description = strdup(info->description);
-        if (!device->name || !device->description) {
+        device->id = strdup(info->name);
+        device->name = strdup(info->description);
+        if (!device->id || !device->name) {
             soundio_device_unref(device);
             sipa->device_query_err = SoundIoErrorNoMem;
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -335,9 +335,9 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
 
         device->ref_count = 1;
         device->soundio = soundio;
-        device->name = strdup(info->name);
-        device->description = strdup(info->description);
-        if (!device->name || !device->description) {
+        device->id = strdup(info->name);
+        device->name = strdup(info->description);
+        if (!device->id || !device->name) {
             soundio_device_unref(device);
             sipa->device_query_err = SoundIoErrorNoMem;
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -713,7 +713,7 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     pa_stream_flags_t flags = (outstream->buffer_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
 
     int err = pa_stream_connect_playback(ospa->stream,
-            outstream->device->name, &ospa->buffer_attr,
+            outstream->device->id, &ospa->buffer_attr,
             flags, nullptr, nullptr);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
@@ -917,7 +917,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     pa_stream_flags_t flags = (instream->period_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
 
     int err = pa_stream_connect_record(ispa->stream,
-            instream->device->name,
+            instream->device->id,
             &ispa->buffer_attr, flags);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);

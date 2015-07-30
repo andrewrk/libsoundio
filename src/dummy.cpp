@@ -419,9 +419,9 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
         device->ref_count = 1;
         device->soundio = soundio;
-        device->name = strdup("dummy-out");
-        device->description = strdup("Dummy Output Device");
-        if (!device->name || !device->description) {
+        device->id = strdup("dummy-out");
+        device->name = strdup("Dummy Output Device");
+        if (!device->id || !device->name) {
             soundio_device_unref(device);
             destroy_dummy(si);
             return SoundIoErrorNoMem;
@@ -468,9 +468,9 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
         device->ref_count = 1;
         device->soundio = soundio;
-        device->name = strdup("dummy-in");
-        device->description = strdup("Dummy Input Device");
-        if (!device->name || !device->description) {
+        device->id = strdup("dummy-in");
+        device->name = strdup("Dummy Input Device");
+        if (!device->id || !device->name) {
             soundio_device_unref(device);
             destroy_dummy(si);
             return SoundIoErrorNoMem;

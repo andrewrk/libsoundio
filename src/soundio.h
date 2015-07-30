@@ -244,10 +244,10 @@ struct SoundIoDevice {
     // Read-only. Set automatically.
     struct SoundIo *soundio;
 
-    // `name` uniquely identifies this device. `description` is user-friendly
-    // text to describe the device. These fields are UTF-8 encoded.
+    // `id` is a string of bytes that uniquely identifies this device.
+    // `name` is user-friendly UTF-8 encoded text to describe the device.
+    char *id;
     char *name;
-    char *description;
 
     // Channel layouts are handled similarly to sample format; see those docs.
     // If this information is missing due to a `probe_error`, `layouts`

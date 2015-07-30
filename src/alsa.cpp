@@ -384,7 +384,7 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
 
     snd_pcm_stream_t stream = purpose_to_stream(device->purpose);
 
-    if ((err = snd_pcm_open(&handle, device->name, stream, 0)) < 0) {
+    if ((err = snd_pcm_open(&handle, device->id, stream, 0)) < 0) {
         handle_channel_maps(device, maps);
         return SoundIoErrorOpeningDevice;
     }
@@ -542,11 +542,11 @@ static int refresh_devices(SoundIoPrivate *si) {
             device->ref_count = 1;
             device->soundio = soundio;
             device->is_raw = false;
-            device->name = strdup(name);
-            device->description = descr1 ?
+            device->id = strdup(name);
+            device->name = descr1 ?
                 soundio_alloc_sprintf(nullptr, "%s: %s", descr, descr1) : strdup(descr);
 
-            if (!device->name || !device->description) {
+            if (!device->id || !device->name) {
                 soundio_device_unref(device);
                 free(name);
                 free(descr);
@@ -658,11 +658,11 @@ static int refresh_devices(SoundIoPrivate *si) {
                 SoundIoDevice *device = &dev->pub;
                 device->ref_count = 1;
                 device->soundio = soundio;
-                device->name = soundio_alloc_sprintf(nullptr, "hw:%d,%d", card_index, device_index);
-                device->description = soundio_alloc_sprintf(nullptr, "%s %s", card_name, device_name);
+                device->id = soundio_alloc_sprintf(nullptr, "hw:%d,%d", card_index, device_index);
+                device->name = soundio_alloc_sprintf(nullptr, "%s %s", card_name, device_name);
                 device->is_raw = true;
 
-                if (!device->name || !device->description) {
+                if (!device->id || !device->name) {
                     soundio_device_unref(device);
                     snd_ctl_close(handle);
                     destroy(devices_info);
@@ -1124,7 +1124,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 
     snd_pcm_stream_t stream = purpose_to_stream(outstream->device->purpose);
 
-    if ((err = snd_pcm_open(&osa->handle, outstream->device->name, stream, 0)) < 0) {
+    if ((err = snd_pcm_open(&osa->handle, outstream->device->id, stream, 0)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -1411,7 +1411,7 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     snd_pcm_stream_t stream = purpose_to_stream(instream->device->purpose);
 
-    if ((err = snd_pcm_open(&isa->handle, instream->device->name, stream, 0)) < 0) {
+    if ((err = snd_pcm_open(&isa->handle, instream->device->id, stream, 0)) < 0) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;
     }
