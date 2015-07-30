@@ -26,7 +26,7 @@ struct SoundIoJackClient {
     const char *name;
     int name_len;
     bool is_physical;
-    SoundIoDevicePurpose purpose;
+    SoundIoDeviceAim aim;
     int port_count;
     SoundIoJackPort ports[SOUNDIO_MAX_CHANNELS];
 };
@@ -47,12 +47,12 @@ static void split_str(const char *input_str, int input_str_len, char c,
 }
 
 static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *clients,
-        SoundIoDevicePurpose purpose, bool is_physical, const char *client_name, int client_name_len)
+        SoundIoDeviceAim aim, bool is_physical, const char *client_name, int client_name_len)
 {
     for (int i = 0; i < clients->length; i += 1) {
         SoundIoJackClient *client = &clients->at(i);
         if (client->is_physical == is_physical &&
-            client->purpose == purpose &&
+            client->aim == aim &&
             soundio_streql(client->name, client->name_len, client_name, client_name_len))
         {
             return client;
@@ -63,7 +63,7 @@ static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *
         return nullptr;
     SoundIoJackClient *client = &clients->last();
     client->is_physical = is_physical;
-    client->purpose = purpose;
+    client->aim = aim;
     client->name = client_name;
     client->name_len = client_name_len;
     client->port_count = 0;
@@ -129,8 +129,8 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             continue;
         }
 
-        SoundIoDevicePurpose purpose = (flags & JackPortIsInput) ?
-            SoundIoDevicePurposeOutput : SoundIoDevicePurposeInput;
+        SoundIoDeviceAim aim = (flags & JackPortIsInput) ?
+            SoundIoDeviceAimOutput : SoundIoDeviceAimInput;
         bool is_physical = flags & JackPortIsPhysical;
 
         const char *client_name = nullptr;
@@ -143,7 +143,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             // device does not have colon, skip it
             continue;
         }
-        SoundIoJackClient *client = find_or_create_client(&clients, purpose, is_physical,
+        SoundIoJackClient *client = find_or_create_client(&clients, aim, is_physical,
                 client_name, client_name_len);
         if (!client) {
             jack_free(port_names);
@@ -161,7 +161,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         port->name_len = port_name_len;
         port->channel_id = soundio_parse_channel_id(port_name, port_name_len);
 
-        jack_latency_callback_mode_t latency_mode = (purpose == SoundIoDevicePurposeOutput) ?
+        jack_latency_callback_mode_t latency_mode = (aim == SoundIoDeviceAimOutput) ?
             JackPlaybackLatency : JackCaptureLatency;
         jack_port_get_latency_range(jport, latency_mode, &port->latency_range);
 
@@ -193,7 +193,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->ref_count = 1;
         device->soundio = soundio;
         device->is_raw = false;
-        device->purpose = client->purpose;
+        device->aim = client->aim;
         device->id = dupe_str(client->name, client->name_len);
         device->name = allocate<char>(description_len);
         device->layout_count = 1;
@@ -267,12 +267,12 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->formats[0] = device->current_format;
 
         SoundIoList<SoundIoDevice *> *device_list;
-        if (device->purpose == SoundIoDevicePurposeOutput) {
+        if (device->aim == SoundIoDeviceAimOutput) {
             device_list = &devices_info->output_devices;
             if (devices_info->default_output_index < 0 && client->is_physical)
                 devices_info->default_output_index = device_list->length;
         } else {
-            assert(device->purpose == SoundIoDevicePurposeInput);
+            assert(device->aim == SoundIoDeviceAimInput);
             device_list = &devices_info->input_devices;
             if (devices_info->default_input_index < 0 && client->is_physical)
                 devices_info->default_input_index = device_list->length;

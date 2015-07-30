@@ -245,17 +245,10 @@ view `coverage/index.html` in a browser.
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
  0. Integrate into libgroove and test with Groove Basin
- 0. PulseAudio: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
  0. clear buffer maybe could take an argument to say how many frames to not clear
- 0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
- 0. In PulseAudio, to get buffer duration and period duration, fill the buffer
-    with silence before starting, start the stream corked, and have the
-    callback be a callback that just provides silence. Once
-    `soundio_outstream_start` is called, switch to the real callback, then call
-    `pa_stream_flush`, then uncork the stream.
  0. API: devices should reference to their "other" device when the same
     hardware has input and output. This is important due to clock timing.
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
@@ -294,6 +287,13 @@ view `coverage/index.html` in a browser.
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
  0. Consider testing on FreeBSD
+ 0. PulseAudio idea: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
+    In PulseAudio, to get buffer duration and period duration, fill the buffer
+    with silence before starting, start the stream corked, and have the
+    callback be a callback that just provides silence. Once
+    `soundio_outstream_start` is called, switch to the real callback, then call
+    `pa_stream_flush`, then uncork the stream.
+ 0. In ALSA do we need to wake up the poll when destroying the in or out stream?
 
 ## Planned Uses for libsoundio
 

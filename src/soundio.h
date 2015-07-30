@@ -111,9 +111,9 @@ enum SoundIoBackend {
     SoundIoBackendDummy,
 };
 
-enum SoundIoDevicePurpose {
-    SoundIoDevicePurposeInput,
-    SoundIoDevicePurposeOutput,
+enum SoundIoDeviceAim {
+    SoundIoDeviceAimInput,
+    SoundIoDeviceAimOutput,
 };
 
 enum SoundIoFormat {
@@ -249,6 +249,9 @@ struct SoundIoDevice {
     char *id;
     char *name;
 
+    // Tells whether this device is an input device or an output device.
+    enum SoundIoDeviceAim aim;
+
     // Channel layouts are handled similarly to sample format; see those docs.
     // If this information is missing due to a `probe_error`, `layouts`
     // will be NULL. It's OK to modify this data, for example calling
@@ -304,9 +307,6 @@ struct SoundIoDevice {
     double period_duration_min;
     double period_duration_max;
     double period_duration_current;
-
-    // Tells whether this device is an input device or an output device.
-    enum SoundIoDevicePurpose purpose;
 
     // Raw means that you are directly opening the hardware device and not
     // going through a proxy such as dmix, PulseAudio, or JACK. When you open a
@@ -609,7 +609,6 @@ void soundio_device_unref(struct SoundIoDevice *device);
 bool soundio_device_equal(
         const struct SoundIoDevice *a,
         const struct SoundIoDevice *b);
-enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device);
 
 // Sorts channel layouts by channel count, descending.
 void soundio_device_sort_channel_layouts(struct SoundIoDevice *device);

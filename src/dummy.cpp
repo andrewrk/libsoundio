@@ -448,7 +448,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         device->period_duration_min = 0.01;
         device->period_duration_max = 2;
         device->period_duration_current = 0.05;
-        device->purpose = SoundIoDevicePurposeOutput;
+        device->aim = SoundIoDeviceAimOutput;
 
         if (si->safe_devices_info->output_devices.append(device)) {
             soundio_device_unref(device);
@@ -497,7 +497,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         device->period_duration_min = 0.01;
         device->period_duration_max = 2;
         device->period_duration_current = 0.05;
-        device->purpose = SoundIoDevicePurposeInput;
+        device->aim = SoundIoDeviceAimInput;
 
         if (si->safe_devices_info->input_devices.append(device)) {
             soundio_device_unref(device);

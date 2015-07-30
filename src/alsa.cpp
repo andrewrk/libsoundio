@@ -68,12 +68,12 @@ static char * str_partition_on_char(char *str, char c) {
     return nullptr;
 }
 
-static snd_pcm_stream_t purpose_to_stream(SoundIoDevicePurpose purpose) {
-    switch (purpose) {
-        case SoundIoDevicePurposeOutput: return SND_PCM_STREAM_PLAYBACK;
-        case SoundIoDevicePurposeInput: return SND_PCM_STREAM_CAPTURE;
+static snd_pcm_stream_t aim_to_stream(SoundIoDeviceAim aim) {
+    switch (aim) {
+        case SoundIoDeviceAimOutput: return SND_PCM_STREAM_PLAYBACK;
+        case SoundIoDeviceAimInput: return SND_PCM_STREAM_CAPTURE;
     }
-    assert(0); // Invalid purpose
+    assert(0); // Invalid aim
     return SND_PCM_STREAM_PLAYBACK;
 }
 
@@ -382,7 +382,7 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
     int err;
     snd_pcm_t *handle;
 
-    snd_pcm_stream_t stream = purpose_to_stream(device->purpose);
+    snd_pcm_stream_t stream = aim_to_stream(device->aim);
 
     if ((err = snd_pcm_open(&handle, device->id, stream, 0)) < 0) {
         handle_channel_maps(device, maps);
@@ -558,13 +558,13 @@ static int refresh_devices(SoundIoPrivate *si) {
             SoundIoList<SoundIoDevice *> *device_list;
             bool is_default = str_has_prefix(name, "default:") || strcmp(name, "default") == 0;
             if (stream == SND_PCM_STREAM_PLAYBACK) {
-                device->purpose = SoundIoDevicePurposeOutput;
+                device->aim = SoundIoDeviceAimOutput;
                 device_list = &devices_info->output_devices;
                 if (devices_info->default_output_index < 0 && is_default)
                     devices_info->default_output_index = device_list->length;
             } else {
                 assert(stream == SND_PCM_STREAM_CAPTURE);
-                device->purpose = SoundIoDevicePurposeInput;
+                device->aim = SoundIoDeviceAimInput;
                 device_list = &devices_info->input_devices;
                 if (devices_info->default_input_index < 0 && is_default)
                     devices_info->default_input_index = device_list->length;
@@ -671,11 +671,11 @@ static int refresh_devices(SoundIoPrivate *si) {
 
                 SoundIoList<SoundIoDevice *> *device_list;
                 if (stream == SND_PCM_STREAM_PLAYBACK) {
-                    device->purpose = SoundIoDevicePurposeOutput;
+                    device->aim = SoundIoDeviceAimOutput;
                     device_list = &devices_info->output_devices;
                 } else {
                     assert(stream == SND_PCM_STREAM_CAPTURE);
-                    device->purpose = SoundIoDevicePurposeInput;
+                    device->aim = SoundIoDeviceAimInput;
                     device_list = &devices_info->input_devices;
                 }
 
@@ -1122,7 +1122,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     snd_pcm_hw_params_t *hwparams;
     snd_pcm_hw_params_alloca(&hwparams);
 
-    snd_pcm_stream_t stream = purpose_to_stream(outstream->device->purpose);
+    snd_pcm_stream_t stream = aim_to_stream(outstream->device->aim);
 
     if ((err = snd_pcm_open(&osa->handle, outstream->device->id, stream, 0)) < 0) {
         outstream_destroy_alsa(si, os);
@@ -1409,7 +1409,7 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     snd_pcm_hw_params_t *hwparams;
     snd_pcm_hw_params_alloca(&hwparams);
 
-    snd_pcm_stream_t stream = purpose_to_stream(instream->device->purpose);
+    snd_pcm_stream_t stream = aim_to_stream(instream->device->aim);
 
     if ((err = snd_pcm_open(&isa->handle, instream->device->id, stream, 0)) < 0) {
         instream_destroy_alsa(si, is);

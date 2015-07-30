@@ -220,7 +220,7 @@ static void finish_device_query(SoundIoPrivate *si) {
         sipa->current_devices_info->default_input_index = 0;
         for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1) {
             SoundIoDevice *device = sipa->current_devices_info->input_devices.at(i);
-            assert(device->purpose == SoundIoDevicePurposeInput);
+            assert(device->aim == SoundIoDeviceAimInput);
             if (strcmp(device->id, sipa->default_source_name) == 0) {
                 sipa->current_devices_info->default_input_index = i;
             }
@@ -231,7 +231,7 @@ static void finish_device_query(SoundIoPrivate *si) {
         sipa->current_devices_info->default_output_index = 0;
         for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1) {
             SoundIoDevice *device = sipa->current_devices_info->output_devices.at(i);
-            assert(device->purpose == SoundIoDevicePurposeOutput);
+            assert(device->aim == SoundIoDeviceAimOutput);
             if (strcmp(device->id, sipa->default_sink_name) == 0) {
                 sipa->current_devices_info->default_output_index = i;
             }
@@ -304,7 +304,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
 
         // "period" is not a recognized concept in PulseAudio.
 
-        device->purpose = SoundIoDevicePurposeOutput;
+        device->aim = SoundIoDeviceAimOutput;
 
         if (sipa->current_devices_info->output_devices.append(device)) {
             soundio_device_unref(device);
@@ -374,7 +374,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
 
         // "period" is not a recognized concept in PulseAudio.
 
-        device->purpose = SoundIoDevicePurposeInput;
+        device->aim = SoundIoDeviceAimInput;
 
         if (sipa->current_devices_info->input_devices.append(device)) {
             soundio_device_unref(device);

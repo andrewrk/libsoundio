@@ -296,10 +296,6 @@ struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int ind
     return device;
 }
 
-enum SoundIoDevicePurpose soundio_device_purpose(const struct SoundIoDevice *device) {
-    return device->purpose;
-}
-
 void soundio_device_unref(struct SoundIoDevice *device) {
     if (!device)
         return;
