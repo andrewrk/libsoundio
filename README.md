@@ -23,8 +23,8 @@ behavior on every platform.
    - [JACK](http://jackaudio.org/)
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
-   - Dummy (silence)
    - (planned) [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
+   - Dummy (silence)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - (planned) [ASIO](http://www.asio4all.com/)
  * C library. Depends only on the respective backend API libraries and libc.

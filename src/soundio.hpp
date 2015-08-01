@@ -23,6 +23,10 @@
 #include "alsa.hpp"
 #endif
 
+#ifdef SOUNDIO_HAVE_COREAUDIO
+#include "coreaudio.hpp"
+#endif
+
 #include "dummy.hpp"
 
 union SoundIoBackendData {
@@ -34,6 +38,9 @@ union SoundIoBackendData {
 #endif
 #ifdef SOUNDIO_HAVE_ALSA
     SoundIoAlsa alsa;
+#endif
+#ifdef SOUNDIO_HAVE_COREAUDIO
+    SoundIoCoreAudio coreaudio;
 #endif
     SoundIoDummy dummy;
 };
@@ -48,6 +55,9 @@ union SoundIoDeviceBackendData {
 #ifdef SOUNDIO_HAVE_ALSA
     SoundIoDeviceAlsa alsa;
 #endif
+#ifdef SOUNDIO_HAVE_COREAUDIO
+    SoundIoDeviceCoreAudio coreaudio;
+#endif
     SoundIoDeviceDummy dummy;
 };
 
@@ -61,6 +71,9 @@ union SoundIoOutStreamBackendData {
 #ifdef SOUNDIO_HAVE_ALSA
     SoundIoOutStreamAlsa alsa;
 #endif
+#ifdef SOUNDIO_HAVE_COREAUDIO
+    SoundIoOutStreamCoreAudio coreaudio;
+#endif
     SoundIoOutStreamDummy dummy;
 };
 
@@ -73,6 +86,9 @@ union SoundIoInStreamBackendData {
 #endif
 #ifdef SOUNDIO_HAVE_ALSA
     SoundIoInStreamAlsa alsa;
+#endif
+#ifdef SOUNDIO_HAVE_COREAUDIO
+    SoundIoInStreamCoreAudio coreaudio;
 #endif
     SoundIoInStreamDummy dummy;
 };
@@ -101,7 +117,6 @@ struct SoundIoPrivate {
     // Safe to read from a single thread without a mutex.
     struct SoundIoDevicesInfo *safe_devices_info;
 
-    SoundIoBackendData backend_data;
     void (*destroy)(struct SoundIoPrivate *);
     void (*flush_events)(struct SoundIoPrivate *);
     void (*wait_events)(struct SoundIoPrivate *);
@@ -124,6 +139,8 @@ struct SoundIoPrivate {
             SoundIoChannelArea **out_areas, int *frame_count);
     int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
+
+    SoundIoBackendData backend_data;
 };
 
 struct SoundIoDevicePrivate {

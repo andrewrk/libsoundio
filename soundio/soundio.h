@@ -108,6 +108,7 @@ enum SoundIoBackend {
     SoundIoBackendJack,
     SoundIoBackendPulseAudio,
     SoundIoBackendAlsa,
+    SoundIoBackendCoreAudio,
     SoundIoBackendDummy,
 };
 

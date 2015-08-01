@@ -56,6 +56,18 @@ else()
     set(ALSA_LIBRARIES "")
 endif()
 
+find_package(CoreAudio)
+if(COREAUDIO_FOUND)
+    set(STATUS_COREAUDIO "OK")
+    set(SOUNDIO_HAVE_COREAUDIO true)
+    include_directories(${COREAUDIO_INCLUDE_DIR})
+else()
+    set(STATUS_COREAUDIO "not found")
+    set(SOUNDIO_HAVE_COREAUDIO false)
+    set(COREAUDIO_LIBRARY "")
+endif()
+
+
 set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
     "${CMAKE_SOURCE_DIR}/src/util.cpp"
@@ -106,6 +118,14 @@ if(SOUNDIO_HAVE_ALSA)
         "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
     )
 endif()
+if(SOUNDIO_HAVE_COREAUDIO)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
+    )
+    set(TEST_SOURCES ${TEST_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
+    )
+endif()
 
 
 # GTFO, -lstdc++ !!
@@ -153,6 +173,7 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC
     ${JACK_LIBRARY}
     ${PULSEAUDIO_LIBRARY}
     ${ALSA_LIBRARIES}
+    ${COREAUDIO_LIBRARY}
     m
     ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -205,7 +226,7 @@ target_link_libraries(unit_tests LINK_PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
     ${JACK_LIBRARY}
     ${PULSEAUDIO_LIBRARY}
-    ${ALSA_LIBRARIES}
+    ${COREAUDIO_LIBRARY}
     m
 )
 set_target_properties(unit_tests PROPERTIES
@@ -252,4 +273,5 @@ message(
     "* JACK (optional)              : ${STATUS_JACK}\n"
     "* PulseAudio (optional)        : ${STATUS_PULSEAUDIO}\n"
     "* ALSA (optional)              : ${STATUS_ALSA}\n"
+    "* CoreAudio (optional)         : ${STATUS_COREAUDIO}\n"
 )
