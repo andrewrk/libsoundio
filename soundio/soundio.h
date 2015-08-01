@@ -493,6 +493,7 @@ void soundio_destroy(struct SoundIo *soundio);
 // to. It tries `soundio_connect_backend` on all available backends in order.
 int soundio_connect(struct SoundIo *soundio);
 // Instead of calling `soundio_connect` you may call this function to try a
+// specific backend.
 int soundio_connect_backend(struct SoundIo *soundio, enum SoundIoBackend backend);
 void soundio_disconnect(struct SoundIo *soundio);
 
@@ -654,7 +655,7 @@ int soundio_outstream_start(struct SoundIoOutStream *outstream);
 //    greater than 0 frames.
 // It is your responsibility to call this function no more and no fewer than the
 // correct number of times as determined by `requested_frame_count` from
-// `write_callback`. See sine.c for an example.
+// `write_callback`. See sio_sine.c for an example.
 // You must call this function only from the `write_callback` thread context.
 // After calling this function, write data to `areas` and then call `soundio_outstream_end_write`.
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
@@ -705,7 +706,7 @@ int soundio_instream_start(struct SoundIoInStream *instream);
 //   Returned will be the number of frames you can actually read.
 // It is your responsibility to call this function no more and no fewer than the
 // correct number of times as determined by `available_frame_count` from
-// `read_callback`. See microphone.c for an example.
+// `read_callback`. See sio_microphone.c for an example.
 // You must call this function only from the `read_callback` thread context.
 // After calling this function, read data from `areas` and then use
 // `soundio_instream_end_read` to actually remove the data from the buffer

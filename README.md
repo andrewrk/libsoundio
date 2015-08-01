@@ -258,7 +258,6 @@ view `coverage/index.html` in a browser.
       out what the frame index it thinks the user pressed it at and make sure
       that is correct.
  0. Create a test for input stream overflow handling.
- 0. Expose JACK options in `jack_client_open`
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
  0. Should pause/resume be callable from outside the callbacks?
@@ -268,13 +267,9 @@ view `coverage/index.html` in a browser.
  0. use a documentation generator and host the docs somewhere
  0. -fvisibility=hidden and then explicitly export stuff, or
     explicitly make the unexported stuff private
- 0. look at microphone example and determine if fewer memcpys can be done
-    with the audio data
-    - test that sending the frame count to begin read works with PulseAudio
  0. add len arguments to APIs that have char *
- 0. Test in an app that needs to synchronize video to test the
-    latency/synchronization API.
  0. Support PulseAudio proplist properties for main context and streams
+ 0. Expose JACK options in `jack_client_open`
  0. custom allocator support
  0. mlock memory which is accessed in the real time path
  0. make rtprio warning a callback and have existing behavior be the default callback
