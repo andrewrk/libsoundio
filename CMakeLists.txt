@@ -226,6 +226,7 @@ target_link_libraries(unit_tests LINK_PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
     ${JACK_LIBRARY}
     ${PULSEAUDIO_LIBRARY}
+    ${ALSA_LIBRARIES}
     ${COREAUDIO_LIBRARY}
     m
 )
