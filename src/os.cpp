@@ -423,7 +423,7 @@ void soundio_os_cond_signal(struct SoundIoOsCond *cond,
 
     if (kevent(kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
         if (errno == EINTR)
-            return 0;
+            return;
         assert(0); // kevent signal error
     }
 #else
