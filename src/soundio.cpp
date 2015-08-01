@@ -70,6 +70,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorBackendDisconnected: return "backend disconnected";
         case SoundIoErrorInterrupted: return "interrupted; try again";
         case SoundIoErrorUnderflow: return "buffer underflow";
+        case SoundIoErrorEncodingString: return "failed to encode string";
     }
     return "(invalid error)";
 }
@@ -379,10 +380,14 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) 
 }
 
 int soundio_outstream_open(struct SoundIoOutStream *outstream) {
+    SoundIoDevice *device = outstream->device;
+
+    if (device->aim != SoundIoDeviceAimOutput)
+        return SoundIoErrorInvalid;
+
     if (outstream->format <= SoundIoFormatInvalid)
         return SoundIoErrorInvalid;
 
-    SoundIoDevice *device = outstream->device;
     if (device->probe_error)
         return device->probe_error;
 
@@ -459,10 +464,12 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
 }
 
 int soundio_instream_open(struct SoundIoInStream *instream) {
-    if (instream->format <= SoundIoFormatInvalid)
+    SoundIoDevice *device = instream->device;
+    if (device->aim != SoundIoDeviceAimInput)
         return SoundIoErrorInvalid;
 
-    SoundIoDevice *device = instream->device;
+    if (instream->format <= SoundIoFormatInvalid)
+        return SoundIoErrorInvalid;
 
     if (device->probe_error)
         return device->probe_error;

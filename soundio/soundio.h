@@ -31,6 +31,7 @@ enum SoundIoError {
     SoundIoErrorBackendDisconnected,
     SoundIoErrorInterrupted,
     SoundIoErrorUnderflow,
+    SoundIoErrorEncodingString,
 };
 
 enum SoundIoChannelId {

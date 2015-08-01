@@ -98,10 +98,9 @@ struct SoundIoOsMutex {
 };
 
 #if defined(SOUNDIO_OS_KQUEUE)
-static int kq_id;
-static atomic_uintptr_t next_notify_ident;
+static const uintptr_t notify_ident = 1;
 struct SoundIoOsCond {
-    int notify_ident;
+    int kq_id;
 };
 #elif defined(SOUNDIO_OS_WINDOWS)
 struct SoundIoOsCond {
@@ -348,7 +347,9 @@ struct SoundIoOsCond * soundio_os_cond_create(void) {
     InitializeConditionVariable(&cond->id);
     InitializeCriticalSection(&cond->default_cs_id);
 #elif defined(SOUNDIO_OS_KQUEUE)
-    cond->notify_ident = next_notify_ident.fetch_add(1);
+    cond->kq_id = kqueue();
+    if (cond->kq_id == -1)
+        return NULL;
 #else
     if (pthread_condattr_init(&cond->attr)) {
         soundio_os_cond_destroy(cond);
@@ -417,11 +418,11 @@ void soundio_os_cond_signal(struct SoundIoOsCond *cond,
     struct timespec timeout = { 0, 0 };
 
     memset(&kev, 0, sizeof(kev));
-    kev.ident = cond->notify_ident;
+    kev.ident = notify_ident;
     kev.filter = EVFILT_USER;
     kev.fflags = NOTE_TRIGGER;
 
-    if (kevent(kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
+    if (kevent(cond->kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
         if (errno == EINTR)
             return;
         assert(0); // kevent signal error
@@ -456,8 +457,11 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
     struct kevent kev;
     struct kevent out_kev;
 
+    if (locked_mutex)
+        assert_no_err(pthread_mutex_unlock(&locked_mutex->id));
+
     memset(&kev, 0, sizeof(kev));
-    kev.ident = cond->notify_ident;
+    kev.ident = notify_ident;
     kev.filter = EVFILT_USER;
     kev.flags = EV_ADD | EV_CLEAR;
 
@@ -466,11 +470,13 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
     timeout.tv_sec = 0;
     timeout.tv_nsec = (seconds * 1000000000L);
 
-    if (kevent(kq_id, &kev, 1, &out_kev, 1, &timeout) == -1) {
+    if (kevent(cond->kq_id, &kev, 1, &out_kev, 1, &timeout) == -1) {
         if (errno == EINTR)
             return;
         assert(0); // kevent wait error
     }
+    if (locked_mutex)
+        assert_no_err(pthread_mutex_lock(&locked_mutex->id));
 #else
     pthread_mutex_t *target_mutex;
     if (locked_mutex) {
@@ -513,16 +519,21 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
     struct kevent kev;
     struct kevent out_kev;
 
+    if (locked_mutex)
+        assert_no_err(pthread_mutex_unlock(&locked_mutex->id));
+
     memset(&kev, 0, sizeof(kev));
-    kev.ident = cond->notify_ident;
+    kev.ident = notify_ident;
     kev.filter = EVFILT_USER;
     kev.flags = EV_ADD | EV_CLEAR;
 
-    if (kevent(kq_id, &kev, 1, &out_kev, 1, NULL) == -1) {
+    if (kevent(cond->kq_id, &kev, 1, &out_kev, 1, NULL) == -1) {
         if (errno == EINTR)
             return;
         assert(0); // kevent wait error
     }
+    if (locked_mutex)
+        assert_no_err(pthread_mutex_lock(&locked_mutex->id));
 #else
     pthread_mutex_t *target_mutex;
     if (locked_mutex) {
@@ -542,12 +553,6 @@ void soundio_os_cond_wait(struct SoundIoOsCond *cond,
 }
 
 static int internal_init(void) {
-#if defined(SOUNDIO_OS_KQUEUE)
-    kq_id = kqueue();
-    if (kq_id == -1)
-        return SoundIoErrorSystemResources;
-    next_notify_ident.store(1);
-#endif
 #if defined(SOUNDIO_OS_WINDOWS)
     unsigned __int64 frequency;
     if (QueryPerformanceFrequency((LARGE_INTEGER*) &frequency)) {

@@ -16,9 +16,7 @@
 
 int soundio_alsa_init(struct SoundIoPrivate *si);
 
-struct SoundIoDeviceAlsa {
-
-};
+struct SoundIoDeviceAlsa { };
 
 struct SoundIoAlsa {
     SoundIoOsMutex *mutex;
