@@ -30,6 +30,7 @@ struct SoundIoCoreAudio {
     SoundIoOsCond *have_devices_cond;
 
     atomic_bool device_scan_queued;
+    atomic_bool service_restarted;
     int shutdown_err;
     bool emitted_shutdown_cb;
 };

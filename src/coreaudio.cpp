@@ -20,16 +20,34 @@ static OSStatus on_devices_changed(AudioObjectID in_object_id, UInt32 in_number_
     return noErr;
 }
 
+static OSStatus on_service_restarted(AudioObjectID in_object_id, UInt32 in_number_addresses,
+    const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
+{
+    SoundIoPrivate *si = (SoundIoPrivate*)in_client_data;
+    SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
+
+    sica->service_restarted.store(true);
+    soundio_os_cond_signal(sica->cond, nullptr);
+
+    return noErr;
+}
+
 static void destroy_ca(struct SoundIoPrivate *si) {
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
+    int err;
     AudioObjectPropertyAddress prop_address = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
         kAudioObjectPropertyElementMaster
     };
-    int err = AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address,
+    err = AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address,
         on_devices_changed, si);
+    assert(!err);
+
+    prop_address.mSelector = kAudioHardwarePropertyServiceRestarted;
+    err = AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address,
+        on_service_restarted, si);
     assert(!err);
 
     if (sica->thread) {
@@ -83,14 +101,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
     @constant       kAudioHardwarePropertyDefaultOutputDevice
                         The AudioObjectID of the default output AudioDevice.
                         */
-/*
-    @constant       kAudioHardwarePropertyServiceRestarted
-                        A UInt32 whose value has no meaning. Rather, this property exists so that
-                        clients can be informed when the service has been reset for some reason.
-                        When a reset happens, any state the client has , such as cached data or
-                        added listeners, must be re-established by the client.
-                        */
-
 /*
  *
     @constant       kAudioDevicePropertyDeviceHasChanged
@@ -295,6 +305,10 @@ static void device_thread_run(void *arg) {
     for (;;) {
         if (!sica->abort_flag.test_and_set())
             break;
+        if (sica->service_restarted.load()) {
+            shutdown_backend(si, SoundIoErrorBackendDisconnected);
+            return;
+        }
         if (sica->device_scan_queued.exchange(false)) {
             if ((err = refresh_devices(si))) {
                 shutdown_backend(si, err);
@@ -374,6 +388,7 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
 
     sica->have_devices_flag.store(false);
     sica->device_scan_queued.store(true);
+    sica->service_restarted.store(false);
     sica->abort_flag.test_and_set();
 
     sica->mutex = soundio_os_mutex_create();
@@ -403,6 +418,13 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
         on_devices_changed, si)))
     {
         soundio_panic("add prop listener");
+    }
+
+    prop_address.mSelector = kAudioHardwarePropertyServiceRestarted;
+    if ((err = AudioObjectAddPropertyListener(kAudioObjectSystemObject, &prop_address,
+        on_service_restarted, si)))
+    {
+        soundio_panic("add prop listener 2");
     }
 
     if ((err = soundio_os_thread_create(device_thread_run, si, false, &sica->thread))) {
