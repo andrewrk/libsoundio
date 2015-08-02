@@ -193,6 +193,7 @@ int main(int argc, char **argv) {
     if (err)
         panic("error connecting: %s", soundio_strerror(err));
 
+    soundio_flush_events(soundio);
 
     int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)

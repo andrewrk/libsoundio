@@ -152,10 +152,13 @@ void soundio_destroy(struct SoundIo *soundio) {
 }
 
 static void do_nothing_cb(struct SoundIo *) { }
-static void do_nothing_backend_disconnect_cb(struct SoundIo *, int err) { }
 static void default_msg_callback(const char *msg) { }
 
-struct SoundIo * soundio_create(void) {
+static void default_backend_disconnect_cb(struct SoundIo *, int err) {
+    soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
+}
+
+struct SoundIo *soundio_create(void) {
     int err;
     if ((err = soundio_os_init()))
         return nullptr;
@@ -164,7 +167,7 @@ struct SoundIo * soundio_create(void) {
         return nullptr;
     SoundIo *soundio = &si->pub;
     soundio->on_devices_change = do_nothing_cb;
-    soundio->on_backend_disconnect = do_nothing_backend_disconnect_cb;
+    soundio->on_backend_disconnect = default_backend_disconnect_cb;
     soundio->on_events_signal = do_nothing_cb;
     soundio->app_name = "SoundIo";
     soundio->jack_info_callback = default_msg_callback;
@@ -207,6 +210,7 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
         return err;
     }
     soundio->current_backend = backend;
+
     return 0;
 }
 
@@ -252,8 +256,7 @@ int soundio_input_device_count(struct SoundIo *soundio) {
     assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
-        soundio_flush_events(soundio);
-    assert(si->safe_devices_info);
+        return -1;
     return si->safe_devices_info->input_devices.length;
 }
 
@@ -261,8 +264,7 @@ int soundio_output_device_count(struct SoundIo *soundio) {
     assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
-        soundio_flush_events(soundio);
-    assert(si->safe_devices_info);
+        return -1;
     return si->safe_devices_info->output_devices.length;
 }
 
@@ -270,8 +272,7 @@ int soundio_default_input_device_index(struct SoundIo *soundio) {
     assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
-        soundio_flush_events(soundio);
-    assert(si->safe_devices_info);
+        return -1;
     return si->safe_devices_info->default_input_index;
 }
 
@@ -279,28 +280,31 @@ int soundio_default_output_device_index(struct SoundIo *soundio) {
     assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     if (!si->safe_devices_info)
-        soundio_flush_events(soundio);
-    assert(si->safe_devices_info);
+        return -1;
     return si->safe_devices_info->default_output_index;
 }
 
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    assert(si->safe_devices_info);
+    assert(soundio->current_backend != SoundIoBackendNone);
     assert(index >= 0);
     assert(index < si->safe_devices_info->input_devices.length);
+    if (!si->safe_devices_info)
+        return nullptr;
+
     SoundIoDevice *device = si->safe_devices_info->input_devices.at(index);
     soundio_device_ref(device);
     return device;
 }
 
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    assert(si->safe_devices_info);
+    assert(soundio->current_backend != SoundIoBackendNone);
     assert(index >= 0);
     assert(index < si->safe_devices_info->output_devices.length);
+    if (!si->safe_devices_info)
+        return nullptr;
+
     SoundIoDevice *device = si->safe_devices_info->output_devices.at(index);
     soundio_device_ref(device);
     return device;

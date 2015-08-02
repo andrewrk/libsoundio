@@ -70,9 +70,52 @@ enum SoundIoChannelId {
     SoundIoChannelIdTopSideRight,
     SoundIoChannelIdLeftLfe,
     SoundIoChannelIdRightLfe,
+    SoundIoChannelIdLfe2,
     SoundIoChannelIdBottomCenter,
     SoundIoChannelIdBottomLeftCenter,
     SoundIoChannelIdBottomRightCenter,
+
+    // Mid/side recording
+    SoundIoChannelIdMsMid,
+    SoundIoChannelIdMsSide,
+
+    // first order ambisonic channels
+    SoundIoChannelIdAmbisonicW,
+    SoundIoChannelIdAmbisonicX,
+    SoundIoChannelIdAmbisonicY,
+    SoundIoChannelIdAmbisonicZ,
+
+    // X-Y Recording
+    SoundIoChannelIdXyX,
+    SoundIoChannelIdXyY,
+
+    // Other
+    SoundIoChannelIdHeadphonesLeft,
+    SoundIoChannelIdHeadphonesRight,
+    SoundIoChannelIdClickTrack,
+    SoundIoChannelIdForeignLanguage,
+    SoundIoChannelIdHearingImpaired,
+    SoundIoChannelIdNarration,
+    SoundIoChannelIdHaptic,
+    SoundIoChannelIdDialogCentricMix,
+
+    SoundIoChannelIdAux,
+    SoundIoChannelIdAux0,
+    SoundIoChannelIdAux1,
+    SoundIoChannelIdAux2,
+    SoundIoChannelIdAux3,
+    SoundIoChannelIdAux4,
+    SoundIoChannelIdAux5,
+    SoundIoChannelIdAux6,
+    SoundIoChannelIdAux7,
+    SoundIoChannelIdAux8,
+    SoundIoChannelIdAux9,
+    SoundIoChannelIdAux10,
+    SoundIoChannelIdAux11,
+    SoundIoChannelIdAux12,
+    SoundIoChannelIdAux13,
+    SoundIoChannelIdAux14,
+    SoundIoChannelIdAux15,
 };
 
 enum SoundIoChannelLayoutId {
@@ -214,7 +257,9 @@ struct SoundIo {
     // when the JACK server shuts down. When this happens, listing devices
     // and opening streams will always fail with
     // SoundIoErrorBackendDisconnected. This callback is only called during a
-    // call to soundio_flush_events or soundio_wait_events.
+    // call to `soundio_flush_events` or `soundio_wait_events`.
+    // If you do not supply a callback, the default will crash your program
+    // with an error message.
     void (*on_backend_disconnect)(struct SoundIo *, int err);
     // Optional callback. Called from an unknown thread that you should not use
     // to call any soundio functions. You may use this to signal a condition
@@ -592,22 +637,37 @@ const char * soundio_format_string(enum SoundIoFormat format);
 
 // Devices
 
+// When you call `soundio_flush_events`, a snapshot of all device state is
+// saved and these functions merely access the snapshot data. When you want
+// to check for new devices, call `soundio_flush_events`. Or you can call
+// `soundio_wait_events` to block until devices change. If an error occurs
+// scanning devices in a background thread, `on_backend_disconnect` is called
+// with the error code.
+
+// Get the number of input devices.
+// Returns -1 if you never called `soundio_flush_events`.
 int soundio_input_device_count(struct SoundIo *soundio);
+// Get the number of output devices.
+// Returns -1 if you never called `soundio_flush_events`.
 int soundio_output_device_count(struct SoundIo *soundio);
 
 // Always returns a device. Call soundio_device_unref when done.
 // `index` must be 0 <= index < soundio_input_device_count
+// Returns NULL if you never called `soundio_flush_events`.
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
 // Always returns a device. Call soundio_device_unref when done.
 // `index` must be 0 <= index < soundio_output_device_count
+// Returns NULL if you never called `soundio_flush_events`.
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
 // returns the index of the default input device
-// returns -1 if there are no devices.
+// returns -1 if there are no devices or if you never called
+// `soundio_flush_events`.
 int soundio_default_input_device_index(struct SoundIo *soundio);
 
 // returns the index of the default output device
-// returns -1 if there are no devices.
+// returns -1 if there are no devices or if you never called
+// `soundio_flush_events`.
 int soundio_default_output_device_index(struct SoundIo *soundio);
 
 void soundio_device_ref(struct SoundIoDevice *device);

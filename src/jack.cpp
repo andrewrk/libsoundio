@@ -70,15 +70,6 @@ static SoundIoJackClient *find_or_create_client(SoundIoList<SoundIoJackClient> *
     return client;
 }
 
-static char *dupe_str(const char *str, int str_len) {
-    char *out = allocate_nonzero<char>(str_len + 1);
-    if (!out)
-        return nullptr;
-    memcpy(out, str, str_len);
-    out[str_len] = 0;
-    return out;
-}
-
 static void destruct_device(SoundIoDevicePrivate *dp) {
     SoundIoDeviceJack *dj = &dp->backend_data.jack;
     for (int i = 0; i < dj->port_count; i += 1) {
@@ -194,7 +185,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->soundio = soundio;
         device->is_raw = false;
         device->aim = client->aim;
-        device->id = dupe_str(client->name, client->name_len);
+        device->id = soundio_str_dupe(client->name, client->name_len);
         device->name = allocate<char>(description_len);
         device->layout_count = 1;
         device->layouts = create<SoundIoChannelLayout>();
@@ -223,7 +214,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         for (int port_index = 0; port_index < client->port_count; port_index += 1) {
             SoundIoJackPort *port = &client->ports[port_index];
             SoundIoDeviceJackPort *djp = &dj->ports[port_index];
-            djp->full_name = dupe_str(port->full_name, port->full_name_len);
+            djp->full_name = soundio_str_dupe(port->full_name, port->full_name_len);
             djp->full_name_len = port->full_name_len;
             djp->channel_id = port->channel_id;
 

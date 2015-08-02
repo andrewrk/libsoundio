@@ -242,6 +242,11 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement CoreAudio (OSX) backend, get examples working
+ 0. Add some builtin channel layouts from
+    https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags
+ 0. Add more PulseAudio channel ids
+ 0. Make sure PulseAudio can handle refresh devices crashing before
+    block_until_have_devices
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
  0. Integrate into libgroove and test with Groove Basin
@@ -268,6 +273,7 @@ view `coverage/index.html` in a browser.
  0. -fvisibility=hidden and then explicitly export stuff, or
     explicitly make the unexported stuff private
  0. add len arguments to APIs that have char *
+    - replace strdup with soundio_str_dupe
  0. Support PulseAudio proplist properties for main context and streams
  0. Expose JACK options in `jack_client_open`
  0. custom allocator support

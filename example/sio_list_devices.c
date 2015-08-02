@@ -147,6 +147,7 @@ int main(int argc, char **argv) {
             soundio_wait_events(soundio);
         }
     } else {
+        soundio_flush_events(soundio);
         int err = list_devices(soundio);
         soundio_destroy(soundio);
         return err;

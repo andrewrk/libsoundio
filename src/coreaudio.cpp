@@ -15,7 +15,7 @@ static OSStatus on_devices_changed(AudioObjectID in_object_id, UInt32 in_number_
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
     sica->device_scan_queued.store(true);
-    soundio_os_cond_signal(sica->cond, nullptr);
+    soundio_os_cond_signal(sica->scan_devices_cond, nullptr);
 
     return noErr;
 }
@@ -27,7 +27,7 @@ static OSStatus on_service_restarted(AudioObjectID in_object_id, UInt32 in_numbe
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
     sica->service_restarted.store(true);
-    soundio_os_cond_signal(sica->cond, nullptr);
+    soundio_os_cond_signal(sica->scan_devices_cond, nullptr);
 
     return noErr;
 }
@@ -52,7 +52,7 @@ static void destroy_ca(struct SoundIoPrivate *si) {
 
     if (sica->thread) {
         sica->abort_flag.clear();
-        soundio_os_cond_signal(sica->cond, nullptr);
+        soundio_os_cond_signal(sica->scan_devices_cond, nullptr);
         soundio_os_thread_destroy(sica->thread);
     }
 
@@ -61,6 +61,9 @@ static void destroy_ca(struct SoundIoPrivate *si) {
 
     if (sica->have_devices_cond)
         soundio_os_cond_destroy(sica->have_devices_cond);
+
+    if (sica->scan_devices_cond)
+        soundio_os_cond_destroy(sica->scan_devices_cond);
 
     if (sica->mutex)
         soundio_os_mutex_destroy(sica->mutex);
@@ -96,12 +99,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
 }
 // TODO
 /*
-    @constant       kAudioHardwarePropertyDefaultInputDevice
-                        The AudioObjectID of the default input AudioDevice.
-    @constant       kAudioHardwarePropertyDefaultOutputDevice
-                        The AudioObjectID of the default output AudioDevice.
-                        */
-/*
  *
     @constant       kAudioDevicePropertyDeviceHasChanged
                         The type of this property is a UInt32, but its value has no meaning. This
@@ -110,31 +107,265 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
                         be conveyed through other notifications. In response to this notification,
                         clients should re-evaluate everything they need to know about the device,
                         particularly the layout and values of the controls.
-                        */
+*/
 /*
     @constant       kAudioDevicePropertyBufferFrameSize
                         A UInt32 whose value indicates the number of frames in the IO buffers.
     @constant       kAudioDevicePropertyBufferFrameSizeRange
                         An AudioValueRange indicating the minimum and maximum values, inclusive, for
                         kAudioDevicePropertyBufferFrameSize.
-                        */
+*/
 /*
-    @constant       kAudioDevicePropertyStreamConfiguration
-                        This property returns the stream configuration of the device in an
-                        AudioBufferList (with the buffer pointers set to NULL) which describes the
-                        list of streams and the number of channels in each stream. This corresponds
-                        to what will be passed into the IOProc.
-                        */
-    
+    @constant       kAudioDevicePropertyLatency
+                        A UInt32 containing the number of frames of latency in the AudioDevice. Note
+                        that input and output latency may differ. Further, the AudioDevice's
+                        AudioStreams may have additional latency so they should be queried as well.
+                        If both the device and the stream say they have latency, then the total
+                        latency for the stream is the device latency summed with the stream latency.
+*/
+/*
+    @constant       kAudioDevicePropertyNominalSampleRate
+                        A Float64 that indicates the current nominal sample rate of the AudioDevice.
+    @constant       kAudioDevicePropertyAvailableNominalSampleRates
+                        An array of AudioValueRange structs that indicates the valid ranges for the
+                        nominal sample rate of the AudioDevice.
+*/
+/*
+    @constant       kAudioDevicePropertyIcon
+                        A CFURLRef that indicates an image file that can be used to represent the
+                        device visually. The caller is responsible for releasing the returned
+                        CFObject.
+*/
+/*
+    @constant       kAudioDevicePropertyPreferredChannelsForStereo
+                        An array of two UInt32s, the first for the left channel, the second for the
+                        right channel, that indicate the channel numbers to use for stereo IO on the
+                        device. The value of this property can be different for input and output and
+                        there are no restrictions on the channel numbers that can be used.
+*/
 
+static SoundIoChannelId from_channel_descr(const AudioChannelDescription *descr) {
+    switch (descr->mChannelLabel) {
+        default:                                        return SoundIoChannelIdInvalid;
+        case kAudioChannelLabel_Left:                   return SoundIoChannelIdFrontLeft;
+        case kAudioChannelLabel_Right:                  return SoundIoChannelIdFrontRight;
+        case kAudioChannelLabel_Center:                 return SoundIoChannelIdFrontCenter;
+        case kAudioChannelLabel_LFEScreen:              return SoundIoChannelIdLfe;
+        case kAudioChannelLabel_LeftSurround:           return SoundIoChannelIdSideLeft;
+        case kAudioChannelLabel_RightSurround:          return SoundIoChannelIdSideRight;
+        case kAudioChannelLabel_LeftCenter:             return SoundIoChannelIdSideLeft;
+        case kAudioChannelLabel_RightCenter:            return SoundIoChannelIdSideRight;
+        case kAudioChannelLabel_CenterSurround:         return SoundIoChannelIdBackCenter;
+        case kAudioChannelLabel_LeftSurroundDirect:     return SoundIoChannelIdSideLeft;
+        case kAudioChannelLabel_RightSurroundDirect:    return SoundIoChannelIdSideRight;
+        case kAudioChannelLabel_TopCenterSurround:      return SoundIoChannelIdTopCenter;
+        case kAudioChannelLabel_VerticalHeightLeft:     return SoundIoChannelIdTopSideLeft;
+        case kAudioChannelLabel_VerticalHeightCenter:   return SoundIoChannelIdTopCenter;
+        case kAudioChannelLabel_VerticalHeightRight:    return SoundIoChannelIdTopSideRight;
+        case kAudioChannelLabel_TopBackLeft:            return SoundIoChannelIdTopBackLeft;
+        case kAudioChannelLabel_TopBackCenter:          return SoundIoChannelIdTopBackCenter;
+        case kAudioChannelLabel_TopBackRight:           return SoundIoChannelIdTopBackRight;
+        case kAudioChannelLabel_RearSurroundLeft:       return SoundIoChannelIdBackLeft;
+        case kAudioChannelLabel_RearSurroundRight:      return SoundIoChannelIdBackRight;
+        case kAudioChannelLabel_LeftWide:               return SoundIoChannelIdFrontLeftWide;
+        case kAudioChannelLabel_RightWide:              return SoundIoChannelIdFrontRightWide;
+        case kAudioChannelLabel_LFE2:                   return SoundIoChannelIdLfe2;
+        case kAudioChannelLabel_LeftTotal:              return SoundIoChannelIdFrontLeft;
+        case kAudioChannelLabel_RightTotal:             return SoundIoChannelIdFrontRight;
+        case kAudioChannelLabel_HearingImpaired:        return SoundIoChannelIdHearingImpaired;
+        case kAudioChannelLabel_Narration:              return SoundIoChannelIdNarration;
+        case kAudioChannelLabel_Mono:                   return SoundIoChannelIdFrontCenter;
+        case kAudioChannelLabel_DialogCentricMix:       return SoundIoChannelIdDialogCentricMix;
+        case kAudioChannelLabel_CenterSurroundDirect:   return SoundIoChannelIdBackCenter;
+        case kAudioChannelLabel_Haptic:                 return SoundIoChannelIdHaptic;
+
+        case kAudioChannelLabel_Ambisonic_W:            return SoundIoChannelIdAmbisonicW;
+        case kAudioChannelLabel_Ambisonic_X:            return SoundIoChannelIdAmbisonicX;
+        case kAudioChannelLabel_Ambisonic_Y:            return SoundIoChannelIdAmbisonicY;
+        case kAudioChannelLabel_Ambisonic_Z:            return SoundIoChannelIdAmbisonicZ;
+
+        case kAudioChannelLabel_MS_Mid:                 return SoundIoChannelIdMsMid;
+        case kAudioChannelLabel_MS_Side:                return SoundIoChannelIdMsSide;
+
+        case kAudioChannelLabel_XY_X:                   return SoundIoChannelIdXyX;
+        case kAudioChannelLabel_XY_Y:                   return SoundIoChannelIdXyY;
+
+        case kAudioChannelLabel_HeadphonesLeft:         return SoundIoChannelIdHeadphonesLeft;
+        case kAudioChannelLabel_HeadphonesRight:        return SoundIoChannelIdHeadphonesRight;
+        case kAudioChannelLabel_ClickTrack:             return SoundIoChannelIdClickTrack;
+        case kAudioChannelLabel_ForeignLanguage:        return SoundIoChannelIdForeignLanguage;
+
+        case kAudioChannelLabel_Discrete:               return SoundIoChannelIdAux;
+
+        case kAudioChannelLabel_Discrete_0:             return SoundIoChannelIdAux0;
+        case kAudioChannelLabel_Discrete_1:             return SoundIoChannelIdAux1;
+        case kAudioChannelLabel_Discrete_2:             return SoundIoChannelIdAux2;
+        case kAudioChannelLabel_Discrete_3:             return SoundIoChannelIdAux3;
+        case kAudioChannelLabel_Discrete_4:             return SoundIoChannelIdAux4;
+        case kAudioChannelLabel_Discrete_5:             return SoundIoChannelIdAux5;
+        case kAudioChannelLabel_Discrete_6:             return SoundIoChannelIdAux6;
+        case kAudioChannelLabel_Discrete_7:             return SoundIoChannelIdAux7;
+        case kAudioChannelLabel_Discrete_8:             return SoundIoChannelIdAux8;
+        case kAudioChannelLabel_Discrete_9:             return SoundIoChannelIdAux9;
+        case kAudioChannelLabel_Discrete_10:            return SoundIoChannelIdAux10;
+        case kAudioChannelLabel_Discrete_11:            return SoundIoChannelIdAux11;
+        case kAudioChannelLabel_Discrete_12:            return SoundIoChannelIdAux12;
+        case kAudioChannelLabel_Discrete_13:            return SoundIoChannelIdAux13;
+        case kAudioChannelLabel_Discrete_14:            return SoundIoChannelIdAux14;
+        case kAudioChannelLabel_Discrete_15:            return SoundIoChannelIdAux15;
+    }
+}
+
+// See https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags
+// Possible Errors:
+// * SoundIoErrorIncompatibleDevice
+static int from_coreaudio_layout(const AudioChannelLayout *ca_layout, SoundIoChannelLayout *layout) {
+    switch (ca_layout->mChannelLayoutTag) {
+    case kAudioChannelLayoutTag_UseChannelDescriptions:
+    {
+        layout->channel_count = ca_layout->mNumberChannelDescriptions;
+        for (int i = 0; i < layout->channel_count; i += 1) {
+            layout->channels[i] = from_channel_descr(&ca_layout->mChannelDescriptions[i]);
+        }
+        break;
+    }
+    case kAudioChannelLayoutTag_UseChannelBitmap:
+        soundio_panic("TODO how the f to parse this");
+        return SoundIoErrorIncompatibleDevice;
+    case kAudioChannelLayoutTag_Mono:
+        layout->channel_count = 1;
+        layout->channels[0] = SoundIoChannelIdFrontCenter;
+        break;
+    case kAudioChannelLayoutTag_Stereo:
+    case kAudioChannelLayoutTag_StereoHeadphones:
+    case kAudioChannelLayoutTag_MatrixStereo:
+        layout->channel_count = 2;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        break;
+    case kAudioChannelLayoutTag_XY:
+        layout->channel_count = 2;
+        layout->channels[0] = SoundIoChannelIdXyX;
+        layout->channels[1] = SoundIoChannelIdXyY;
+        break;
+    case kAudioChannelLayoutTag_Binaural:
+        layout->channel_count = 2;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        break;
+    case kAudioChannelLayoutTag_MidSide:
+        layout->channel_count = 2;
+        layout->channels[0] = SoundIoChannelIdMsMid;
+        layout->channels[1] = SoundIoChannelIdMsSide;
+        break;
+    case kAudioChannelLayoutTag_Ambisonic_B_Format:
+        layout->channel_count = 4;
+        layout->channels[0] = SoundIoChannelIdAmbisonicW;
+        layout->channels[1] = SoundIoChannelIdAmbisonicX;
+        layout->channels[2] = SoundIoChannelIdAmbisonicY;
+        layout->channels[3] = SoundIoChannelIdAmbisonicZ;
+        break;
+    case kAudioChannelLayoutTag_Quadraphonic:
+        layout->channel_count = 4;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        layout->channels[2] = SoundIoChannelIdBackLeft;
+        layout->channels[3] = SoundIoChannelIdBackRight;
+        break;
+    case kAudioChannelLayoutTag_Pentagonal:
+        layout->channel_count = 5;
+        layout->channels[0] = SoundIoChannelIdSideLeft;
+        layout->channels[1] = SoundIoChannelIdSideRight;
+        layout->channels[2] = SoundIoChannelIdBackLeft;
+        layout->channels[3] = SoundIoChannelIdBackRight;
+        layout->channels[4] = SoundIoChannelIdFrontCenter;
+        break;
+    case kAudioChannelLayoutTag_Hexagonal:
+        layout->channel_count = 6;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        layout->channels[2] = SoundIoChannelIdBackLeft;
+        layout->channels[3] = SoundIoChannelIdBackRight;
+        layout->channels[4] = SoundIoChannelIdFrontCenter;
+        layout->channels[5] = SoundIoChannelIdBackCenter;
+        break;
+    case kAudioChannelLayoutTag_Octagonal:
+        layout->channel_count = 8;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        layout->channels[2] = SoundIoChannelIdBackLeft;
+        layout->channels[3] = SoundIoChannelIdBackRight;
+        layout->channels[4] = SoundIoChannelIdFrontCenter;
+        layout->channels[5] = SoundIoChannelIdBackCenter;
+        layout->channels[6] = SoundIoChannelIdSideLeft;
+        layout->channels[7] = SoundIoChannelIdSideRight;
+        break;
+    case kAudioChannelLayoutTag_Cube:
+        layout->channel_count = 8;
+        layout->channels[0] = SoundIoChannelIdFrontLeft;
+        layout->channels[1] = SoundIoChannelIdFrontRight;
+        layout->channels[2] = SoundIoChannelIdBackLeft;
+        layout->channels[3] = SoundIoChannelIdBackRight;
+        layout->channels[4] = SoundIoChannelIdTopFrontLeft;
+        layout->channels[5] = SoundIoChannelIdTopFrontRight;
+        layout->channels[6] = SoundIoChannelIdTopBackLeft;
+        layout->channels[7] = SoundIoChannelIdTopBackRight;
+        break;
+// TODO more hardcoded channel layouts
+    default:
+        return SoundIoErrorIncompatibleDevice;
+    }
+    soundio_channel_layout_detect_builtin(layout);
+    return 0;
+}
+
+static bool all_channels_invalid(const struct SoundIoChannelLayout *layout) {
+    for (int i = 0; i < layout->channel_count; i += 1) {
+        if (layout->channels[i] != SoundIoChannelIdInvalid)
+            return false;
+    }
+    return true;
+}
+
+struct RefreshDevices {
+    SoundIoDevicesInfo *devices_info;
+    int devices_size;
+    AudioObjectID *devices;
+    CFStringRef string_ref;
+    char *device_name;
+    int device_name_len;
+    AudioBufferList *buffer_list;
+    SoundIoDevice *device;
+    AudioChannelLayout *audio_channel_layout;
+};
+
+static void deinit_refresh_devices(RefreshDevices *rd) {
+    destroy(rd->devices_info);
+    deallocate((char*)rd->devices, rd->devices_size);
+    if (rd->string_ref)
+        CFRelease(rd->string_ref);
+    free(rd->device_name);
+    free(rd->buffer_list);
+    soundio_device_unref(rd->device);
+    free(rd->audio_channel_layout);
+}
+
+// TODO get the device UID which persists between unplug/plug
 // TODO go through here and make sure all allocations are freed
 static int refresh_devices(struct SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
-    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
-    if (!devices_info) {
-        soundio_panic("out of mem");
+    UInt32 io_size;
+    OSStatus os_err;
+    int err;
+
+    RefreshDevices rd;
+    memset(&rd, 0, sizeof(RefreshDevices));
+
+    if (!(rd.devices_info = create<SoundIoDevicesInfo>())) {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorNoMem;
     }
 
     AudioObjectPropertyAddress prop_address = {
@@ -143,54 +374,76 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         kAudioObjectPropertyElementMaster
     };
 
-    UInt32 the_data_size = 0;
-    OSStatus err;
-    if ((err = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject,
-        &prop_address, 0, nullptr, &the_data_size)))
+    if ((os_err = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject,
+        &prop_address, 0, nullptr, &io_size)))
     {
-        soundio_panic("get prop data size");
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorOpeningDevice;
     }
 
-    int devices_available = the_data_size / (UInt32)sizeof(AudioObjectID);
+    AudioObjectID default_input_id;
+    AudioObjectID default_output_id;
 
-    if (devices_available < 1) {
-        soundio_panic("no devices");
+    int device_count = io_size / (UInt32)sizeof(AudioObjectID);
+    if (device_count >= 1) {
+        rd.devices_size = io_size;
+        rd.devices = (AudioObjectID *)allocate<char>(rd.devices_size);
+        if (!rd.devices) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+
+        if ((os_err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop_address, 0, nullptr,
+            &io_size, rd.devices)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+
+        io_size = sizeof(AudioObjectID);
+        prop_address.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+        if ((os_err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop_address,
+            0, nullptr, &io_size, &default_input_id)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        io_size = sizeof(AudioObjectID);
+        prop_address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+        if ((os_err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop_address,
+            0, nullptr, &io_size, &default_output_id)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
     }
 
-    AudioObjectID *devices = (AudioObjectID *)allocate<char>(the_data_size);
-    if (!devices) {
-        soundio_panic("out of mem");
-    }
-
-    if ((err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop_address, 0, nullptr,
-        &the_data_size, devices)))
-    {
-        soundio_panic("get property data");
-    }
-
-    fprintf(stderr, "device count: %d\n", devices_available);
-
-    for (int i = 0; i < devices_available; i += 1) {
-        AudioObjectID deviceID = devices[i];
+    for (int i = 0; i < device_count; i += 1) {
+        AudioObjectID deviceID = rd.devices[i];
 
         prop_address.mSelector = kAudioObjectPropertyName;
-        CFStringRef temp_string_ref = nullptr;
-        UInt32 io_size = sizeof(CFStringRef);
-        if ((err = AudioObjectGetPropertyData(deviceID, &prop_address,
-            0, nullptr, &io_size, &temp_string_ref)))
+        prop_address.mScope = kAudioObjectPropertyScopeGlobal;
+        prop_address.mElement = kAudioObjectPropertyElementMaster;
+        io_size = sizeof(CFStringRef);
+        if (rd.string_ref) {
+            CFRelease(rd.string_ref);
+            rd.string_ref = nullptr;
+        }
+        if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address,
+            0, nullptr, &io_size, &rd.string_ref)))
         {
-            soundio_panic("error getting name");
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
         }
 
-        char *device_name;
-        int device_name_len;
-        if ((err = from_cf_string(temp_string_ref, &device_name, &device_name_len))) {
-            soundio_panic("error decoding");
+        free(rd.device_name);
+        rd.device_name = nullptr;
+        if ((err = from_cf_string(rd.string_ref, &rd.device_name, &rd.device_name_len))) {
+            deinit_refresh_devices(&rd);
+            return err;
         }
-        fprintf(stderr, "device name: %s\n", device_name);
-
-        CFRelease(temp_string_ref);
-        temp_string_ref = nullptr;
 
 
         for (int aim_i = 0; aim_i < array_length(aims); aim_i += 1) {
@@ -199,42 +452,119 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             io_size = 0;
             prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = 0;
-            if ((err = AudioObjectGetPropertyDataSize(deviceID, &prop_address, 0, nullptr, &io_size))) {
-                soundio_panic("input channel get prop data size");
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            if ((os_err = AudioObjectGetPropertyDataSize(deviceID, &prop_address, 0, nullptr, &io_size))) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
             }
 
-            AudioBufferList *buffer_list = (AudioBufferList*)allocate<char>(io_size);
-            if (!buffer_list) {
-                soundio_panic("out of mem");
+            free(rd.buffer_list);
+            rd.buffer_list = (AudioBufferList*)allocate_nonzero<char>(io_size);
+            if (!rd.buffer_list) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorNoMem;
             }
 
-            if ((err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
-                &io_size, buffer_list)))
+            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                &io_size, rd.buffer_list)))
             {
-                soundio_panic("get input channel data");
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
             }
 
             int channel_count = 0;
-            for (int i = 0; i < buffer_list->mNumberBuffers; i += 1) {
-                channel_count += buffer_list->mBuffers[i].mNumberChannels;
+            for (int i = 0; i < rd.buffer_list->mNumberBuffers; i += 1) {
+                channel_count += rd.buffer_list->mBuffers[i].mNumberChannels;
             }
-            deallocate((char*)buffer_list, io_size);
 
-            fprintf(stderr, "%d channel count: %d\n", aim_i, channel_count);
+            if (channel_count <= 0)
+                continue;
+
+            SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+            if (!dev) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorNoMem;
+            }
+            assert(!rd.device);
+            rd.device = &dev->pub;
+            rd.device->ref_count = 1;
+            rd.device->soundio = soundio;
+            rd.device->is_raw = false; // TODO
+            rd.device->aim = aim;
+            rd.device->id = soundio_alloc_sprintf(nullptr, "%ld", (long)deviceID);
+            rd.device->name = soundio_str_dupe(rd.device_name, rd.device_name_len);
+            rd.device->layout_count = 1;
+            rd.device->layouts = create<SoundIoChannelLayout>();
+            rd.device->format_count = 1;
+            rd.device->formats = create<SoundIoFormat>();
+            // TODO more props
+
+            if (!rd.device->id || !rd.device->name || !rd.device->layouts || !rd.device->formats) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorNoMem;
+            }
+
+            prop_address.mSelector = kAudioDevicePropertyPreferredChannelLayout;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            if (!(os_err = AudioObjectGetPropertyDataSize(deviceID, &prop_address,
+                0, nullptr, &io_size)))
+            {
+                rd.audio_channel_layout = (AudioChannelLayout *)allocate<char>(io_size);
+                if (!rd.audio_channel_layout) {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorNoMem;
+                }
+                if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                    &io_size, rd.audio_channel_layout)))
+                {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorOpeningDevice;
+                }
+                if ((err = from_coreaudio_layout(rd.audio_channel_layout, &rd.device->current_layout))) {
+                    rd.device->current_layout.channel_count = channel_count;
+                }
+            }
+            if (all_channels_invalid(&rd.device->current_layout)) {
+                const struct SoundIoChannelLayout *guessed_layout =
+                    soundio_channel_layout_get_default(channel_count);
+                if (guessed_layout)
+                    rd.device->current_layout = *guessed_layout;
+            }
+
+            rd.device->layouts[0] = rd.device->current_layout;
+            // in CoreAudio, format is always 32-bit native endian float
+            rd.device->formats[0] = SoundIoFormatFloat32NE;
+
+            SoundIoList<SoundIoDevice *> *device_list;
+            if (rd.device->aim == SoundIoDeviceAimOutput) {
+                device_list = &rd.devices_info->output_devices;
+                if (deviceID == default_output_id)
+                    rd.devices_info->default_output_index = device_list->length;
+            } else {
+                assert(rd.device->aim == SoundIoDeviceAimInput);
+                device_list = &rd.devices_info->input_devices;
+                if (deviceID == default_input_id)
+                    rd.devices_info->default_input_index = device_list->length;
+            }
+
+            if ((err = device_list->append(rd.device))) {
+                deinit_refresh_devices(&rd);
+                return err;
+            }
+            rd.device = nullptr;
         }
-
     }
 
 
     soundio_os_mutex_lock(sica->mutex);
     soundio_destroy_devices_info(sica->ready_devices_info);
-    sica->ready_devices_info = devices_info;
+    sica->ready_devices_info = rd.devices_info;
     soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sica->mutex);
-    if (!sica->have_devices_flag.exchange(true))
-        soundio_os_cond_signal(sica->have_devices_cond, nullptr);
 
+    rd.devices_info = nullptr;
+    deinit_refresh_devices(&rd);
 
     return 0;
 }
@@ -310,12 +640,16 @@ static void device_thread_run(void *arg) {
             return;
         }
         if (sica->device_scan_queued.exchange(false)) {
-            if ((err = refresh_devices(si))) {
+            err = refresh_devices(si);
+            if (err)
                 shutdown_backend(si, err);
+            if (!sica->have_devices_flag.exchange(true))
+                soundio_os_cond_signal(sica->have_devices_cond, nullptr);
+            if (err)
                 return;
-            }
+            soundio_os_cond_signal(sica->cond, nullptr);
         }
-        soundio_os_cond_wait(sica->cond, nullptr);
+        soundio_os_cond_wait(sica->scan_devices_cond, nullptr);
     }
 }
 
@@ -405,6 +739,12 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
 
     sica->have_devices_cond = soundio_os_cond_create();
     if (!sica->have_devices_cond) {
+        destroy_ca(si);
+        return SoundIoErrorNoMem;
+    }
+
+    sica->scan_devices_cond = soundio_os_cond_create();
+    if (!sica->scan_devices_cond) {
         destroy_ca(si);
         return SoundIoErrorNoMem;
     }

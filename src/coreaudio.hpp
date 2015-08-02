@@ -28,6 +28,7 @@ struct SoundIoCoreAudio {
     struct SoundIoDevicesInfo *ready_devices_info;
     atomic_bool have_devices_flag;
     SoundIoOsCond *have_devices_cond;
+    SoundIoOsCond *scan_devices_cond;
 
     atomic_bool device_scan_queued;
     atomic_bool service_restarted;

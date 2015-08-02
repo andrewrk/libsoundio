@@ -805,10 +805,13 @@ static void device_thread_run(void *arg) {
             }
         }
         if (got_rescan_event) {
-            if ((err = refresh_devices(si))) {
+            err = refresh_devices(si);
+            if (err)
                 shutdown_backend(si, err);
+            if (!sia->have_devices_flag.exchange(true))
+                soundio_os_cond_signal(sica->have_devices_cond, nullptr);
+            if (err)
                 return;
-            }
         }
     }
 }
