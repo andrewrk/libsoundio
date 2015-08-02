@@ -470,6 +470,11 @@ static const char *channel_names[][channel_name_alias_count] = {
         nullptr,
         nullptr,
     },
+    [SoundIoChannelIdLfe2] = {
+        "LFE 2",
+        nullptr,
+        nullptr,
+    },
     [SoundIoChannelIdBottomCenter] = {
         "Bottom Center",
         nullptr,
@@ -482,6 +487,171 @@ static const char *channel_names[][channel_name_alias_count] = {
     },
     [SoundIoChannelIdBottomRightCenter] = {
         "Bottom Right Center",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdMsMid] = {
+        "Mid/Side Mid",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdMsSide] = {
+        "Mid/Side Side",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAmbisonicW] = {
+        "Ambisonic W",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAmbisonicX] = {
+        "Ambisonic X",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAmbisonicY] = {
+        "Ambisonic Y",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAmbisonicZ] = {
+        "Ambisonic Z",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdXyX] = {
+        "X-Y X",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdXyY] = {
+        "X-Y Y",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdHeadphonesLeft] = {
+        "Headphones Left",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdHeadphonesRight] = {
+        "Headphones Right",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdClickTrack] = {
+        "Click Track",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdForeignLanguage] = {
+        "Foreign Language",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdHearingImpaired] = {
+        "Hearing Impaired",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdNarration] = {
+        "Narration",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdHaptic] = {
+        "Haptic",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdDialogCentricMix] = {
+        "Dialog Centric Mix",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux] = {
+        "Aux",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux0] = {
+        "Aux 0",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux1] = {
+        "Aux 1",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux2] = {
+        "Aux 2",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux3] = {
+        "Aux 3",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux4] = {
+        "Aux 4",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux5] = {
+        "Aux 5",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux6] = {
+        "Aux 6",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux7] = {
+        "Aux 7",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux8] = {
+        "Aux 8",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux9] = {
+        "Aux 9",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux10] = {
+        "Aux 10",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux11] = {
+        "Aux 11",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux12] = {
+        "Aux 12",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux13] = {
+        "Aux 13",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux14] = {
+        "Aux 14",
+        nullptr,
+        nullptr,
+    },
+    [SoundIoChannelIdAux15] = {
+        "Aux 15",
         nullptr,
         nullptr,
     },

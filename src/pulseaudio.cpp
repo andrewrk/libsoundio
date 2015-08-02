@@ -128,6 +128,23 @@ static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     case PA_CHANNEL_POSITION_TOP_REAR_RIGHT: return SoundIoChannelIdTopBackRight;
     case PA_CHANNEL_POSITION_TOP_REAR_CENTER: return SoundIoChannelIdTopBackCenter;
 
+    case PA_CHANNEL_POSITION_AUX0: return SoundIoChannelIdAux0;
+    case PA_CHANNEL_POSITION_AUX1: return SoundIoChannelIdAux1;
+    case PA_CHANNEL_POSITION_AUX2: return SoundIoChannelIdAux2;
+    case PA_CHANNEL_POSITION_AUX3: return SoundIoChannelIdAux3;
+    case PA_CHANNEL_POSITION_AUX4: return SoundIoChannelIdAux4;
+    case PA_CHANNEL_POSITION_AUX5: return SoundIoChannelIdAux5;
+    case PA_CHANNEL_POSITION_AUX6: return SoundIoChannelIdAux6;
+    case PA_CHANNEL_POSITION_AUX7: return SoundIoChannelIdAux7;
+    case PA_CHANNEL_POSITION_AUX8: return SoundIoChannelIdAux8;
+    case PA_CHANNEL_POSITION_AUX9: return SoundIoChannelIdAux9;
+    case PA_CHANNEL_POSITION_AUX10: return SoundIoChannelIdAux10;
+    case PA_CHANNEL_POSITION_AUX11: return SoundIoChannelIdAux11;
+    case PA_CHANNEL_POSITION_AUX12: return SoundIoChannelIdAux12;
+    case PA_CHANNEL_POSITION_AUX13: return SoundIoChannelIdAux13;
+    case PA_CHANNEL_POSITION_AUX14: return SoundIoChannelIdAux14;
+    case PA_CHANNEL_POSITION_AUX15: return SoundIoChannelIdAux15;
+
     default: return SoundIoChannelIdInvalid;
     }
 }
@@ -562,26 +579,26 @@ static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_
     case SoundIoChannelIdTopBackCenter: return PA_CHANNEL_POSITION_TOP_REAR_CENTER;
     case SoundIoChannelIdTopBackRight: return PA_CHANNEL_POSITION_TOP_REAR_RIGHT;
 
-    case SoundIoChannelIdInvalid:
-    case SoundIoChannelIdBackLeftCenter:
-    case SoundIoChannelIdBackRightCenter:
-    case SoundIoChannelIdFrontLeftWide:
-    case SoundIoChannelIdFrontRightWide:
-    case SoundIoChannelIdFrontLeftHigh:
-    case SoundIoChannelIdFrontCenterHigh:
-    case SoundIoChannelIdFrontRightHigh:
-    case SoundIoChannelIdTopFrontLeftCenter:
-    case SoundIoChannelIdTopFrontRightCenter:
-    case SoundIoChannelIdTopSideLeft:
-    case SoundIoChannelIdTopSideRight:
-    case SoundIoChannelIdLeftLfe:
-    case SoundIoChannelIdRightLfe:
-    case SoundIoChannelIdBottomCenter:
-    case SoundIoChannelIdBottomLeftCenter:
-    case SoundIoChannelIdBottomRightCenter:
+    case SoundIoChannelIdAux0: return PA_CHANNEL_POSITION_AUX0;
+    case SoundIoChannelIdAux1: return PA_CHANNEL_POSITION_AUX1;
+    case SoundIoChannelIdAux2: return PA_CHANNEL_POSITION_AUX2;
+    case SoundIoChannelIdAux3: return PA_CHANNEL_POSITION_AUX3;
+    case SoundIoChannelIdAux4: return PA_CHANNEL_POSITION_AUX4;
+    case SoundIoChannelIdAux5: return PA_CHANNEL_POSITION_AUX5;
+    case SoundIoChannelIdAux6: return PA_CHANNEL_POSITION_AUX6;
+    case SoundIoChannelIdAux7: return PA_CHANNEL_POSITION_AUX7;
+    case SoundIoChannelIdAux8: return PA_CHANNEL_POSITION_AUX8;
+    case SoundIoChannelIdAux9: return PA_CHANNEL_POSITION_AUX9;
+    case SoundIoChannelIdAux10: return PA_CHANNEL_POSITION_AUX10;
+    case SoundIoChannelIdAux11: return PA_CHANNEL_POSITION_AUX11;
+    case SoundIoChannelIdAux12: return PA_CHANNEL_POSITION_AUX12;
+    case SoundIoChannelIdAux13: return PA_CHANNEL_POSITION_AUX13;
+    case SoundIoChannelIdAux14: return PA_CHANNEL_POSITION_AUX14;
+    case SoundIoChannelIdAux15: return PA_CHANNEL_POSITION_AUX15;
+
+    default:
         return PA_CHANNEL_POSITION_INVALID;
     }
-    return PA_CHANNEL_POSITION_INVALID;
 }
 
 static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *channel_layout) {

@@ -30,6 +30,7 @@ static void test_create_outstream(void) {
     struct SoundIo *soundio = soundio_create();
     assert(soundio);
     ok_or_panic(soundio_connect(soundio));
+    soundio_flush_events(soundio);
     int default_out_device_index = soundio_default_output_device_index(soundio);
     assert(default_out_device_index >= 0);
     struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);

@@ -151,17 +151,17 @@ static SoundIoChannelId from_channel_descr(const AudioChannelDescription *descr)
         case kAudioChannelLabel_Right:                  return SoundIoChannelIdFrontRight;
         case kAudioChannelLabel_Center:                 return SoundIoChannelIdFrontCenter;
         case kAudioChannelLabel_LFEScreen:              return SoundIoChannelIdLfe;
-        case kAudioChannelLabel_LeftSurround:           return SoundIoChannelIdSideLeft;
-        case kAudioChannelLabel_RightSurround:          return SoundIoChannelIdSideRight;
-        case kAudioChannelLabel_LeftCenter:             return SoundIoChannelIdSideLeft;
-        case kAudioChannelLabel_RightCenter:            return SoundIoChannelIdSideRight;
+        case kAudioChannelLabel_LeftSurround:           return SoundIoChannelIdBackLeft;
+        case kAudioChannelLabel_RightSurround:          return SoundIoChannelIdBackRight;
+        case kAudioChannelLabel_LeftCenter:             return SoundIoChannelIdFrontLeftCenter;
+        case kAudioChannelLabel_RightCenter:            return SoundIoChannelIdFrontRightCenter;
         case kAudioChannelLabel_CenterSurround:         return SoundIoChannelIdBackCenter;
         case kAudioChannelLabel_LeftSurroundDirect:     return SoundIoChannelIdSideLeft;
         case kAudioChannelLabel_RightSurroundDirect:    return SoundIoChannelIdSideRight;
         case kAudioChannelLabel_TopCenterSurround:      return SoundIoChannelIdTopCenter;
-        case kAudioChannelLabel_VerticalHeightLeft:     return SoundIoChannelIdTopSideLeft;
-        case kAudioChannelLabel_VerticalHeightCenter:   return SoundIoChannelIdTopCenter;
-        case kAudioChannelLabel_VerticalHeightRight:    return SoundIoChannelIdTopSideRight;
+        case kAudioChannelLabel_VerticalHeightLeft:     return SoundIoChannelIdTopFrontLeft;
+        case kAudioChannelLabel_VerticalHeightCenter:   return SoundIoChannelIdTopFrontCenter;
+        case kAudioChannelLabel_VerticalHeightRight:    return SoundIoChannelIdTopFrontRight;
         case kAudioChannelLabel_TopBackLeft:            return SoundIoChannelIdTopBackLeft;
         case kAudioChannelLabel_TopBackCenter:          return SoundIoChannelIdTopBackCenter;
         case kAudioChannelLabel_TopBackRight:           return SoundIoChannelIdTopBackRight;
@@ -629,6 +629,7 @@ static void wakeup_ca(struct SoundIoPrivate *si) {
 
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
+    SoundIo *soundio = &si->pub;
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     int err;
 
@@ -643,8 +644,10 @@ static void device_thread_run(void *arg) {
             err = refresh_devices(si);
             if (err)
                 shutdown_backend(si, err);
-            if (!sica->have_devices_flag.exchange(true))
+            if (!sica->have_devices_flag.exchange(true)) {
                 soundio_os_cond_signal(sica->have_devices_cond, nullptr);
+                soundio->on_events_signal(soundio);
+            }
             if (err)
                 return;
             soundio_os_cond_signal(sica->cond, nullptr);

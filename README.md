@@ -244,7 +244,6 @@ view `coverage/index.html` in a browser.
  0. implement CoreAudio (OSX) backend, get examples working
  0. Add some builtin channel layouts from
     https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags
- 0. Add more PulseAudio channel ids
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. implement WASAPI (Windows) backend, get examples working

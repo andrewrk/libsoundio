@@ -156,9 +156,10 @@ static int to_alsa_chmap_pos(SoundIoChannelId channel_id) {
         case SoundIoChannelIdBottomCenter:          return SND_CHMAP_BC;
         case SoundIoChannelIdBottomLeftCenter:      return SND_CHMAP_BLC;
         case SoundIoChannelIdBottomRightCenter:     return SND_CHMAP_BRC;
-        case SoundIoChannelIdInvalid:               return SND_CHMAP_UNKNOWN;
+
+        default:
+            return SND_CHMAP_UNKNOWN;
     }
-    return SND_CHMAP_UNKNOWN;
 }
 
 static void get_channel_layout(SoundIoChannelLayout *dest, snd_pcm_chmap_t *chmap) {
@@ -717,6 +718,7 @@ static void shutdown_backend(SoundIoPrivate *si, int err) {
 
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
+    SoundIo *soundio = &si->pub;
     SoundIoAlsa *sia = &si->backend_data.alsa;
 
     // Some systems cannot read integer variables if they are not
@@ -808,8 +810,12 @@ static void device_thread_run(void *arg) {
             err = refresh_devices(si);
             if (err)
                 shutdown_backend(si, err);
-            if (!sia->have_devices_flag.exchange(true))
-                soundio_os_cond_signal(sica->have_devices_cond, nullptr);
+            if (!sia->have_devices_flag.exchange(true)) {
+                soundio_os_mutex_lock(sia->mutex);
+                soundio_os_cond_signal(sia->cond, sia->mutex);
+                soundio->on_events_signal(soundio);
+                soundio_os_mutex_unlock(sia->mutex);
+            }
             if (err)
                 return;
         }
