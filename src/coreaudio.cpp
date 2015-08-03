@@ -97,6 +97,10 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
     return (aim == SoundIoDeviceAimInput) ?
         kAudioObjectPropertyScopeInput : kAudioObjectPropertyScopeOutput;
 }
+// TODO subscribe to device property changes for every property we read and
+// trigger a rescan if anything changes. test with changing the preferredchannellayout
+// for the device
+
 // TODO
 /*
  *
@@ -122,13 +126,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
                         AudioStreams may have additional latency so they should be queried as well.
                         If both the device and the stream say they have latency, then the total
                         latency for the stream is the device latency summed with the stream latency.
-*/
-/*
-    @constant       kAudioDevicePropertyNominalSampleRate
-                        A Float64 that indicates the current nominal sample rate of the AudioDevice.
-    @constant       kAudioDevicePropertyAvailableNominalSampleRates
-                        An array of AudioValueRange structs that indicates the valid ranges for the
-                        nominal sample rate of the AudioDevice.
 */
 /*
     @constant       kAudioDevicePropertyIcon
@@ -239,6 +236,7 @@ static int from_coreaudio_layout(const AudioChannelLayout *ca_layout, SoundIoCha
     case kAudioChannelLayoutTag_Stereo:
     case kAudioChannelLayoutTag_StereoHeadphones:
     case kAudioChannelLayoutTag_MatrixStereo:
+    case kAudioChannelLayoutTag_Binaural:
         layout->channel_count = 2;
         layout->channels[0] = SoundIoChannelIdFrontLeft;
         layout->channels[1] = SoundIoChannelIdFrontRight;
@@ -247,11 +245,6 @@ static int from_coreaudio_layout(const AudioChannelLayout *ca_layout, SoundIoCha
         layout->channel_count = 2;
         layout->channels[0] = SoundIoChannelIdXyX;
         layout->channels[1] = SoundIoChannelIdXyY;
-        break;
-    case kAudioChannelLayoutTag_Binaural:
-        layout->channel_count = 2;
-        layout->channels[0] = SoundIoChannelIdFrontLeft;
-        layout->channels[1] = SoundIoChannelIdFrontRight;
         break;
     case kAudioChannelLayoutTag_MidSide:
         layout->channel_count = 2;
@@ -351,7 +344,6 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
 }
 
 // TODO get the device UID which persists between unplug/plug
-// TODO go through here and make sure all allocations are freed
 static int refresh_devices(struct SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
@@ -535,6 +527,32 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->layouts[0] = rd.device->current_layout;
             // in CoreAudio, format is always 32-bit native endian float
             rd.device->formats[0] = SoundIoFormatFloat32NE;
+
+            prop_address.mSelector = kAudioDevicePropertyNominalSampleRate;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            io_size = sizeof(double);
+            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                &io_size, &rd.device->sample_rate_current)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+
+            prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            io_size = sizeof(AudioValueRange);
+            AudioValueRange avr;
+            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                &io_size, &avr)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+            rd.device->sample_rate_min = avr.mMinimum;
+            rd.device->sample_rate_max = avr.mMaximum;
+
 
             SoundIoList<SoundIoDevice *> *device_list;
             if (rd.device->aim == SoundIoDeviceAimOutput) {
