@@ -330,6 +330,8 @@ struct RefreshDevices {
     AudioBufferList *buffer_list;
     SoundIoDevice *device;
     AudioChannelLayout *audio_channel_layout;
+    char *device_uid;
+    int device_uid_len;
 };
 
 static void deinit_refresh_devices(RefreshDevices *rd) {
@@ -341,6 +343,7 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
     free(rd->buffer_list);
     soundio_device_unref(rd->device);
     free(rd->audio_channel_layout);
+    free(rd->device_uid);
 }
 
 // TODO get the device UID which persists between unplug/plug
@@ -437,6 +440,28 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             return err;
         }
 
+        prop_address.mSelector = kAudioDevicePropertyDeviceUID;
+        prop_address.mScope = kAudioObjectPropertyScopeGlobal;
+        prop_address.mElement = kAudioObjectPropertyElementMaster;
+        io_size = sizeof(CFStringRef);
+        if (rd.string_ref) {
+            CFRelease(rd.string_ref);
+            rd.string_ref = nullptr;
+        }
+        if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address,
+            0, nullptr, &io_size, &rd.string_ref)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        free(rd.device_uid);
+        rd.device_uid = nullptr;
+        if ((err = from_cf_string(rd.string_ref, &rd.device_uid, &rd.device_uid_len))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+
 
         for (int aim_i = 0; aim_i < array_length(aims); aim_i += 1) {
             SoundIoDeviceAim aim = aims[aim_i];
@@ -483,13 +508,12 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->soundio = soundio;
             rd.device->is_raw = false; // TODO
             rd.device->aim = aim;
-            rd.device->id = soundio_alloc_sprintf(nullptr, "%ld", (long)deviceID);
+            rd.device->id = soundio_str_dupe(rd.device_uid, rd.device_uid_len);
             rd.device->name = soundio_str_dupe(rd.device_name, rd.device_name_len);
             rd.device->layout_count = 1;
             rd.device->layouts = create<SoundIoChannelLayout>();
             rd.device->format_count = 1;
             rd.device->formats = create<SoundIoFormat>();
-            // TODO more props
 
             if (!rd.device->id || !rd.device->name || !rd.device->layouts || !rd.device->formats) {
                 deinit_refresh_devices(&rd);
