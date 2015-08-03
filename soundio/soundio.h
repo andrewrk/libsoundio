@@ -353,8 +353,8 @@ struct SoundIoDevice {
 
     // Period duration in seconds. After this much time passes, write_callback
     // is called. If values are unknown, they are set to 0.0. These values are
-    // meaningless for PulseAudio. For JACK, buffer duration and period duration
-    // are the same.
+    // meaningless for PulseAudio and CoreAudio. For JACK, buffer duration and
+    // period duration are the same.
     double period_duration_min;
     double period_duration_max;
     double period_duration_current;

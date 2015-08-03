@@ -113,13 +113,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
                         particularly the layout and values of the controls.
 */
 /*
-    @constant       kAudioDevicePropertyBufferFrameSize
-                        A UInt32 whose value indicates the number of frames in the IO buffers.
-    @constant       kAudioDevicePropertyBufferFrameSizeRange
-                        An AudioValueRange indicating the minimum and maximum values, inclusive, for
-                        kAudioDevicePropertyBufferFrameSize.
-*/
-/*
     @constant       kAudioDevicePropertyLatency
                         A UInt32 containing the number of frames of latency in the AudioDevice. Note
                         that input and output latency may differ. Further, the AudioDevice's
@@ -576,6 +569,35 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             }
             rd.device->sample_rate_min = avr.mMinimum;
             rd.device->sample_rate_max = avr.mMaximum;
+
+            prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            io_size = sizeof(UInt32);
+            UInt32 buffer_frame_size;
+            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                &io_size, &buffer_frame_size)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+            double use_sample_rate = clamp(rd.device->sample_rate_min, rd.device->sample_rate_current,
+                rd.device->sample_rate_max);
+            rd.device->buffer_duration_current = buffer_frame_size / use_sample_rate;
+
+            prop_address.mSelector = kAudioDevicePropertyBufferFrameSizeRange;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            io_size = sizeof(AudioValueRange);
+            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                &io_size, &avr)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+            rd.device->buffer_duration_min = avr.mMinimum / use_sample_rate;
+            rd.device->buffer_duration_max = avr.mMaximum / use_sample_rate;
+
 
 
             SoundIoList<SoundIoDevice *> *device_list;
