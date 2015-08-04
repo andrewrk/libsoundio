@@ -403,8 +403,7 @@ struct SoundIoOutStream {
     // still set this, but you might not get the value you requested. If you
     // set this and the backend is PulseAudio, it sets
     // `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength` and
-    // `tlength`. With PulseAudio, this value is not replaced with the actual
-    // duration until `soundio_outstream_start`.
+    // `tlength`.
     double buffer_duration;
 
     // `period_duration` is the latency; how much time it takes

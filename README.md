@@ -289,12 +289,6 @@ view `coverage/index.html` in a browser.
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
  0. Consider testing on FreeBSD
- 0. PulseAudio idea: when prebuf gets set to 0 need to pass `PA_STREAM_START_CORKED`.
-    In PulseAudio, to get buffer duration and period duration, fill the buffer
-    with silence before starting, start the stream corked, and have the
-    callback be a callback that just provides silence. Once
-    `soundio_outstream_start` is called, switch to the real callback, then call
-    `pa_stream_flush`, then uncork the stream.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
 

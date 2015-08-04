@@ -680,7 +680,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         return SoundIoErrorIncompatibleBackend;
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    ospa->stream_ready = false;
+    ospa->stream_ready.store(false);
 
     assert(sipa->pulse_context);
 
@@ -700,8 +700,6 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         return SoundIoErrorNoMem;
     }
     pa_stream_set_state_callback(ospa->stream, playback_stream_state_callback, os);
-    pa_stream_set_write_callback(ospa->stream, playback_stream_write_callback, os);
-    pa_stream_set_underflow_callback(ospa->stream, playback_stream_underflow_callback, outstream);
 
     ospa->buffer_attr.maxlength = UINT32_MAX;
     ospa->buffer_attr.tlength = UINT32_MAX;
@@ -718,6 +716,24 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         ospa->buffer_attr.tlength = buffer_length;
     }
 
+    pa_stream_flags_t flags = PA_STREAM_START_CORKED;
+    if (outstream->buffer_duration > 0.0)
+        flags = (pa_stream_flags_t) (flags | PA_STREAM_ADJUST_LATENCY);
+
+    int err = pa_stream_connect_playback(ospa->stream,
+            outstream->device->id, &ospa->buffer_attr,
+            flags, nullptr, nullptr);
+    if (err) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    while (!ospa->stream_ready.load())
+        pa_threaded_mainloop_wait(sipa->main_loop);
+
+    size_t writable_size = pa_stream_writable_size(ospa->stream);
+    outstream->buffer_duration = writable_size / bytes_per_second;
+
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
@@ -730,22 +746,18 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_stream_flags_t flags = (outstream->buffer_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
+    ospa->bytes_left = pa_stream_writable_size(ospa->stream);
+    int frame_count = ospa->bytes_left / outstream->bytes_per_frame;
+    outstream->write_callback(outstream, frame_count);
 
-    int err = pa_stream_connect_playback(ospa->stream,
-            outstream->device->id, &ospa->buffer_attr,
-            flags, nullptr, nullptr);
-    if (err) {
+    pa_operation *op = pa_stream_cork(ospa->stream, false, nullptr, nullptr);
+    if (!op) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
-        return SoundIoErrorOpeningDevice;
+        return SoundIoErrorStreaming;
     }
-
-    while (!ospa->stream_ready)
-        pa_threaded_mainloop_wait(sipa->main_loop);
-
-    const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ospa->stream);
-    outstream->buffer_duration = (attr->maxlength /
-        (double)outstream->bytes_per_frame) / (double)outstream->sample_rate;
+    pa_operation_unref(op);
+    pa_stream_set_write_callback(ospa->stream, playback_stream_write_callback, os);
+    pa_stream_set_underflow_callback(ospa->stream, playback_stream_underflow_callback, outstream);
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
@@ -800,8 +812,10 @@ static int outstream_clear_buffer_pa(SoundIoPrivate *si,
     pa_stream *stream = ospa->stream;
     pa_threaded_mainloop_lock(sipa->main_loop);
     pa_operation *op = pa_stream_flush(stream, NULL, NULL);
-    if (!op)
+    if (!op) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorStreaming;
+    }
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(sipa->main_loop);
     return 0;
@@ -815,8 +829,10 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
 
     if (pause != pa_stream_is_corked(ospa->stream)) {
         pa_operation *op = pa_stream_cork(ospa->stream, pause, NULL, NULL);
-        if (!op)
+        if (!op) {
+            pa_threaded_mainloop_unlock(sipa->main_loop);
             return SoundIoErrorStreaming;
+        }
         pa_operation_unref(op);
     }
 
