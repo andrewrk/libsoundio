@@ -397,12 +397,14 @@ struct SoundIoOutStream {
     // Buffer duration in seconds.
     // After you call `soundio_outstream_open` this value is replaced with the
     // actual duration, as near to this value as possible.
-    // Defaults to 1 second (and then clamped into range).
+    // Defaults to a big buffer, potentially upwards of 1 second. If you want
+    // lower latency, set this value to the latency you want.
     // If the device has unknown buffer duration min and max values, you may
-    // still set this. If you set this and the backend is PulseAudio, it
-    // sets `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength`
-    // and `tlength`. With PulseAudio, this value is not replaced with the
-    // actual duration until `soundio_outstream_start`.
+    // still set this, but you might not get the value you requested. If you
+    // set this and the backend is PulseAudio, it sets
+    // `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength` and
+    // `tlength`. With PulseAudio, this value is not replaced with the actual
+    // duration until `soundio_outstream_start`.
     double buffer_duration;
 
     // `period_duration` is the latency; how much time it takes
@@ -657,11 +659,13 @@ int soundio_output_device_count(struct SoundIo *soundio);
 
 // Always returns a device. Call soundio_device_unref when done.
 // `index` must be 0 <= index < soundio_input_device_count
-// Returns NULL if you never called `soundio_flush_events`.
+// Returns NULL if you never called `soundio_flush_events` or if you provide
+// invalid parameter values.
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index);
 // Always returns a device. Call soundio_device_unref when done.
 // `index` must be 0 <= index < soundio_output_device_count
-// Returns NULL if you never called `soundio_flush_events`.
+// Returns NULL if you never called `soundio_flush_events` or if you provide
+// invalid parameter values.
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index);
 
 // returns the index of the default input device

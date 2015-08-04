@@ -99,7 +99,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         return SoundIoErrorNoMem;
     }
 
-    SoundIoList<SoundIoJackClient> clients;
+    SoundIoList<SoundIoJackClient> clients = {0};
     const char **port_name_ptr = port_names;
     while (*port_name_ptr) {
         const char *client_and_port_name = *port_name_ptr;
@@ -415,7 +415,7 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    outstream->buffer_duration = 0.0;
+    outstream->buffer_duration = device->period_duration_current;
     outstream->period_duration = device->period_duration_current;
     osj->period_size = sij->period_size;
 
@@ -616,7 +616,7 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    instream->buffer_duration = 0.0;
+    instream->buffer_duration = device->period_duration_current;
     instream->period_duration = device->period_duration_current;
     isj->period_size = sij->period_size;
 

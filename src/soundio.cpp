@@ -254,43 +254,75 @@ void soundio_flush_events(struct SoundIo *soundio) {
 }
 
 int soundio_input_device_count(struct SoundIo *soundio) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
+    assert(si->safe_devices_info);
     if (!si->safe_devices_info)
         return -1;
+
+    assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return -1;
+
     return si->safe_devices_info->input_devices.length;
 }
 
 int soundio_output_device_count(struct SoundIo *soundio) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
+    assert(si->safe_devices_info);
     if (!si->safe_devices_info)
         return -1;
+
+    assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return -1;
+
     return si->safe_devices_info->output_devices.length;
 }
 
 int soundio_default_input_device_index(struct SoundIo *soundio) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
+    assert(si->safe_devices_info);
     if (!si->safe_devices_info)
         return -1;
+
+    assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return -1;
+
     return si->safe_devices_info->default_input_index;
 }
 
 int soundio_default_output_device_index(struct SoundIo *soundio) {
-    assert(soundio->current_backend != SoundIoBackendNone);
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
+    assert(si->safe_devices_info);
     if (!si->safe_devices_info)
         return -1;
+
+    assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return -1;
+
     return si->safe_devices_info->default_output_index;
 }
 
 struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int index) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
     assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return nullptr;
+
+    assert(si->safe_devices_info);
+    if (!si->safe_devices_info)
+        return nullptr;
+
     assert(index >= 0);
     assert(index < si->safe_devices_info->input_devices.length);
-    if (!si->safe_devices_info)
+    if (index < 0 || index >= si->safe_devices_info->input_devices.length)
         return nullptr;
 
     SoundIoDevice *device = si->safe_devices_info->input_devices.at(index);
@@ -300,10 +332,18 @@ struct SoundIoDevice *soundio_get_input_device(struct SoundIo *soundio, int inde
 
 struct SoundIoDevice *soundio_get_output_device(struct SoundIo *soundio, int index) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
     assert(soundio->current_backend != SoundIoBackendNone);
+    if (soundio->current_backend == SoundIoBackendNone)
+        return nullptr;
+
+    assert(si->safe_devices_info);
+    if (!si->safe_devices_info)
+        return nullptr;
+
     assert(index >= 0);
     assert(index < si->safe_devices_info->output_devices.length);
-    if (!si->safe_devices_info)
+    if (index < 0 || index >= si->safe_devices_info->output_devices.length)
         return nullptr;
 
     SoundIoDevice *device = si->safe_devices_info->output_devices.at(index);
@@ -333,6 +373,7 @@ void soundio_device_unref(struct SoundIoDevice *device) {
 }
 
 void soundio_device_ref(struct SoundIoDevice *device) {
+    assert(device);
     device->ref_count += 1;
 }
 
@@ -370,9 +411,12 @@ static void default_underflow_callback(struct SoundIoOutStream *outstream) { }
 
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) {
     SoundIoOutStreamPrivate *os = allocate<SoundIoOutStreamPrivate>(1);
+    SoundIoOutStream *outstream = &os->pub;
+
     if (!os)
         return nullptr;
-    SoundIoOutStream *outstream = &os->pub;
+    if (!device)
+        return nullptr;
 
     outstream->device = device;
     soundio_device_ref(device);
@@ -455,9 +499,12 @@ static void default_instream_error_callback(struct SoundIoInStream *is, int err)
 
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     SoundIoInStreamPrivate *is = allocate<SoundIoInStreamPrivate>(1);
+    SoundIoInStream *instream = &is->pub;
+
     if (!is)
         return nullptr;
-    SoundIoInStream *instream = &is->pub;
+    if (!device)
+        return nullptr;
 
     instream->device = device;
     soundio_device_ref(device);
