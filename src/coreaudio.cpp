@@ -71,9 +71,11 @@ static void destroy_ca(struct SoundIoPrivate *si) {
     soundio_destroy_devices_info(sica->ready_devices_info);
 }
 
+/* TODO
 static CFStringRef to_cf_string(const char *str) {
     return CFStringCreateWithCString(kCFAllocatorDefault, str, kCFStringEncodingUTF8);
 }
+*/
 
 // Possible errors:
 //  * SoundIoErrorNoMem
@@ -354,8 +356,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     OSStatus os_err;
     int err;
 
-    RefreshDevices rd;
-    memset(&rd, 0, sizeof(RefreshDevices));
+    RefreshDevices rd = {0};
 
     if (!(rd.devices_info = create<SoundIoDevicesInfo>())) {
         deinit_refresh_devices(&rd);
@@ -415,7 +416,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     }
 
     for (int device_i = 0; device_i < device_count; device_i += 1) {
-        AudioObjectID deviceID = rd.devices[device_i];
+        AudioObjectID device_id = rd.devices[device_i];
 
         prop_address.mSelector = kAudioObjectPropertyName;
         prop_address.mScope = kAudioObjectPropertyScopeGlobal;
@@ -425,7 +426,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             CFRelease(rd.string_ref);
             rd.string_ref = nullptr;
         }
-        if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address,
+        if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address,
             0, nullptr, &io_size, &rd.string_ref)))
         {
             deinit_refresh_devices(&rd);
@@ -447,7 +448,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             CFRelease(rd.string_ref);
             rd.string_ref = nullptr;
         }
-        if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address,
+        if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address,
             0, nullptr, &io_size, &rd.string_ref)))
         {
             deinit_refresh_devices(&rd);
@@ -469,7 +470,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
-            if ((os_err = AudioObjectGetPropertyDataSize(deviceID, &prop_address, 0, nullptr, &io_size))) {
+            if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, nullptr, &io_size))) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
@@ -481,7 +482,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 return SoundIoErrorNoMem;
             }
 
-            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                 &io_size, rd.buffer_list)))
             {
                 deinit_refresh_devices(&rd);
@@ -501,6 +502,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorNoMem;
             }
+            SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+            dca->device_id = device_id;
             assert(!rd.device);
             rd.device = &dev->pub;
             rd.device->ref_count = 1;
@@ -522,7 +525,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mSelector = kAudioDevicePropertyPreferredChannelLayout;
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
-            if (!(os_err = AudioObjectGetPropertyDataSize(deviceID, &prop_address,
+            if (!(os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address,
                 0, nullptr, &io_size)))
             {
                 rd.audio_channel_layout = (AudioChannelLayout *)allocate<char>(io_size);
@@ -530,7 +533,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                     deinit_refresh_devices(&rd);
                     return SoundIoErrorNoMem;
                 }
-                if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+                if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                     &io_size, rd.audio_channel_layout)))
                 {
                     deinit_refresh_devices(&rd);
@@ -555,7 +558,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(double);
-            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                 &io_size, &rd.device->sample_rate_current)))
             {
                 deinit_refresh_devices(&rd);
@@ -565,7 +568,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
-            if ((os_err = AudioObjectGetPropertyDataSize(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, nullptr,
                 &io_size)))
             {
                 deinit_refresh_devices(&rd);
@@ -579,7 +582,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 return SoundIoErrorNoMem;
             }
 
-            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                 &io_size, rd.avr_array)))
             {
                 deinit_refresh_devices(&rd);
@@ -601,7 +604,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(UInt32);
             UInt32 buffer_frame_size;
-            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                 &io_size, &buffer_frame_size)))
             {
                 deinit_refresh_devices(&rd);
@@ -616,7 +619,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(AudioValueRange);
             AudioValueRange avr;
-            if ((os_err = AudioObjectGetPropertyData(deviceID, &prop_address, 0, nullptr,
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
                 &io_size, &avr)))
             {
                 deinit_refresh_devices(&rd);
@@ -630,12 +633,12 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             SoundIoList<SoundIoDevice *> *device_list;
             if (rd.device->aim == SoundIoDeviceAimOutput) {
                 device_list = &rd.devices_info->output_devices;
-                if (deviceID == default_output_id)
+                if (device_id == default_output_id)
                     rd.devices_info->default_output_index = device_list->length;
             } else {
                 assert(rd.device->aim == SoundIoDeviceAimInput);
                 device_list = &rd.devices_info->input_devices;
-                if (deviceID == default_input_id)
+                if (device_id == default_input_id)
                     rd.devices_info->default_input_index = device_list->length;
             }
 
@@ -749,109 +752,160 @@ static void device_thread_run(void *arg) {
 
 static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
-    if (osca->device_uid_string_ref)
-        CFRelease(osca->device_uid_string_ref);
+    if (osca->output_instance)
+        AudioComponentInstanceDispose(osca->output_instance);
 }
 
-/*
-    @constant       kAudioHardwarePropertyTranslateUIDToDevice
-                        This property fetches the AudioObjectID that corresponds to the AudioDevice
-                        that has the given UID. The UID is passed in via the qualifier as a CFString
-                        while the AudioObjectID for the AudioDevice is returned to the caller as the
-                        property's data. Note that an error is not returned if the UID doesn't refer
-                        to any AudioDevices. Rather, this property will return kAudioObjectUnknown
-                        as the value of the property.
-                        */
+static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_action_flags,
+    const AudioTimeStamp *in_time_stamp, UInt32 in_bus_number, UInt32 in_number_frames,
+    AudioBufferList *io_data)
+{
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *) userdata;
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+
+    osca->io_data = io_data;
+    osca->buffer_index = 0;
+    outstream->write_callback(outstream, in_number_frames);
+    osca->io_data = nullptr;
+
+    return noErr;
+}
+
 static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
 
-    UInt32 io_size;
+    AudioComponentDescription desc;
+    desc.componentType = kAudioUnitType_Output;
+    desc.componentSubType = kAudioUnitSubType_HALOutput;
+    desc.componentFlags = 0;
+    desc.componentFlagsMask = 0;
+    desc.componentManufacturer = kAudioUnitManufacturer_Apple;
+
+    AudioComponent output_comp = AudioComponentFindNext(nullptr, &desc);
+    if (!output_comp) {
+        soundio_panic("find next comp");
+    }
+
     OSStatus os_err;
-
-
-    osca->device_uid_string_ref = to_cf_string(device->id);
-    if (!osca->device_uid_string_ref) {
-        outstream_destroy_ca(si, os);
-        return SoundIoErrorNoMem;
+    if ((os_err = AudioComponentInstanceNew(output_comp, &osca->output_instance))) {
+        soundio_panic("AudioComponentInstanceNew");
     }
 
-    AudioObjectPropertyAddress prop_address = {
-        kAudioHardwarePropertyTranslateUIDToDevice,
-        kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
-    };
-    io_size = sizeof(AudioDeviceID);
-    if ((os_err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop_address,
-        sizeof(CFStringRef), osca->device_uid_string_ref,
-        &io_size, &osca->device_id)))
+    if ((os_err = AudioUnitInitialize(osca->output_instance))) {
+        soundio_panic("AudioUnitInitialize");
+    }
+
+    AudioStreamBasicDescription format = {0};
+    format.mSampleRate = outstream->sample_rate;
+    format.mFormatID = kAudioFormatLinearPCM;
+    format.mFormatFlags = kAudioFormatFlagIsFloat;
+    format.mBytesPerPacket = outstream->bytes_per_frame;
+    format.mFramesPerPacket = 1;
+    format.mBytesPerFrame = outstream->bytes_per_frame;
+    format.mChannelsPerFrame = outstream->layout.channel_count;
+    format.mBitsPerChannel = 32;
+
+    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioOutputUnitProperty_CurrentDevice,
+        kAudioUnitScope_Input, 0, &dca->device_id, sizeof(AudioDeviceID))))
     {
-        fprintf(stderr, "derpde derpdee derr\n");
-        outstream_destroy_ca(si, os);
-        return SoundIoErrorOpeningDevice;
+        soundio_panic("set device");
     }
 
-    if (osca->device_id == kAudioObjectUnknown) {
-        outstream_destroy_ca(si, os);
-        return SoundIoErrorNoSuchDevice;
+    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioUnitProperty_StreamFormat,
+        kAudioUnitScope_Input, 0, &format, sizeof(AudioStreamBasicDescription))))
+    {
+        soundio_panic("AudioUnitSetProperty format %d", os_err);
     }
 
-    fprintf(stderr, "id: %ld\n", (long)osca->device_id);
+    AURenderCallbackStruct render_callback = {write_callback_ca, os};
+    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioUnitProperty_SetRenderCallback,
+        kAudioUnitScope_Input, 0, &render_callback, sizeof(AURenderCallbackStruct))))
+    {
+        soundio_panic("AudioUnitSetProperty callback");
+    }
 
-    soundio_panic("TODO");
+    return 0;
 }
 
 static int outstream_start_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    soundio_panic("TODO");
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    OSStatus os_err;
+    if ((os_err = AudioOutputUnitStart(osca->output_instance))) {
+        soundio_panic("audio outut unit start");
+    }
+
+    return 0;
 }
 
 static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
-        SoundIoChannelArea **out_areas, int *frame_count)
+        SoundIoChannelArea **out_areas, int *out_frame_count)
 {
-    soundio_panic("TODO");
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+
+    if (osca->buffer_index < osca->io_data->mNumberBuffers) {
+        AudioBuffer *audio_buffer = &osca->io_data->mBuffers[osca->buffer_index];
+        assert(audio_buffer->mNumberChannels == outstream->layout.channel_count);
+        *out_frame_count = audio_buffer->mDataByteSize / outstream->bytes_per_frame;
+        assert((audio_buffer->mDataByteSize % outstream->bytes_per_frame) == 0);
+        for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+            osca->areas[ch].ptr = ((char*)audio_buffer->mData) + outstream->bytes_per_sample * ch;
+            osca->areas[ch].step = outstream->bytes_per_frame;
+        }
+        *out_areas = osca->areas;
+    } else {
+        *out_areas = nullptr;
+        *out_frame_count = 0;
+    }
+    return 0;
 }
 
-static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
-    int frame_count)
+static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, int)
 {
-    soundio_panic("TODO");
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    osca->buffer_index += 1;
+    return 0;
 }
 
 static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    soundio_panic("TODO");
+    soundio_panic("TODO clear buffer");
 }
 
 static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
-    soundio_panic("TODO");
+    soundio_panic("TODO pause");
 }
 
 
 
 static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    soundio_panic("TODO open");
 }
 
 static void instream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    soundio_panic("TODO destroy");
 }
 
 static int instream_start_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    soundio_panic("TODO start");
 }
 
 static int instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         SoundIoChannelArea **out_areas, int *frame_count)
 {
-    soundio_panic("TODO");
+    soundio_panic("TODO begin read");
 }
 
 static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    soundio_panic("TODO end read");
 }
 
 static int instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
-    soundio_panic("TODO");
+    soundio_panic("TODO pause");
 }
 
 

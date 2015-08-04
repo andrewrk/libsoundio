@@ -12,11 +12,14 @@
 #include "soundio/os.h"
 #include "atomics.hpp"
 
-#include <CoreAudio.h>
+#include <CoreAudio/CoreAudio.h>
+#include <AudioUnit/AudioUnit.h>
 
 int soundio_coreaudio_init(struct SoundIoPrivate *si);
 
-struct SoundIoDeviceCoreAudio { };
+struct SoundIoDeviceCoreAudio {
+    AudioDeviceID device_id;
+};
 
 struct SoundIoCoreAudio {
     SoundIoOsMutex *mutex;
@@ -37,8 +40,10 @@ struct SoundIoCoreAudio {
 };
 
 struct SoundIoOutStreamCoreAudio {
-    CFStringRef device_uid_string_ref;
-    AudioDeviceID device_id;
+    AudioComponentInstance output_instance;
+    AudioBufferList *io_data;
+    int buffer_index;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamCoreAudio {

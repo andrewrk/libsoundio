@@ -65,11 +65,16 @@ if(COREAUDIO_FOUND)
     find_path(COREFOUNDATION_INCLUDE_DIR NAMES CoreFoundation.h)
     find_library(COREFOUNDATION_LIBRARY NAMES CoreFoundation)
     include_directories(${COREFOUNDATION_INCLUDE_DIR})
+
+    find_path(AUDIOUNIT_INCLUDE_DIR NAMES AudioUnit.h)
+    find_library(AUDIOUNIT_LIBRARY NAMES AudioUnit)
+    include_directories(${AUDIOUNIT_INCLUDE_DIR})
 else()
     set(STATUS_COREAUDIO "not found")
     set(SOUNDIO_HAVE_COREAUDIO false)
     set(COREAUDIO_LIBRARY "")
     set(COREFOUNDATION_LIBRARY "")
+    set(AUDIOUNIT_LIBRARY "")
 endif()
 
 
@@ -180,6 +185,7 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC
     ${ALSA_LIBRARIES}
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
+    ${AUDIOUNIT_LIBRARY}
     m
     ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -235,6 +241,7 @@ target_link_libraries(unit_tests LINK_PUBLIC
     ${ALSA_LIBRARIES}
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
+    ${AUDIOUNIT_LIBRARY}
     m
 )
 set_target_properties(unit_tests PROPERTIES
