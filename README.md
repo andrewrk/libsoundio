@@ -23,7 +23,7 @@ behavior on every platform.
    - [JACK](http://jackaudio.org/)
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
-   - (planned) [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
+   - [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - Dummy (silence)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - (planned) [ASIO](http://www.asio4all.com/)
@@ -242,6 +242,9 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement CoreAudio (OSX) backend, get examples working
+    - microphone example
+    - underflow example
+ 0. ALSA backend for microphone example is broken
  0. Add some builtin channel layouts from
     https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags
  0. Make sure sending bogus device id results in "SoundIoErrorNoSuchDevice" on each backend
@@ -251,6 +254,7 @@ view `coverage/index.html` in a browser.
     should do the same.
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
+ 0. Do we really want `period_duration` in the API?
  0. Integrate into libgroove and test with Groove Basin
  0. clear buffer maybe could take an argument to say how many frames to not clear
  0. Verify that JACK xrun callback context is the same as process callback.
@@ -275,7 +279,7 @@ view `coverage/index.html` in a browser.
  0. -fvisibility=hidden and then explicitly export stuff, or
     explicitly make the unexported stuff private
  0. add len arguments to APIs that have char *
-    - replace strdup with soundio_str_dupe
+    - replace strdup with `soundio_str_dupe`
  0. Support PulseAudio proplist properties for main context and streams
  0. Expose JACK options in `jack_client_open`
  0. custom allocator support

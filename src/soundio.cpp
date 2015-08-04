@@ -352,15 +352,14 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    assert(*frame_count > 0);
     return si->outstream_begin_write(si, os, areas, frame_count);
 }
 
-int soundio_outstream_end_write(struct SoundIoOutStream *outstream, int frame_count) {
+int soundio_outstream_end_write(struct SoundIoOutStream *outstream) {
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    return si->outstream_end_write(si, os, frame_count);
+    return si->outstream_end_write(si, os);
 }
 
 static void default_outstream_error_callback(struct SoundIoOutStream *os, int err) {

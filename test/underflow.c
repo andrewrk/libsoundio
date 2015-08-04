@@ -41,6 +41,8 @@ static float seconds_end = 9.0f;
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
+    struct SoundIoChannelArea *areas;
+    int frame_count;
     int err;
 
     if (!caused_underflow && seconds_offset >= 3.0f) {
@@ -54,9 +56,6 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
     }
 
     for (;;) {
-        int frame_count = requested_frame_count;
-
-        struct SoundIoChannelArea *areas;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
 
@@ -76,15 +75,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_end_write(outstream, frame_count))) {
+        if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
             panic("%s", soundio_strerror(err));
         }
-
-        requested_frame_count -= frame_count;
-        if (requested_frame_count <= 0)
-            break;
     }
 }
 
@@ -123,6 +118,8 @@ int main(int argc, char **argv) {
 
     if (err)
         panic("error connecting: %s", soundio_strerror(err));
+
+    soundio_flush_events(soundio);
 
     int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)

@@ -35,11 +35,11 @@ static float seconds_offset = 0.0f;
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
+    int frame_count;
     int err;
 
-    for (;;) {
-        int frame_count = requested_frame_count;
 
+    for (;;) {
         struct SoundIoChannelArea *areas;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
@@ -60,15 +60,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_end_write(outstream, frame_count))) {
+        if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
             panic("%s", soundio_strerror(err));
         }
-
-        requested_frame_count -= frame_count;
-        if (requested_frame_count <= 0)
-            break;
     }
 }
 

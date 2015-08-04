@@ -865,8 +865,7 @@ static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOut
     return 0;
 }
 
-static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, int)
-{
+static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     osca->buffer_index += 1;
     return 0;

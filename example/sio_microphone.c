@@ -51,26 +51,24 @@ static void panic(const char *format, ...) {
 
 struct SoundIoRingBuffer *ring_buffer = NULL;
 
-static int min_int(int a, int b) {
-    return (a < b) ? a : b;
-}
-
 static void read_callback(struct SoundIoInStream *instream, int available_frame_count) {
+    struct SoundIoChannelArea *areas;
+    int frame_count;
     int err;
     char *write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
     int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
     int free_count = free_bytes / instream->bytes_per_frame;
-    int write_count = min_int(available_frame_count, free_count);
-    int frames_left = write_count;
+
+    //fprintf(stderr, "read_callback %d free %d\n", available_frame_count, free_count);
+
+    if (available_frame_count > free_count)
+        panic("ring buffer overflow");
 
     for (;;) {
-        int frame_count = frames_left;
-
-        struct SoundIoChannelArea *areas;
         if ((err = soundio_instream_begin_read(instream, &areas, &frame_count)))
             panic("begin read error: %s", soundio_strerror(err));
 
-        if (frame_count <= 0)
+        if (!frame_count)
             break;
 
         if (!areas) {
@@ -90,36 +88,42 @@ static void read_callback(struct SoundIoInStream *instream, int available_frame_
 
         if ((err = soundio_instream_end_read(instream)))
             panic("end read error: %s", soundio_strerror(err));
-
-        frames_left -= frame_count;
-
-        if (frames_left <= 0)
-            break;
     }
 
-    int advance_bytes = write_count * instream->bytes_per_frame;
+    int advance_bytes = available_frame_count * instream->bytes_per_frame;
     soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
-
-    int dropped_frames = available_frame_count - write_count;
-    if (dropped_frames > 0)
-        fprintf(stderr, "Dropped %d frames due to overflow\n", dropped_frames);
 }
 
 static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
-    int err;
     struct SoundIoChannelArea *areas;
+    int frame_count;
+    int err;
+
     char *read_ptr = soundio_ring_buffer_read_ptr(ring_buffer);
     int fill_bytes = soundio_ring_buffer_fill_count(ring_buffer);
     int fill_count = fill_bytes / outstream->bytes_per_frame;
-    int read_frames = min_int(requested_frame_count, fill_count);
-    int frames_left = read_frames;
+
+    //fprintf(stderr, "write_callback %d fill %d\n", requested_frame_count, fill_count);
+
+    if (requested_frame_count > fill_count) {
+        // Ring buffer does not have enough data, fill with zeroes.
+        for (;;) {
+            if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
+                panic("begin write error: %s", soundio_strerror(err));
+            if (frame_count <= 0)
+                return;
+            for (int frame = 0; frame < frame_count; frame += 1) {
+                for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                    memset(areas[ch].ptr, 0, outstream->bytes_per_sample);
+                    areas[ch].ptr += areas[ch].step;
+                }
+            }
+            if ((err = soundio_outstream_end_write(outstream)))
+                panic("end write error: %s", soundio_strerror(err));
+        }
+    }
 
     for (;;) {
-        int frame_count = frames_left;
-
-        if (frame_count <= 0)
-            break;
-
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("begin write error: %s", soundio_strerror(err));
 
@@ -134,13 +138,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
             }
         }
 
-        if ((err = soundio_outstream_end_write(outstream, frame_count)))
+        if ((err = soundio_outstream_end_write(outstream)))
             panic("end write error: %s", soundio_strerror(err));
-
-        frames_left -= frame_count;
     }
 
-    soundio_ring_buffer_advance_read_ptr(ring_buffer, read_frames * outstream->bytes_per_frame);
+    soundio_ring_buffer_advance_read_ptr(ring_buffer, requested_frame_count * outstream->bytes_per_frame);
 }
 
 static void underflow_callback(struct SoundIoOutStream *outstream) {

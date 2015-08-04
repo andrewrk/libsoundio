@@ -641,8 +641,11 @@ static void playback_stream_underflow_callback(pa_stream *stream, void *userdata
 }
 
 static void playback_stream_write_callback(pa_stream *stream, size_t nbytes, void *userdata) {
-    SoundIoOutStream *outstream = (SoundIoOutStream*)(userdata);
-    int frame_count = ((int)nbytes) / outstream->bytes_per_frame;
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate*)(userdata);
+    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    SoundIoOutStream *outstream = &os->pub;
+    ospa->bytes_left = nbytes;
+    int frame_count = ospa->bytes_left / outstream->bytes_per_frame;
     outstream->write_callback(outstream, frame_count);
 }
 
@@ -750,17 +753,23 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 }
 
 static int outstream_begin_write_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *frame_count)
+        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *out_frame_count)
 {
-    *out_areas = nullptr;
-
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
-    size_t byte_count = *frame_count * outstream->bytes_per_frame;
+    if (ospa->bytes_left <= 0) {
+        *out_frame_count = 0;
+        *out_areas = nullptr;
+        return 0;
+    }
 
-    if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &byte_count))
+    // PulseAudio docs recommend setting this to (size_t) -1 but I have found
+    // that this causes a too small buffer to be returned.
+    ospa->byte_count = ospa->bytes_left;
+
+    if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &ospa->byte_count))
         return SoundIoErrorStreaming;
 
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
@@ -768,21 +777,18 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
         ospa->areas[ch].step = outstream->bytes_per_frame;
     }
 
-    *frame_count = byte_count / outstream->bytes_per_frame;
+    *out_frame_count = ospa->byte_count / outstream->bytes_per_frame;
     *out_areas = ospa->areas;
 
     return 0;
 }
 
-static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
-    SoundIoOutStream *outstream = &os->pub;
+static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
-    assert(frame_count >= 0);
-    size_t byte_count = frame_count * outstream->bytes_per_frame;
-    assert(byte_count < 1 * 1024 * 1024 * 1024); // attempting to write > 1GB is certainly a mistake
-    if (pa_stream_write(stream, ospa->write_ptr, byte_count, NULL, 0, PA_SEEK_RELATIVE))
+    if (pa_stream_write(stream, ospa->write_ptr, ospa->byte_count, nullptr, 0, PA_SEEK_RELATIVE))
         return SoundIoErrorStreaming;
+    ospa->bytes_left -= ospa->byte_count;
     return 0;
 }
 
@@ -844,9 +850,11 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
 static void recording_stream_read_callback(pa_stream *stream, size_t nbytes, void *userdata) {
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
     SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     assert(nbytes % instream->bytes_per_frame == 0);
     assert(nbytes > 0);
-    int available_frame_count = nbytes / instream->bytes_per_frame;
+    ispa->bytes_left = nbytes;
+    int available_frame_count = ispa->bytes_left / instream->bytes_per_frame;
     instream->read_callback(instream, available_frame_count);
 }
 
@@ -900,6 +908,7 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     pa_stream_set_state_callback(stream, recording_stream_state_callback, is);
     pa_stream_set_read_callback(stream, recording_stream_read_callback, is);
+    // TODO handle overflow callback
 
     ispa->buffer_attr.maxlength = UINT32_MAX;
     ispa->buffer_attr.tlength = UINT32_MAX;
@@ -955,7 +964,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 }
 
 static int instream_begin_read_pa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
+        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *out_frame_count)
 {
     SoundIoInStream *instream = &is->pub;
     SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
@@ -963,13 +972,21 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
 
     assert(ispa->stream_ready);
 
-    char *data;
-    size_t nbytes = *frame_count * instream->bytes_per_frame;
-    if (pa_stream_peek(stream, (const void **)&data, &nbytes)) {
+    if (ispa->bytes_left <= 0) {
+        *out_frame_count = 0;
         *out_areas = nullptr;
-        *frame_count = 0;
+        return 0;
+    }
+
+    char *data;
+    ispa->byte_count = (size_t)-1;
+    if (pa_stream_peek(stream, (const void **)&data, &ispa->byte_count)) {
+        *out_areas = nullptr;
+        *out_frame_count = 0;
         return SoundIoErrorStreaming;
     }
+
+    *out_frame_count = ispa->byte_count / instream->bytes_per_frame;
 
     if (data) {
         for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
@@ -977,10 +994,8 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
             ispa->areas[ch].step = instream->bytes_per_frame;
         }
 
-        *frame_count = nbytes / instream->bytes_per_frame;
         *out_areas = ispa->areas;
     } else {
-        *frame_count = nbytes / instream->bytes_per_frame;
         *out_areas = nullptr;
     }
 
@@ -992,7 +1007,7 @@ static int instream_end_read_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) 
     pa_stream *stream = ispa->stream;
     if (pa_stream_drop(stream))
         return SoundIoErrorStreaming;
-
+    ispa->bytes_left -= ispa->byte_count;
     return 0;
 }
 

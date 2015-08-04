@@ -15,9 +15,7 @@
 
 int soundio_pulseaudio_init(struct SoundIoPrivate *si);
 
-struct SoundIoDevicePulseAudio {
-
-};
+struct SoundIoDevicePulseAudio { };
 
 struct SoundIoPulseAudio {
     int connection_err;
@@ -50,6 +48,8 @@ struct SoundIoOutStreamPulseAudio {
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
     char *write_ptr;
+    size_t byte_count;
+    int bytes_left;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -57,6 +57,8 @@ struct SoundIoInStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
+    size_t byte_count;
+    int bytes_left;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 

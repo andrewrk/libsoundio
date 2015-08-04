@@ -1013,6 +1013,7 @@ void outstream_thread_run(void *arg) {
                     continue;
                 }
 
+                osa->frames_left = avail;
                 outstream->write_callback(outstream, avail);
                 continue;
             }
@@ -1080,6 +1081,7 @@ static void instream_thread_run(void *arg) {
                     continue;
                 }
 
+                isa->frames_left = avail;
                 instream->read_callback(instream, avail);
                 continue;
             }
@@ -1283,7 +1285,7 @@ static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
 }
 
 int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
-        struct SoundIoChannelArea **out_areas, int *frame_count)
+        struct SoundIoChannelArea **out_areas, int *out_frame_count)
 {
     *out_areas = nullptr;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
@@ -1295,17 +1297,19 @@ int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
             osa->areas[ch].step = outstream->bytes_per_frame;
         }
 
-        *frame_count = min(*frame_count, osa->period_size);
+        osa->frames_to_write = min(osa->frames_left, osa->period_size);
+        *out_frame_count = osa->frames_to_write;
     } else if (osa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
         for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
             osa->areas[ch].ptr = osa->sample_buffer + ch * outstream->bytes_per_sample * osa->period_size;
             osa->areas[ch].step = outstream->bytes_per_sample;
         }
 
-        *frame_count = min(*frame_count, osa->period_size);
+        osa->frames_to_write = min(osa->frames_left, osa->period_size);
+        *out_frame_count = osa->frames_to_write;
     } else {
         const snd_pcm_channel_area_t *areas;
-        snd_pcm_uframes_t frames = *frame_count;
+        snd_pcm_uframes_t frames = osa->frames_left;
         int err;
 
         if ((err = snd_pcm_mmap_begin(osa->handle, &areas, &osa->offset, &frames)) < 0) {
@@ -1323,37 +1327,40 @@ int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
                 (osa->areas[ch].step * osa->offset);
         }
 
-        *frame_count = frames;
+        osa->frames_to_write = frames;
+        *out_frame_count = osa->frames_to_write;
     }
 
     *out_areas = osa->areas;
     return 0;
 }
 
-static int outstream_end_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, int frame_count) {
+static int outstream_end_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     SoundIoOutStream *outstream = &os->pub;
 
     snd_pcm_sframes_t commitres;
     if (osa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
-        commitres = snd_pcm_writei(osa->handle, osa->sample_buffer, frame_count);
+        commitres = snd_pcm_writei(osa->handle, osa->sample_buffer, osa->frames_to_write);
     } else if (osa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
         char *ptrs[SOUNDIO_MAX_CHANNELS];
         for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
             ptrs[ch] = osa->sample_buffer + ch * outstream->bytes_per_sample * osa->period_size;
         }
-        commitres = snd_pcm_writen(osa->handle, (void**)ptrs, frame_count);
+        commitres = snd_pcm_writen(osa->handle, (void**)ptrs, osa->frames_to_write);
     } else {
-        commitres = snd_pcm_mmap_commit(osa->handle, osa->offset, frame_count);
+        commitres = snd_pcm_mmap_commit(osa->handle, osa->offset, osa->frames_to_write);
     }
 
-    if (commitres < 0 || commitres != frame_count) {
+    if (commitres < 0 || commitres != osa->frames_to_write) {
         int err = (commitres >= 0) ? -EPIPE : commitres;
         if (err == -EPIPE || err == -ESTRPIPE)
             return SoundIoErrorUnderflow;
         else
             return SoundIoErrorStreaming;
     }
+    osa->frames_left -= osa->frames_to_write;
+    assert(osa->frames_left >= 0);
 
     return 0;
 }
@@ -1560,7 +1567,7 @@ static int instream_start_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 }
 
 static int instream_begin_read_alsa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
+        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *out_frame_count)
 {
     *out_areas = nullptr;
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
@@ -1572,10 +1579,11 @@ static int instream_begin_read_alsa(SoundIoPrivate *si,
             isa->areas[ch].step = instream->bytes_per_frame;
         }
 
-        isa->read_frame_count = min(*frame_count, isa->period_size);
-        *frame_count = isa->read_frame_count;
+        isa->read_frame_count = min(isa->frames_left, isa->period_size);
+        *out_frame_count = isa->read_frame_count;
+
         snd_pcm_sframes_t commitres = snd_pcm_readi(isa->handle, isa->sample_buffer, isa->read_frame_count);
-        if (commitres < 0 || commitres != *frame_count) {
+        if (commitres < 0 || commitres != isa->read_frame_count) {
             int err = (commitres >= 0) ? -EPIPE : commitres;
             if ((err = instream_xrun_recovery(is, err)) < 0)
                 return SoundIoErrorStreaming;
@@ -1588,17 +1596,18 @@ static int instream_begin_read_alsa(SoundIoPrivate *si,
             ptrs[ch] = isa->areas[ch].ptr;
         }
 
-        isa->read_frame_count = min(*frame_count, isa->period_size);
-        *frame_count = isa->read_frame_count;
+        isa->read_frame_count = min(isa->frames_left, isa->period_size);
+        *out_frame_count = isa->read_frame_count;
+
         snd_pcm_sframes_t commitres = snd_pcm_readn(isa->handle, (void**)ptrs, isa->read_frame_count);
-        if (commitres < 0 || commitres != *frame_count) {
+        if (commitres < 0 || commitres != isa->read_frame_count) {
             int err = (commitres >= 0) ? -EPIPE : commitres;
             if ((err = instream_xrun_recovery(is, err)) < 0)
                 return SoundIoErrorStreaming;
         }
     } else {
         const snd_pcm_channel_area_t *areas;
-        snd_pcm_uframes_t frames = *frame_count;
+        snd_pcm_uframes_t frames = isa->frames_left;
         int err;
 
         if ((err = snd_pcm_mmap_begin(isa->handle, &areas, &isa->offset, &frames)) < 0) {
@@ -1615,7 +1624,7 @@ static int instream_begin_read_alsa(SoundIoPrivate *si,
         }
 
         isa->read_frame_count = frames;
-        *frame_count = isa->read_frame_count;
+        *out_frame_count = isa->read_frame_count;
     }
 
     *out_areas = isa->areas;
@@ -1626,9 +1635,9 @@ static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
 
     if (isa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
-        return 0;
+        // nothing to do
     } else if (isa->access == SND_PCM_ACCESS_RW_NONINTERLEAVED) {
-        return 0;
+        // nothing to do
     } else {
         snd_pcm_sframes_t commitres = snd_pcm_mmap_commit(isa->handle, isa->offset, isa->read_frame_count);
         if (commitres < 0 || commitres != isa->read_frame_count) {
@@ -1638,6 +1647,8 @@ static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
         }
     }
 
+    isa->frames_left -= isa->read_frame_count;
+    assert(isa->frames_left >= 0);
     return 0;
 }
 
