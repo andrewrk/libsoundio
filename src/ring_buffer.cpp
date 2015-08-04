@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity) {
-    SoundIoRingBuffer *rb = create<SoundIoRingBuffer>();
+    SoundIoRingBuffer *rb = allocate<SoundIoRingBuffer>(1);
 
     assert(requested_capacity > 0);
 
@@ -35,7 +35,7 @@ void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *rb) {
 
     soundio_ring_buffer_deinit(rb);
 
-    destroy(rb);
+    free(rb);
 }
 
 int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *rb) {

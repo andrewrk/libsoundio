@@ -16,7 +16,7 @@
 template<typename T>
 struct SoundIoList {
     void deinit() {
-        deallocate(items, capacity);
+        free(items);
     }
     int __attribute__((warn_unused_result)) append(T item) {
         int err = ensure_capacity(length + 1);
@@ -74,7 +74,7 @@ struct SoundIoList {
         while (better_capacity < new_capacity)
             better_capacity = better_capacity * 2;
         if (better_capacity != capacity) {
-            T *new_items = reallocate_nonzero(items, capacity, better_capacity);
+            T *new_items = reallocate_nonzero(items, better_capacity);
             if (!new_items)
                 return SoundIoErrorNoMem;
             items = new_items;

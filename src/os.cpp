@@ -191,7 +191,7 @@ int soundio_os_thread_create(
 {
     *out_thread = NULL;
 
-    struct SoundIoOsThread *thread = create<SoundIoOsThread>();
+    struct SoundIoOsThread *thread = allocate<SoundIoOsThread>(1);
     if (!thread) {
         soundio_os_thread_destroy(thread);
         return SoundIoErrorNoMem;
@@ -279,13 +279,13 @@ void soundio_os_thread_destroy(struct SoundIoOsThread *thread) {
     }
 #endif
 
-    destroy(thread);
+    free(thread);
 }
 
 struct SoundIoOsMutex *soundio_os_mutex_create(void) {
     int err;
 
-    struct SoundIoOsMutex *mutex = create<SoundIoOsMutex>();
+    struct SoundIoOsMutex *mutex = allocate<SoundIoOsMutex>(1);
     if (!mutex) {
         soundio_os_mutex_destroy(mutex);
         return NULL;
@@ -316,7 +316,7 @@ void soundio_os_mutex_destroy(struct SoundIoOsMutex *mutex) {
     }
 #endif
 
-    destroy(mutex);
+    free(mutex);
 }
 
 void soundio_os_mutex_lock(struct SoundIoOsMutex *mutex) {
@@ -336,7 +336,7 @@ void soundio_os_mutex_unlock(struct SoundIoOsMutex *mutex) {
 }
 
 struct SoundIoOsCond * soundio_os_cond_create(void) {
-    struct SoundIoOsCond *cond = create<SoundIoOsCond>();
+    struct SoundIoOsCond *cond = allocate<SoundIoOsCond>(1);
 
     if (!cond) {
         soundio_os_cond_destroy(cond);
@@ -399,7 +399,7 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
     }
 #endif
 
-    destroy(cond);
+    free(cond);
 }
 
 void soundio_os_cond_signal(struct SoundIoOsCond *cond,

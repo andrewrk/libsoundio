@@ -465,7 +465,7 @@ static int refresh_devices(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoAlsa *sia = &si->backend_data.alsa;
 
-    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
+    SoundIoDevicesInfo *devices_info = allocate<SoundIoDevicesInfo>(1);
     if (!devices_info)
         return SoundIoErrorNoMem;
     devices_info->default_output_index = -1;
@@ -473,7 +473,7 @@ static int refresh_devices(SoundIoPrivate *si) {
 
     void **hints;
     if (snd_device_name_hint(-1, "pcm", &hints) < 0) {
-        destroy(devices_info);
+        soundio_destroy_devices_info(devices_info);
         return SoundIoErrorNoMem;
     }
 
@@ -531,11 +531,11 @@ static int refresh_devices(SoundIoPrivate *si) {
             }
 
 
-            SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+            SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
             if (!dev) {
                 free(name);
                 free(descr);
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 snd_device_name_free_hint(hints);
                 return SoundIoErrorNoMem;
             }
@@ -551,7 +551,7 @@ static int refresh_devices(SoundIoPrivate *si) {
                 soundio_device_unref(device);
                 free(name);
                 free(descr);
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 snd_device_name_free_hint(hints);
                 return SoundIoErrorNoMem;
             }
@@ -577,7 +577,7 @@ static int refresh_devices(SoundIoPrivate *si) {
                 soundio_device_unref(device);
                 free(name);
                 free(descr);
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 snd_device_name_free_hint(hints);
                 return SoundIoErrorNoMem;
             }
@@ -609,14 +609,14 @@ static int refresh_devices(SoundIoPrivate *si) {
             if (err == -ENOENT) {
                 break;
             } else {
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 return SoundIoErrorOpeningDevice;
             }
         }
 
         if ((err = snd_ctl_card_info(handle, card_info)) < 0) {
             snd_ctl_close(handle);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorSystemResources;
         }
         const char *card_name = snd_ctl_card_info_get_name(card_info);
@@ -625,7 +625,7 @@ static int refresh_devices(SoundIoPrivate *si) {
         for (;;) {
             if (snd_ctl_pcm_next_device(handle, &device_index) < 0) {
                 snd_ctl_close(handle);
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 return SoundIoErrorSystemResources;
             }
             if (device_index < 0)
@@ -643,17 +643,17 @@ static int refresh_devices(SoundIoPrivate *si) {
                         continue;
                     } else {
                         snd_ctl_close(handle);
-                        destroy(devices_info);
+                        soundio_destroy_devices_info(devices_info);
                         return SoundIoErrorSystemResources;
                     }
                 }
 
                 const char *device_name = snd_pcm_info_get_name(pcm_info);
 
-                SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+                SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
                 if (!dev) {
                     snd_ctl_close(handle);
-                    destroy(devices_info);
+                    soundio_destroy_devices_info(devices_info);
                     return SoundIoErrorNoMem;
                 }
                 SoundIoDevice *device = &dev->pub;
@@ -666,7 +666,7 @@ static int refresh_devices(SoundIoPrivate *si) {
                 if (!device->id || !device->name) {
                     soundio_device_unref(device);
                     snd_ctl_close(handle);
-                    destroy(devices_info);
+                    soundio_destroy_devices_info(devices_info);
                     return SoundIoErrorNoMem;
                 }
 
@@ -685,14 +685,14 @@ static int refresh_devices(SoundIoPrivate *si) {
 
                 if (device_list->append(device)) {
                     soundio_device_unref(device);
-                    destroy(devices_info);
+                    soundio_destroy_devices_info(devices_info);
                     return SoundIoErrorNoMem;
                 }
             }
         }
         snd_ctl_close(handle);
         if (snd_card_next(&card_index) < 0) {
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorSystemResources;
         }
     }
@@ -888,11 +888,9 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     if (osa->handle)
         snd_pcm_close(osa->handle);
 
-    deallocate(osa->poll_fds, osa->poll_fd_count);
-
-    deallocate(osa->chmap, osa->chmap_size);
-
-    deallocate(osa->sample_buffer, osa->sample_buffer_size);
+    free(osa->poll_fds);
+    free(osa->chmap);
+    free(osa->sample_buffer);
 }
 
 static int os_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
@@ -1394,9 +1392,9 @@ static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
     if (isa->handle)
         snd_pcm_close(isa->handle);
 
-    deallocate(isa->poll_fds, isa->poll_fd_count);
-    deallocate(isa->chmap, isa->chmap_size);
-    deallocate(isa->sample_buffer, isa->sample_buffer_size);
+    free(isa->poll_fds);
+    free(isa->chmap);
+    free(isa->sample_buffer);
 }
 
 static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {

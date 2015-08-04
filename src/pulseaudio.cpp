@@ -272,7 +272,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         sipa->have_sink_list = true;
         finish_device_query(si);
     } else if (!sipa->device_query_err) {
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             sipa->device_query_err = SoundIoErrorNoMem;
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -342,7 +342,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         sipa->have_source_list = true;
         finish_device_query(si);
     } else if (!sipa->device_query_err) {
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             sipa->device_query_err = SoundIoErrorNoMem;
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -433,7 +433,7 @@ static int scan_devices(SoundIoPrivate *si) {
     sipa->have_source_list = false;
 
     soundio_destroy_devices_info(sipa->current_devices_info);
-    sipa->current_devices_info = create<SoundIoDevicesInfo>();
+    sipa->current_devices_info = allocate<SoundIoDevicesInfo>(1);
     if (!sipa->current_devices_info)
         return SoundIoErrorNoMem;
 

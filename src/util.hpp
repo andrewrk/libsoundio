@@ -11,73 +11,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <new>
 
 template<typename T>
 __attribute__((malloc)) static inline T *allocate_nonzero(size_t count) {
-    T *ptr = reinterpret_cast<T*>(malloc(count * sizeof(T)));
-    if (ptr) {
-        for (size_t i = 0; i < count; i++)
-            new (&ptr[i]) T;
-    }
-    return ptr;
+    return reinterpret_cast<T*>(malloc(count * sizeof(T)));
 }
 
 template<typename T>
 __attribute__((malloc)) static inline T *allocate(size_t count) {
-    T *ptr = reinterpret_cast<T*>(calloc(count, sizeof(T)));
-    if (ptr) {
-        for (size_t i = 0; i < count; i++)
-            new (&ptr[i]) T;
-    }
-    return ptr;
+    return reinterpret_cast<T*>(calloc(count, sizeof(T)));
 }
 
 template<typename T>
-static inline T * reallocate_nonzero(T * old, size_t old_count, size_t new_count) {
-    assert(old_count <= new_count);
-    T * new_ptr = reinterpret_cast<T*>(realloc(old, new_count * sizeof(T)));
-    if (new_ptr) {
-        for (size_t i = old_count; i < new_count; i += 1)
-            new (&new_ptr[i]) T;
-    }
-    return new_ptr;
-}
-
-template<typename T>
-static inline void deallocate(T * ptr, size_t count) {
-    if (ptr) {
-        for (size_t i = 0; i < count; i += 1)
-            ptr[i].~T();
-    }
-    // keep this outside the if so that the if statement can be optimized out
-    // completely if T has no destructor
-    free(ptr);
-}
-
-template<typename T, typename... Args>
-__attribute__((malloc)) static inline T * create_nonzero(Args... args) {
-    T * ptr = reinterpret_cast<T*>(malloc(sizeof(T)));
-    if (ptr)
-        new (ptr) T(args...);
-    return ptr;
-}
-
-template<typename T, typename... Args>
-__attribute__((malloc)) static inline T * create(Args... args) {
-    T * ptr = reinterpret_cast<T*>(calloc(1, sizeof(T)));
-    if (ptr)
-        new (ptr) T(args...);
-    return ptr;
-}
-
-template<typename T>
-static inline void destroy(T * ptr) {
-    if (ptr)
-        ptr[0].~T();
-    // keep this outside the if so that the if statement can be optimized out
-    // completely if T has no destructor
-    free(ptr);
+static inline T *reallocate_nonzero(T * old, size_t new_count) {
+    return reinterpret_cast<T*>(realloc(old, new_count * sizeof(T)));
 }
 
 void soundio_panic(const char *format, ...)

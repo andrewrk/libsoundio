@@ -74,9 +74,9 @@ static void destruct_device(SoundIoDevicePrivate *dp) {
     SoundIoDeviceJack *dj = &dp->backend_data.jack;
     for (int i = 0; i < dj->port_count; i += 1) {
         SoundIoDeviceJackPort *djp = &dj->ports[i];
-        destroy(djp->full_name);
+        free(djp->full_name);
     }
-    deallocate(dj->ports, dj->port_count);
+    free(dj->ports);
 }
 
 static int refresh_devices_bare(SoundIoPrivate *si) {
@@ -87,7 +87,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         return SoundIoErrorBackendDisconnected;
 
 
-    SoundIoDevicesInfo *devices_info = create<SoundIoDevicesInfo>();
+    SoundIoDevicesInfo *devices_info = allocate<SoundIoDevicesInfo>(1);
     if (!devices_info)
         return SoundIoErrorNoMem;
 
@@ -95,7 +95,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
     devices_info->default_input_index = -1;
     const char **port_names = jack_get_ports(sij->client, nullptr, nullptr, 0);
     if (!port_names) {
-        destroy(devices_info);
+        soundio_destroy_devices_info(devices_info);
         return SoundIoErrorNoMem;
     }
 
@@ -109,7 +109,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             // This refresh devices scan is already outdated. Just give up and
             // let refresh_devices be called again.
             jack_free(port_names);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorInterrupted;
         }
 
@@ -138,7 +138,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
                 client_name, client_name_len);
         if (!client) {
             jack_free(port_names);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorNoMem;
         }
         if (client->port_count >= SOUNDIO_MAX_CHANNELS) {
@@ -164,10 +164,10 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         if (client->port_count <= 0)
             continue;
 
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             jack_free(port_names);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorNoMem;
         }
         SoundIoDevice *device = &dev->pub;
@@ -188,9 +188,9 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->id = soundio_str_dupe(client->name, client->name_len);
         device->name = allocate<char>(description_len);
         device->layout_count = 1;
-        device->layouts = create<SoundIoChannelLayout>();
+        device->layouts = allocate<SoundIoChannelLayout>(1);
         device->format_count = 1;
-        device->formats = create<SoundIoFormat>();
+        device->formats = allocate<SoundIoFormat>(1);
         device->current_format = SoundIoFormatFloat32NE;
         device->sample_rate_min = sij->sample_rate;
         device->sample_rate_max = sij->sample_rate;
@@ -207,7 +207,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         if (!device->id || !device->name || !device->layouts || !device->formats || !dj->ports) {
             jack_free(port_names);
             soundio_device_unref(device);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorNoMem;
         }
 
@@ -221,7 +221,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             if (!djp->full_name) {
                 jack_free(port_names);
                 soundio_device_unref(device);
-                destroy(devices_info);
+                soundio_destroy_devices_info(devices_info);
                 return SoundIoErrorNoMem;
             }
         }
@@ -271,7 +271,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
 
         if (device_list->append(device)) {
             soundio_device_unref(device);
-            destroy(devices_info);
+            soundio_destroy_devices_info(devices_info);
             return SoundIoErrorNoMem;
         }
 

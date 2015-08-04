@@ -386,7 +386,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     }
 
     assert(!si->safe_devices_info);
-    si->safe_devices_info = create<SoundIoDevicesInfo>();
+    si->safe_devices_info = allocate<SoundIoDevicesInfo>(1);
     if (!si->safe_devices_info) {
         destroy_dummy(si);
         return SoundIoErrorNoMem;
@@ -397,7 +397,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
     // create output device
     {
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             destroy_dummy(si);
             return SoundIoErrorNoMem;
@@ -446,7 +446,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
     // create input device
     {
-        SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             destroy_dummy(si);
             return SoundIoErrorNoMem;

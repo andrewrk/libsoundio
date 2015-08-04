@@ -173,7 +173,7 @@ static int from_cf_string(CFStringRef string_ref, char **out_str, int *out_str_l
         return SoundIoErrorNoMem;
 
     if (!CFStringGetCString(string_ref, buf, max_size, kCFStringEncodingUTF8)) {
-        deallocate(buf, max_size);
+        free(buf);
         return SoundIoErrorEncodingString;
     }
 
@@ -408,8 +408,8 @@ struct RefreshDevices {
 static void deinit_refresh_devices(RefreshDevices *rd) {
     if (!rd->ok)
         unsubscribe_device_listeners(rd->si);
-    destroy(rd->devices_info);
-    deallocate((char*)rd->devices, rd->devices_size);
+    soundio_destroy_devices_info(rd->devices_info);
+    free(rd->devices);
     if (rd->string_ref)
         CFRelease(rd->string_ref);
     free(rd->device_name);
@@ -433,7 +433,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     RefreshDevices rd = {0};
     rd.si = si;
 
-    if (!(rd.devices_info = create<SoundIoDevicesInfo>())) {
+    if (!(rd.devices_info = allocate<SoundIoDevicesInfo>(1))) {
         deinit_refresh_devices(&rd);
         return SoundIoErrorNoMem;
     }
@@ -586,7 +586,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             if (channel_count <= 0)
                 continue;
 
-            SoundIoDevicePrivate *dev = create<SoundIoDevicePrivate>();
+            SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
             if (!dev) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorNoMem;
@@ -602,9 +602,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->id = soundio_str_dupe(rd.device_uid, rd.device_uid_len);
             rd.device->name = soundio_str_dupe(rd.device_name, rd.device_name_len);
             rd.device->layout_count = 1;
-            rd.device->layouts = create<SoundIoChannelLayout>();
+            rd.device->layouts = allocate<SoundIoChannelLayout>(1);
             rd.device->format_count = 1;
-            rd.device->formats = create<SoundIoFormat>();
+            rd.device->formats = allocate<SoundIoFormat>(1);
 
             if (!rd.device->id || !rd.device->name || !rd.device->layouts || !rd.device->formats) {
                 deinit_refresh_devices(&rd);

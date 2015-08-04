@@ -176,6 +176,7 @@ libsoundio is programmed in a tiny subset of C++11:
  * No STL.
  * No `new` or `delete`.
  * No `class`. All fields in structs are `public`.
+ * No constructors or destructors.
  * No exceptions or run-time type information.
  * No references.
  * No linking against libstdc++.

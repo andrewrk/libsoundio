@@ -149,7 +149,7 @@ void soundio_destroy(struct SoundIo *soundio) {
 
     soundio_disconnect(soundio);
 
-    destroy(si);
+    free(si);
 }
 
 static void do_nothing_cb(struct SoundIo *) { }
@@ -163,7 +163,7 @@ struct SoundIo *soundio_create(void) {
     int err;
     if ((err = soundio_os_init()))
         return nullptr;
-    struct SoundIoPrivate *si = create<SoundIoPrivate>();
+    struct SoundIoPrivate *si = allocate<SoundIoPrivate>(1);
     if (!si)
         return nullptr;
     SoundIo *soundio = &si->pub;
@@ -325,10 +325,10 @@ void soundio_device_unref(struct SoundIoDevice *device) {
 
         free(device->id);
         free(device->name);
-        deallocate(device->formats, device->format_count);
-        deallocate(device->layouts, device->layout_count);
+        free(device->formats);
+        free(device->layouts);
 
-        destroy(dev);
+        free(dev);
     }
 }
 
@@ -369,7 +369,7 @@ static void default_outstream_error_callback(struct SoundIoOutStream *os, int er
 static void default_underflow_callback(struct SoundIoOutStream *outstream) { }
 
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) {
-    SoundIoOutStreamPrivate *os = create<SoundIoOutStreamPrivate>();
+    SoundIoOutStreamPrivate *os = allocate<SoundIoOutStreamPrivate>(1);
     if (!os)
         return nullptr;
     SoundIoOutStream *outstream = &os->pub;
@@ -432,7 +432,7 @@ void soundio_outstream_destroy(SoundIoOutStream *outstream) {
         si->outstream_destroy(si, os);
 
     soundio_device_unref(outstream->device);
-    destroy(os);
+    free(os);
 }
 
 int soundio_outstream_start(struct SoundIoOutStream *outstream) {
@@ -454,7 +454,7 @@ static void default_instream_error_callback(struct SoundIoInStream *is, int err)
 }
 
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
-    SoundIoInStreamPrivate *is = create<SoundIoInStreamPrivate>();
+    SoundIoInStreamPrivate *is = allocate<SoundIoInStreamPrivate>(1);
     if (!is)
         return nullptr;
     SoundIoInStream *instream = &is->pub;
@@ -522,7 +522,7 @@ void soundio_instream_destroy(struct SoundIoInStream *instream) {
         si->instream_destroy(si, is);
 
     soundio_device_unref(instream->device);
-    destroy(is);
+    free(is);
 }
 
 int soundio_instream_pause(struct SoundIoInStream *instream, bool pause) {
@@ -560,7 +560,7 @@ void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
     devices_info->input_devices.deinit();
     devices_info->output_devices.deinit();
 
-    destroy(devices_info);
+    free(devices_info);
 }
 
 bool soundio_have_backend(SoundIoBackend backend) {
