@@ -36,13 +36,9 @@ struct SoundIoCoreAudio {
     bool emitted_shutdown_cb;
 };
 
-struct SoundIoOutStreamCoreAudioPort {
-};
-
 struct SoundIoOutStreamCoreAudio {
-};
-
-struct SoundIoInStreamCoreAudioPort {
+    CFStringRef device_uid_string_ref;
+    AudioDeviceID device_id;
 };
 
 struct SoundIoInStreamCoreAudio {

@@ -61,6 +61,7 @@ const char *soundio_strerror(int error) {
         case SoundIoErrorInitAudioBackend: return "unable to initialize audio backend";
         case SoundIoErrorSystemResources: return "system resource not available";
         case SoundIoErrorOpeningDevice: return "unable to open device";
+        case SoundIoErrorNoSuchDevice: return "unable to open device";
         case SoundIoErrorInvalid: return "invalid value";
         case SoundIoErrorBackendUnavailable: return "backend unavailable";
         case SoundIoErrorStreaming: return "unrecoverable streaming failure";

@@ -22,6 +22,7 @@ enum SoundIoError {
     SoundIoErrorInitAudioBackend,
     SoundIoErrorSystemResources,
     SoundIoErrorOpeningDevice,
+    SoundIoErrorNoSuchDevice,
     SoundIoErrorInvalid,
     SoundIoErrorBackendUnavailable,
     SoundIoErrorStreaming,
