@@ -557,6 +557,9 @@ void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
     for (int i = 0; i < devices_info->output_devices.length; i += 1)
         soundio_device_unref(devices_info->output_devices.at(i));
 
+    devices_info->input_devices.deinit();
+    devices_info->output_devices.deinit();
+
     destroy(devices_info);
 }
 

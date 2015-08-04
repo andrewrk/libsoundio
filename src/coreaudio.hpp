@@ -11,6 +11,7 @@
 #include "soundio/soundio.h"
 #include "soundio/os.h"
 #include "atomics.hpp"
+#include "list.hpp"
 
 #include <CoreAudio/CoreAudio.h>
 #include <AudioUnit/AudioUnit.h>
@@ -32,6 +33,7 @@ struct SoundIoCoreAudio {
     atomic_bool have_devices_flag;
     SoundIoOsCond *have_devices_cond;
     SoundIoOsCond *scan_devices_cond;
+    SoundIoList<AudioDeviceID> registered_listeners;
 
     atomic_bool device_scan_queued;
     atomic_bool service_restarted;

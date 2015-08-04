@@ -3,6 +3,84 @@
 
 #include <assert.h>
 
+static AudioObjectPropertyAddress device_listen_props[] = {
+    {
+        kAudioDevicePropertyDeviceHasChanged,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioObjectPropertyName,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyDeviceUID,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyStreamConfiguration,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyStreamConfiguration,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyPreferredChannelLayout,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyPreferredChannelLayout,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyNominalSampleRate,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyNominalSampleRate,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyAvailableNominalSampleRates,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyAvailableNominalSampleRates,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyBufferFrameSizeRange,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMaster
+    },
+    {
+        kAudioDevicePropertyBufferFrameSizeRange,
+        kAudioObjectPropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    },
+};
+
 static SoundIoDeviceAim aims[] = {
     SoundIoDeviceAimInput,
     SoundIoDeviceAimOutput,
@@ -32,10 +110,22 @@ static OSStatus on_service_restarted(AudioObjectID in_object_id, UInt32 in_numbe
     return noErr;
 }
 
+static void unsubscribe_device_listeners(SoundIoPrivate *si) {
+    SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
+
+    for (int device_index = 0; device_index < sica->registered_listeners.length; device_index += 1) {
+        AudioDeviceID device_id = sica->registered_listeners.at(device_index);
+        for (int i = 0; i < array_length(device_listen_props); i += 1) {
+            AudioObjectRemovePropertyListener(device_id, &device_listen_props[i],
+                on_devices_changed, si);
+        }
+    }
+    sica->registered_listeners.clear();
+}
+
 static void destroy_ca(struct SoundIoPrivate *si) {
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
-    int err;
     AudioObjectPropertyAddress prop_address = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
@@ -45,6 +135,9 @@ static void destroy_ca(struct SoundIoPrivate *si) {
 
     prop_address.mSelector = kAudioHardwarePropertyServiceRestarted;
     AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_service_restarted, si);
+
+    unsubscribe_device_listeners(si);
+    sica->registered_listeners.deinit();
 
     if (sica->thread) {
         sica->abort_flag.clear();
@@ -93,21 +186,7 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
     return (aim == SoundIoDeviceAimInput) ?
         kAudioObjectPropertyScopeInput : kAudioObjectPropertyScopeOutput;
 }
-// TODO subscribe to device property changes for every property we read and
-// trigger a rescan if anything changes. test with changing the preferredchannellayout
-// for the device
-
 // TODO
-/*
- *
-    @constant       kAudioDevicePropertyDeviceHasChanged
-                        The type of this property is a UInt32, but its value has no meaning. This
-                        property exists so that clients can listen to it and be told when the
-                        configuration of the AudioDevice has changed in ways that cannot otherwise
-                        be conveyed through other notifications. In response to this notification,
-                        clients should re-evaluate everything they need to know about the device,
-                        particularly the layout and values of the controls.
-*/
 /*
     @constant       kAudioDevicePropertyLatency
                         A UInt32 containing the number of frames of latency in the AudioDevice. Note
@@ -310,6 +389,7 @@ static bool all_channels_invalid(const struct SoundIoChannelLayout *layout) {
 }
 
 struct RefreshDevices {
+    SoundIoPrivate *si;
     SoundIoDevicesInfo *devices_info;
     int devices_size;
     AudioObjectID *devices;
@@ -322,9 +402,12 @@ struct RefreshDevices {
     char *device_uid;
     int device_uid_len;
     AudioValueRange *avr_array;
+    bool ok;
 };
 
 static void deinit_refresh_devices(RefreshDevices *rd) {
+    if (!rd->ok)
+        unsubscribe_device_listeners(rd->si);
     destroy(rd->devices_info);
     deallocate((char*)rd->devices, rd->devices_size);
     if (rd->string_ref)
@@ -345,7 +428,10 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     OSStatus os_err;
     int err;
 
+    unsubscribe_device_listeners(si);
+
     RefreshDevices rd = {0};
+    rd.si = si;
 
     if (!(rd.devices_info = create<SoundIoDevicesInfo>())) {
         deinit_refresh_devices(&rd);
@@ -406,6 +492,20 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
     for (int device_i = 0; device_i < device_count; device_i += 1) {
         AudioObjectID device_id = rd.devices[device_i];
+
+        for (int i = 0; i < array_length(device_listen_props); i += 1) {
+            if ((err = sica->registered_listeners.add_one())) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+            if ((os_err = AudioObjectAddPropertyListener(device_id, &device_listen_props[i],
+                on_devices_changed, si)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
+            sica->registered_listeners.last() = device_id;
+        }
 
         prop_address.mSelector = kAudioObjectPropertyName;
         prop_address.mScope = kAudioObjectPropertyScopeGlobal;
@@ -639,7 +739,6 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         }
     }
 
-
     soundio_os_mutex_lock(sica->mutex);
     soundio_destroy_devices_info(sica->ready_devices_info);
     sica->ready_devices_info = rd.devices_info;
@@ -647,6 +746,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     soundio_os_mutex_unlock(sica->mutex);
 
     rd.devices_info = nullptr;
+    rd.ok = true;
     deinit_refresh_devices(&rd);
 
     return 0;
@@ -742,7 +842,7 @@ static void device_thread_run(void *arg) {
 static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     if (osca->output_instance) {
-        AudioOutputUnitStop(osca->output_instance)
+        AudioOutputUnitStop(osca->output_instance);
         AudioComponentInstanceDispose(osca->output_instance);
     }
 }
@@ -764,6 +864,7 @@ static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io
 }
 
 static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    // TODO: use outstream->buffer_duration
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
@@ -829,6 +930,22 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     return 0;
 }
 
+static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    OSStatus os_err;
+    if (pause) {
+        if ((os_err = AudioOutputUnitStop(osca->output_instance))) {
+            return SoundIoErrorStreaming;
+        }
+    } else {
+        if ((os_err = AudioOutputUnitStart(osca->output_instance))) {
+            return SoundIoErrorStreaming;
+        }
+    }
+
+    return 0;
+}
+
 static int outstream_start_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     return outstream_pause_ca(si, os, false);
 }
@@ -866,21 +983,6 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
     return 0;
 }
 
-static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
-    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
-    OSStatus os_err;
-    if (pause) {
-        if ((os_err = AudioOutputUnitStop(osca->output_instance))) {
-            return SoundIoErrorStreaming;
-        }
-    } else {
-        if ((os_err = AudioOutputUnitStart(osca->output_instance))) {
-            return SoundIoErrorStreaming;
-        }
-    }
-
-    return 0;
-}
 
 
 static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {

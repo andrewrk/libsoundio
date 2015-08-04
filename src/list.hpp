@@ -15,12 +15,7 @@
 
 template<typename T>
 struct SoundIoList {
-    SoundIoList() {
-        length = 0;
-        capacity = 0;
-        items = nullptr;
-    }
-    ~SoundIoList() {
+    void deinit() {
         deallocate(items, capacity);
     }
     int __attribute__((warn_unused_result)) append(T item) {
