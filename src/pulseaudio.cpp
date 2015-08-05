@@ -975,9 +975,8 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
     assert(ispa->stream_ready);
 
     if (!ispa->peek_buf) {
-        if (pa_stream_peek(stream, (const void **)&ispa->peek_buf, &ispa->peek_buf_size)) {
-            soundio_panic("TODO");
-        }
+        if (pa_stream_peek(stream, (const void **)&ispa->peek_buf, &ispa->peek_buf_size))
+            return SoundIoErrorStreaming;
 
         ispa->peek_buf_frames_left = ispa->peek_buf_size / instream->bytes_per_frame;
         ispa->peek_buf_index = 0;
