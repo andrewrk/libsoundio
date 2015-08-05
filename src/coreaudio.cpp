@@ -857,7 +857,7 @@ static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io
 
     osca->io_data = io_data;
     osca->buffer_index = 0;
-    osca->frames_left = osca->callback_frames;
+    osca->frames_left = in_number_frames;
     outstream->write_callback(outstream, osca->frames_left, osca->frames_left);
     osca->io_data = nullptr;
 
@@ -957,7 +957,7 @@ static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOut
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
 
-    if (osca->buffer_index >= ocsa->io_data->mNumberBuffers)
+    if (osca->buffer_index >= osca->io_data->mNumberBuffers)
         return SoundIoErrorInvalid;
 
     if (*frame_count != osca->frames_left)
