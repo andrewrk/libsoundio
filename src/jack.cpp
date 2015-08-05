@@ -345,7 +345,7 @@ static int outstream_process_callback(jack_nframes_t nframes, void *arg) {
         osj->areas[ch].ptr = (char*)jack_port_get_buffer(osjp->source_port, nframes);
         osj->areas[ch].step = outstream->bytes_per_sample;
     }
-    outstream->write_callback(outstream, osj->frames_left);
+    outstream->write_callback(outstream, osj->frames_left, osj->frames_left);
     return 0;
 }
 
@@ -526,11 +526,13 @@ static int outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
 }
 
 static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
-        SoundIoChannelArea **out_areas, int *out_frame_count)
+        SoundIoChannelArea **out_areas, int *frame_count)
 {
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
 
-    *out_frame_count = osj->frames_left;
+    if (*frame_count != osj->frames_left)
+        return SoundIoErrorInvalid;
+
     *out_areas = osj->areas;
 
     return 0;
@@ -601,7 +603,7 @@ static int instream_process_callback(jack_nframes_t nframes, void *arg) {
         isj->areas[ch].ptr = (char*)jack_port_get_buffer(isjp->dest_port, nframes);
         isj->areas[ch].step = instream->bytes_per_sample;
     }
-    instream->read_callback(instream, isj->frames_left);
+    instream->read_callback(instream, isj->frames_left, isj->frames_left);
     return 0;
 }
 
@@ -726,11 +728,13 @@ static int instream_start_jack(struct SoundIoPrivate *si, struct SoundIoInStream
 }
 
 static int instream_begin_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
-        SoundIoChannelArea **out_areas, int *out_frame_count)
+        SoundIoChannelArea **out_areas, int *frame_count)
 {
     SoundIoInStreamJack *isj = &is->backend_data.jack;
 
-    *out_frame_count = isj->frames_left;
+    if (*frame_count != isj->frames_left)
+        return SoundIoErrorInvalid;
+
     *out_areas = isj->areas;
 
     return 0;

@@ -31,6 +31,7 @@ struct SoundIoOutStreamDummy {
     atomic_flag abort_flag;
     int buffer_frame_count;
     int frames_left;
+    int write_frame_count;
     struct SoundIoRingBuffer ring_buffer;
     double playback_start_time;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
@@ -41,6 +42,7 @@ struct SoundIoInStreamDummy {
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
     int frames_left;
+    int read_frame_count;
     int buffer_frame_count;
     struct SoundIoRingBuffer ring_buffer;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];

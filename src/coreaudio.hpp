@@ -45,6 +45,8 @@ struct SoundIoOutStreamCoreAudio {
     AudioComponentInstance output_instance;
     AudioBufferList *io_data;
     int buffer_index;
+    int frames_left;
+    int write_frame_count;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 

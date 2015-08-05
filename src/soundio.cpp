@@ -393,6 +393,7 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
+    assert(*frame_count > 0);
     return si->outstream_begin_write(si, os, areas, frame_count);
 }
 

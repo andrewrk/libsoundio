@@ -38,11 +38,10 @@ static struct SoundIoOsCond *cond = NULL;
 static struct SoundIo *soundio = NULL;
 static float seconds_end = 9.0f;
 
-static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
     struct SoundIoChannelArea *areas;
-    int frame_count;
     int err;
 
     if (!caused_underflow && seconds_offset >= 3.0f) {
@@ -55,7 +54,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         return;
     }
 
+    int frames_left = frame_count_max;
+
     for (;;) {
+        int frame_count = frames_left;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
 
@@ -80,6 +82,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
                 return;
             panic("%s", soundio_strerror(err));
         }
+
+        frames_left -= frame_count;
+        if (frames_left <= 0)
+            break;
     }
 }
 

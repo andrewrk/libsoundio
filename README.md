@@ -27,6 +27,10 @@ behavior on every platform.
    - Dummy (silence)
    - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - (planned) [ASIO](http://www.asio4all.com/)
+ * Supports optimal usage of each supported backend. The same API does the
+   right thing whether the backend has a fixed buffer size, such as on JACK and
+   CoreAudio, or whether it allows directly managing the buffer, such as on
+   ALSA or PulseAudio.
  * C library. Depends only on the respective backend API libraries and libc.
    Does *not* depend on libstdc++, and does *not* have exceptions, run-time type
    information, or [setjmp](http://latentcontent.net/2007/12/05/libpng-worst-api-ever/).

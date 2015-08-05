@@ -642,11 +642,9 @@ static void playback_stream_underflow_callback(pa_stream *stream, void *userdata
 
 static void playback_stream_write_callback(pa_stream *stream, size_t nbytes, void *userdata) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate*)(userdata);
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     SoundIoOutStream *outstream = &os->pub;
-    ospa->bytes_left = nbytes;
-    int frame_count = ospa->bytes_left / outstream->bytes_per_frame;
-    outstream->write_callback(outstream, frame_count);
+    int frame_count = nbytes / outstream->bytes_per_frame;
+    outstream->write_callback(outstream, 0, frame_count);
 }
 
 static void outstream_destroy_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
@@ -746,9 +744,9 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    ospa->bytes_left = pa_stream_writable_size(ospa->stream);
-    int frame_count = ospa->bytes_left / outstream->bytes_per_frame;
-    outstream->write_callback(outstream, frame_count);
+    ospa->write_byte_count = pa_stream_writable_size(ospa->stream);
+    int frame_count = ospa->write_byte_count / outstream->bytes_per_frame;
+    outstream->write_callback(outstream, 0, frame_count);
 
     pa_operation *op = pa_stream_cork(ospa->stream, false, nullptr, nullptr);
     if (!op) {
@@ -765,23 +763,14 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 }
 
 static int outstream_begin_write_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *out_frame_count)
+        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *frame_count)
 {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
-    if (ospa->bytes_left <= 0) {
-        *out_frame_count = 0;
-        *out_areas = nullptr;
-        return 0;
-    }
-
-    // PulseAudio docs recommend setting this to (size_t) -1 but I have found
-    // that this causes a too small buffer to be returned.
-    ospa->byte_count = ospa->bytes_left;
-
-    if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &ospa->byte_count))
+    ospa->write_byte_count = *frame_count * outstream->bytes_per_frame;
+    if (pa_stream_begin_write(stream, (void**)&ospa->write_ptr, &ospa->write_byte_count))
         return SoundIoErrorStreaming;
 
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
@@ -789,7 +778,7 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
         ospa->areas[ch].step = outstream->bytes_per_frame;
     }
 
-    *out_frame_count = ospa->byte_count / outstream->bytes_per_frame;
+    *frame_count = ospa->write_byte_count / outstream->bytes_per_frame;
     *out_areas = ospa->areas;
 
     return 0;
@@ -798,9 +787,8 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
 static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
-    if (pa_stream_write(stream, ospa->write_ptr, ospa->byte_count, nullptr, 0, PA_SEEK_RELATIVE))
+    if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, nullptr, 0, PA_SEEK_RELATIVE))
         return SoundIoErrorStreaming;
-    ospa->bytes_left -= ospa->byte_count;
     return 0;
 }
 
@@ -866,12 +854,10 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
 static void recording_stream_read_callback(pa_stream *stream, size_t nbytes, void *userdata) {
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
     SoundIoInStream *instream = &is->pub;
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     assert(nbytes % instream->bytes_per_frame == 0);
     assert(nbytes > 0);
-    ispa->bytes_left = nbytes;
-    int available_frame_count = ispa->bytes_left / instream->bytes_per_frame;
-    instream->read_callback(instream, available_frame_count);
+    int available_frame_count = nbytes / instream->bytes_per_frame;
+    instream->read_callback(instream, 0, available_frame_count);
 }
 
 static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
@@ -980,7 +966,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 }
 
 static int instream_begin_read_pa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *out_frame_count)
+        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
 {
     SoundIoInStream *instream = &is->pub;
     SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
@@ -988,42 +974,56 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
 
     assert(ispa->stream_ready);
 
-    if (ispa->bytes_left <= 0) {
-        *out_frame_count = 0;
-        *out_areas = nullptr;
-        return 0;
-    }
-
-    char *data;
-    ispa->byte_count = (size_t)-1;
-    if (pa_stream_peek(stream, (const void **)&data, &ispa->byte_count)) {
-        *out_areas = nullptr;
-        *out_frame_count = 0;
-        return SoundIoErrorStreaming;
-    }
-
-    *out_frame_count = ispa->byte_count / instream->bytes_per_frame;
-
-    if (data) {
-        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-            ispa->areas[ch].ptr = data + instream->bytes_per_sample * ch;
-            ispa->areas[ch].step = instream->bytes_per_frame;
+    if (!ispa->peek_buf) {
+        if (pa_stream_peek(stream, (const void **)&ispa->peek_buf, &ispa->peek_buf_size)) {
+            soundio_panic("TODO");
         }
 
-        *out_areas = ispa->areas;
-    } else {
-        *out_areas = nullptr;
+        ispa->peek_buf_frames_left = ispa->peek_buf_size / instream->bytes_per_frame;
+        ispa->peek_buf_index = 0;
+
+        // hole
+        if (!ispa->peek_buf) {
+            *frame_count = ispa->peek_buf_frames_left;
+            *out_areas = nullptr;
+            return 0;
+        }
     }
+
+    ispa->read_frame_count = min(*frame_count, ispa->peek_buf_frames_left);
+    *frame_count = ispa->read_frame_count;
+    for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+        ispa->areas[ch].ptr = ispa->peek_buf + ispa->peek_buf_index + instream->bytes_per_sample * ch;
+        ispa->areas[ch].step = instream->bytes_per_frame;
+    }
+
+    *out_areas = ispa->areas;
 
     return 0;
 }
 
 static int instream_end_read_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+    SoundIoInStream *instream = &is->pub;
     SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     pa_stream *stream = ispa->stream;
-    if (pa_stream_drop(stream))
-        return SoundIoErrorStreaming;
-    ispa->bytes_left -= ispa->byte_count;
+
+    // hole
+    if (!ispa->peek_buf) {
+        if (pa_stream_drop(stream))
+            return SoundIoErrorStreaming;
+        return 0;
+    }
+
+    size_t advance_bytes = ispa->read_frame_count * instream->bytes_per_frame;
+    ispa->peek_buf_index += advance_bytes;
+    ispa->peek_buf_frames_left -= ispa->read_frame_count;
+
+    if (ispa->peek_buf_index >= ispa->peek_buf_size) {
+        if (pa_stream_drop(stream))
+            return SoundIoErrorStreaming;
+        ispa->peek_buf = nullptr;
+    }
+
     return 0;
 }
 

@@ -857,7 +857,8 @@ static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io
 
     osca->io_data = io_data;
     osca->buffer_index = 0;
-    outstream->write_callback(outstream, in_number_frames);
+    osca->frames_left = osca->callback_frames;
+    outstream->write_callback(outstream, osca->frames_left, osca->frames_left);
     osca->io_data = nullptr;
 
     return noErr;
@@ -951,31 +952,35 @@ static int outstream_start_ca(struct SoundIoPrivate *si, struct SoundIoOutStream
 }
 
 static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
-        SoundIoChannelArea **out_areas, int *out_frame_count)
+        SoundIoChannelArea **out_areas, int *frame_count)
 {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
 
-    if (osca->buffer_index < osca->io_data->mNumberBuffers) {
-        AudioBuffer *audio_buffer = &osca->io_data->mBuffers[osca->buffer_index];
-        assert(audio_buffer->mNumberChannels == outstream->layout.channel_count);
-        *out_frame_count = audio_buffer->mDataByteSize / outstream->bytes_per_frame;
-        assert((audio_buffer->mDataByteSize % outstream->bytes_per_frame) == 0);
-        for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-            osca->areas[ch].ptr = ((char*)audio_buffer->mData) + outstream->bytes_per_sample * ch;
-            osca->areas[ch].step = outstream->bytes_per_frame;
-        }
-        *out_areas = osca->areas;
-    } else {
-        *out_areas = nullptr;
-        *out_frame_count = 0;
+    if (osca->buffer_index >= ocsa->io_data->mNumberBuffers)
+        return SoundIoErrorInvalid;
+
+    if (*frame_count != osca->frames_left)
+        return SoundIoErrorInvalid;
+
+    AudioBuffer *audio_buffer = &osca->io_data->mBuffers[osca->buffer_index];
+    assert(audio_buffer->mNumberChannels == outstream->layout.channel_count);
+    osca->write_frame_count = audio_buffer->mDataByteSize / outstream->bytes_per_frame;
+    *frame_count = osca->write_frame_count;
+    assert((audio_buffer->mDataByteSize % outstream->bytes_per_frame) == 0);
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        osca->areas[ch].ptr = ((char*)audio_buffer->mData) + outstream->bytes_per_sample * ch;
+        osca->areas[ch].step = outstream->bytes_per_frame;
     }
+    *out_areas = osca->areas;
     return 0;
 }
 
 static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     osca->buffer_index += 1;
+    osca->frames_left -= osca->write_frame_count;
+    assert(osca->frames_left >= 0);
     return 0;
 }
 

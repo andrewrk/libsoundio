@@ -32,15 +32,16 @@ static int usage(char *exe) {
 
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
-static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
-    int frame_count;
+    struct SoundIoChannelArea *areas;
     int err;
 
+    int frames_left = frame_count_max;
 
     for (;;) {
-        struct SoundIoChannelArea *areas;
+        int frame_count = frames_left;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
 
@@ -65,6 +66,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
                 return;
             panic("%s", soundio_strerror(err));
         }
+
+        frames_left -= frame_count;
+        if (frames_left <= 0)
+            break;
     }
 }
 

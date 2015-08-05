@@ -48,8 +48,7 @@ struct SoundIoOutStreamPulseAudio {
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
     char *write_ptr;
-    size_t byte_count;
-    int bytes_left;
+    size_t write_byte_count;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -57,8 +56,11 @@ struct SoundIoInStreamPulseAudio {
     pa_stream *stream;
     atomic_bool stream_ready;
     pa_buffer_attr buffer_attr;
-    size_t byte_count;
-    int bytes_left;
+    char *peek_buf;
+    size_t peek_buf_index;
+    size_t peek_buf_size;
+    int peek_buf_frames_left;
+    int read_frame_count;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 

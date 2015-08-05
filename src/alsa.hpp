@@ -49,8 +49,7 @@ struct SoundIoOutStreamAlsa {
     SoundIoOsThread *thread;
     atomic_flag thread_exit_flag;
     int period_size;
-    int frames_left;
-    int frames_to_write;
+    int write_frame_count;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -67,7 +66,6 @@ struct SoundIoInStreamAlsa {
     SoundIoOsThread *thread;
     atomic_flag thread_exit_flag;
     int period_size;
-    int frames_left;
     int read_frame_count;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
