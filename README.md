@@ -75,22 +75,24 @@ static void panic(const char *format, ...) {
 
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
-static void write_callback(struct SoundIoOutStream *outstream, int requested_frame_count) {
+static void write_callback(struct SoundIoOutStream *outstream,
+        int frame_count_min, int frame_count_max)
+{
+    const struct SoundIoChannelLayout *layout = &outstream->layout;
     float float_sample_rate = outstream->sample_rate;
     float seconds_per_frame = 1.0f / float_sample_rate;
+    struct SoundIoChannelArea *areas;
+    int frames_left = frame_count_max;
     int err;
 
-    for (;;) {
-        int frame_count = requested_frame_count;
+    while (frames_left > 0) {
+        int frame_count = frames_left;
 
-        struct SoundIoChannelArea *areas;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
             panic("%s", soundio_strerror(err));
 
         if (!frame_count)
             break;
-
-        const struct SoundIoChannelLayout *layout = &outstream->layout;
 
         float pitch = 440.0f;
         float radians_per_second = pitch * 2.0f * PI;
@@ -103,16 +105,15 @@ static void write_callback(struct SoundIoOutStream *outstream, int requested_fra
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_end_write(outstream, frame_count)))
+        if ((err = soundio_outstream_end_write(outstream)))
             panic("%s", soundio_strerror(err));
 
-        requested_frame_count -= frame_count;
-        if (requested_frame_count <= 0)
-            break;
+        frames_left -= frame_count;
     }
 }
 
 int main(int argc, char **argv) {
+    int err;
     struct SoundIo *soundio = soundio_create();
     if (!soundio)
         panic("out of memory");
@@ -120,7 +121,9 @@ int main(int argc, char **argv) {
     if ((err = soundio_connect(soundio)))
         panic("error connecting: %s", soundio_strerror(err));
 
-    int default_out_device_index = soundio_get_default_output_device_index(soundio);
+    soundio_flush_events(soundio);
+
+    int default_out_device_index = soundio_default_output_device_index(soundio);
     if (default_out_device_index < 0)
         panic("no output device found");
 
@@ -128,7 +131,7 @@ int main(int argc, char **argv) {
     if (!device)
         panic("out of memory");
 
-    fprintf(stderr, "Output device: %s: %s\n", device->name, device->description);
+    fprintf(stderr, "Output device: %s\n", device->name);
 
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
