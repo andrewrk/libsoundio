@@ -469,8 +469,9 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
 
     // this time is relative
     struct timespec timeout;
-    timeout.tv_sec = 0;
     timeout.tv_nsec = (seconds * 1000000000L);
+    timeout.tv_sec  = timeout.tv_nsec / 1000000000L;
+    timeout.tv_nsec = timeout.tv_nsec % 1000000000L;
 
     if (kevent(cond->kq_id, &kev, 1, &out_kev, 1, &timeout) == -1) {
         if (errno == EINTR)
