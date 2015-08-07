@@ -42,7 +42,7 @@ struct SoundIoCoreAudio {
 };
 
 struct SoundIoOutStreamCoreAudio {
-    AudioComponentInstance output_instance;
+    AudioComponentInstance instance;
     AudioBufferList *io_data;
     int buffer_index;
     int frames_left;
@@ -51,6 +51,10 @@ struct SoundIoOutStreamCoreAudio {
 };
 
 struct SoundIoInStreamCoreAudio {
+    AudioComponentInstance instance;
+    AudioBufferList *io_data;
+    int buffer_index;
+    int frames_left;
 };
 
 #endif

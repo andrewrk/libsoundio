@@ -3,6 +3,9 @@
 
 #include <assert.h>
 
+static const int OUTPUT_ELEMENT = 0;
+static const int INPUT_ELEMENT = 1;
+
 static AudioObjectPropertyAddress device_listen_props[] = {
     {
         kAudioDevicePropertyDeviceHasChanged,
@@ -826,7 +829,7 @@ static void device_thread_run(void *arg) {
     }
 }
 
-static OSStatus on_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
+static OSStatus on_outstream_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
     const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
 {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)in_client_data;
@@ -847,11 +850,11 @@ static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStr
         kAudioObjectPropertyScopeGlobal,
         kAudioObjectPropertyElementMaster
     };
-    AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_device_overload, os);
+    AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_outstream_device_overload, os);
 
-    if (osca->output_instance) {
-        AudioOutputUnitStop(osca->output_instance);
-        AudioComponentInstanceDispose(osca->output_instance);
+    if (osca->instance) {
+        AudioOutputUnitStop(osca->instance);
+        AudioComponentInstanceDispose(osca->instance);
     }
 }
 
@@ -887,26 +890,24 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
             outstream->buffer_duration,
             device->buffer_duration_max);
 
-    AudioComponentDescription desc;
+    AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
     desc.componentSubType = kAudioUnitSubType_HALOutput;
-    desc.componentFlags = 0;
-    desc.componentFlagsMask = 0;
     desc.componentManufacturer = kAudioUnitManufacturer_Apple;
 
-    AudioComponent output_comp = AudioComponentFindNext(nullptr, &desc);
-    if (!output_comp) {
+    AudioComponent component = AudioComponentFindNext(nullptr, &desc);
+    if (!component) {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
     }
 
     OSStatus os_err;
-    if ((os_err = AudioComponentInstanceNew(output_comp, &osca->output_instance))) {
+    if ((os_err = AudioComponentInstanceNew(component, &osca->instance))) {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((os_err = AudioUnitInitialize(osca->output_instance))) {
+    if ((os_err = AudioUnitInitialize(osca->instance))) {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
     }
@@ -921,23 +922,23 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     format.mChannelsPerFrame = outstream->layout.channel_count;
     format.mBitsPerChannel = 32;
 
-    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioOutputUnitProperty_CurrentDevice,
-        kAudioUnitScope_Input, 0, &dca->device_id, sizeof(AudioDeviceID))))
+    if ((os_err = AudioUnitSetProperty(osca->instance, kAudioOutputUnitProperty_CurrentDevice,
+        kAudioUnitScope_Input, OUTPUT_ELEMENT, &dca->device_id, sizeof(AudioDeviceID))))
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
     }
 
-    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioUnitProperty_StreamFormat,
-        kAudioUnitScope_Input, 0, &format, sizeof(AudioStreamBasicDescription))))
+    if ((os_err = AudioUnitSetProperty(osca->instance, kAudioUnitProperty_StreamFormat,
+        kAudioUnitScope_Input, OUTPUT_ELEMENT, &format, sizeof(AudioStreamBasicDescription))))
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
     }
 
     AURenderCallbackStruct render_callback = {write_callback_ca, os};
-    if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioUnitProperty_SetRenderCallback,
-        kAudioUnitScope_Input, 0, &render_callback, sizeof(AURenderCallbackStruct))))
+    if ((os_err = AudioUnitSetProperty(osca->instance, kAudioUnitProperty_SetRenderCallback,
+        kAudioUnitScope_Input, OUTPUT_ELEMENT, &render_callback, sizeof(AURenderCallbackStruct))))
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
@@ -946,7 +947,7 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     AudioObjectPropertyAddress prop_address = {
         kAudioDevicePropertyBufferFrameSize,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        OUTPUT_ELEMENT
     };
     UInt32 buffer_frame_size = outstream->buffer_duration * outstream->sample_rate;
     if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
@@ -958,8 +959,9 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
 
     prop_address.mSelector = kAudioDeviceProcessorOverload;
     prop_address.mScope = kAudioObjectPropertyScopeGlobal;
+    prop_address.mElement = OUTPUT_ELEMENT;
     if ((os_err = AudioObjectAddPropertyListener(dca->device_id, &prop_address,
-        on_device_overload, os)))
+        on_outstream_device_overload, os)))
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
@@ -972,11 +974,11 @@ static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStream
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     OSStatus os_err;
     if (pause) {
-        if ((os_err = AudioOutputUnitStop(osca->output_instance))) {
+        if ((os_err = AudioOutputUnitStop(osca->instance))) {
             return SoundIoErrorStreaming;
         }
     } else {
-        if ((os_err = AudioOutputUnitStart(osca->output_instance))) {
+        if ((os_err = AudioOutputUnitStart(osca->instance))) {
             return SoundIoErrorStreaming;
         }
     }
@@ -1026,17 +1028,183 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
 }
 
 
-
-static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO open");
+static OSStatus on_instream_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
+    const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
+{
+    //SoundIoInStreamPrivate *os = (SoundIoInStreamPrivate *)in_client_data;
+    //SoundIoInStream *instream = &os->pub;
+    fprintf(stderr, "TODO overflow\n");
+    //instream->underflow_callback(instream);
+    return noErr;
 }
 
 static void instream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO destroy");
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoDevice *device = instream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+
+    AudioObjectPropertyAddress prop_address = {
+        kAudioDeviceProcessorOverload,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_instream_device_overload, is);
+
+    if (isca->instance) {
+        AudioOutputUnitStop(isca->instance);
+        AudioComponentInstanceDispose(isca->instance);
+    }
+}
+
+static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_action_flags,
+    const AudioTimeStamp *in_time_stamp, UInt32 in_bus_number, UInt32 in_number_frames,
+    AudioBufferList *io_data)
+{
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *) userdata;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+
+    isca->io_data = io_data;
+    isca->buffer_index = 0;
+    isca->frames_left = in_number_frames;
+    instream->read_callback(instream, isca->frames_left, isca->frames_left);
+    isca->io_data = nullptr;
+
+    return noErr;
+}
+
+static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoDevice *device = instream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+
+    if (instream->buffer_duration == 0.0)
+        instream->buffer_duration = device->buffer_duration_current;
+
+    instream->buffer_duration = clamp(
+            device->buffer_duration_min,
+            instream->buffer_duration,
+            device->buffer_duration_max);
+
+    AudioComponentDescription desc = {0};
+    desc.componentType = kAudioUnitType_Output;
+    desc.componentSubType = kAudioUnitSubType_HALOutput;
+    desc.componentManufacturer = kAudioUnitManufacturer_Apple;
+
+    AudioComponent component = AudioComponentFindNext(nullptr, &desc);
+    if (!component) {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    OSStatus os_err;
+    if ((os_err = AudioComponentInstanceNew(component, &isca->instance))) {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((os_err = AudioUnitInitialize(isca->instance))) {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    UInt32 enable_io = 1;
+    if ((os_err = AudioUnitSetProperty(isca->instance, kAudioOutputUnitProperty_EnableIO,
+        kAudioUnitScope_Input, INPUT_ELEMENT, &enable_io, sizeof(UInt32))))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    enable_io = 0;
+    if ((os_err = AudioUnitSetProperty(isca->instance, kAudioOutputUnitProperty_EnableIO,
+        kAudioUnitScope_Output, OUTPUT_ELEMENT, &enable_io, sizeof(UInt32))))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if ((os_err = AudioUnitSetProperty(isca->instance, kAudioOutputUnitProperty_CurrentDevice,
+        kAudioUnitScope_Output, INPUT_ELEMENT, &dca->device_id, sizeof(AudioDeviceID))))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+
+    AudioStreamBasicDescription format = {0};
+    format.mSampleRate = instream->sample_rate;
+    format.mFormatID = kAudioFormatLinearPCM;
+    format.mFormatFlags = kAudioFormatFlagIsFloat;
+    format.mBytesPerPacket = instream->bytes_per_frame;
+    format.mFramesPerPacket = 1;
+    format.mBytesPerFrame = instream->bytes_per_frame;
+    format.mChannelsPerFrame = instream->layout.channel_count;
+    format.mBitsPerChannel = 32;
+
+    if ((os_err = AudioUnitSetProperty(isca->instance, kAudioUnitProperty_StreamFormat,
+        kAudioUnitScope_Output, INPUT_ELEMENT, &format, sizeof(AudioStreamBasicDescription))))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    AURenderCallbackStruct input_callback = {read_callback_ca, is};
+    if ((os_err = AudioUnitSetProperty(isca->instance, kAudioOutputUnitProperty_SetInputCallback,
+        kAudioUnitScope_Output, INPUT_ELEMENT, &input_callback, sizeof(AURenderCallbackStruct))))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+
+    AudioObjectPropertyAddress prop_address = {
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioObjectPropertyScopeOutput,
+        INPUT_ELEMENT
+    };
+    UInt32 buffer_frame_size = instream->buffer_duration * instream->sample_rate;
+    if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
+        0, nullptr, sizeof(UInt32), &buffer_frame_size)))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    prop_address.mSelector = kAudioDeviceProcessorOverload;
+    prop_address.mScope = kAudioObjectPropertyScopeGlobal;
+    if ((os_err = AudioObjectAddPropertyListener(dca->device_id, &prop_address,
+        on_instream_device_overload, is)))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    return 0;
+}
+
+static int instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+    OSStatus os_err;
+    if (pause) {
+        if ((os_err = AudioOutputUnitStop(isca->instance))) {
+            return SoundIoErrorStreaming;
+        }
+    } else {
+        if ((os_err = AudioOutputUnitStart(isca->instance))) {
+            return SoundIoErrorStreaming;
+        }
+    }
+
+    return 0;
 }
 
 static int instream_start_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO start");
+    return instream_pause_ca(si, is, false);
 }
 
 static int instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
@@ -1049,9 +1217,6 @@ static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
     soundio_panic("TODO end read");
 }
 
-static int instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
-    soundio_panic("TODO pause");
-}
 
 
 // Possible errors:
