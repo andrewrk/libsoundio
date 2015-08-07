@@ -251,7 +251,6 @@ view `coverage/index.html` in a browser.
 
  0. implement CoreAudio (OSX) backend, get examples working
     - microphone example
-    - underflow example
  0. ALSA backend for microphone example is broken
  0. Add some builtin channel layouts from
     https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags

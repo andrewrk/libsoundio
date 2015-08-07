@@ -839,8 +839,29 @@ static void device_thread_run(void *arg) {
     }
 }
 
+static OSStatus on_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
+    const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
+{
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)in_client_data;
+    SoundIoOutStream *outstream = &os->pub;
+    outstream->underflow_callback(outstream);
+    return noErr;
+}
+
 static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoDevice *device = outstream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+
+    AudioObjectPropertyAddress prop_address = {
+        kAudioDeviceProcessorOverload,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_device_overload, os);
+
     if (osca->output_instance) {
         AudioOutputUnitStop(osca->output_instance);
         AudioComponentInstanceDispose(osca->output_instance);
@@ -923,6 +944,19 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     AURenderCallbackStruct render_callback = {write_callback_ca, os};
     if ((os_err = AudioUnitSetProperty(osca->output_instance, kAudioUnitProperty_SetRenderCallback,
         kAudioUnitScope_Input, 0, &render_callback, sizeof(AURenderCallbackStruct))))
+    {
+        outstream_destroy_ca(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+
+    AudioObjectPropertyAddress prop_address = {
+        kAudioDeviceProcessorOverload,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    if ((os_err = AudioObjectAddPropertyListener(dca->device_id, &prop_address,
+        on_device_overload, os)))
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
