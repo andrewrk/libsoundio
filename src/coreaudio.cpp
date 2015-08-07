@@ -195,19 +195,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
                         If both the device and the stream say they have latency, then the total
                         latency for the stream is the device latency summed with the stream latency.
 */
-/*
-    @constant       kAudioDevicePropertyIcon
-                        A CFURLRef that indicates an image file that can be used to represent the
-                        device visually. The caller is responsible for releasing the returned
-                        CFObject.
-*/
-/*
-    @constant       kAudioDevicePropertyPreferredChannelsForStereo
-                        An array of two UInt32s, the first for the left channel, the second for the
-                        right channel, that indicate the channel numbers to use for stereo IO on the
-                        device. The value of this property can be different for input and output and
-                        there are no restrictions on the channel numbers that can be used.
-*/
 
 static SoundIoChannelId from_channel_descr(const AudioChannelDescription *descr) {
     switch (descr->mChannelLabel) {
@@ -597,7 +584,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device = &dev->pub;
             rd.device->ref_count = 1;
             rd.device->soundio = soundio;
-            rd.device->is_raw = false; // TODO
+            rd.device->is_raw = false;
             rd.device->aim = aim;
             rd.device->id = soundio_str_dupe(rd.device_uid, rd.device_uid_len);
             rd.device->name = soundio_str_dupe(rd.device_name, rd.device_name_len);
@@ -886,12 +873,19 @@ static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io
 }
 
 static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    // TODO: use outstream->buffer_duration
     SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+
+    if (outstream->buffer_duration == 0.0)
+        outstream->buffer_duration = device->buffer_duration_current;
+
+    outstream->buffer_duration = clamp(
+            device->buffer_duration_min,
+            outstream->buffer_duration,
+            device->buffer_duration_max);
 
     AudioComponentDescription desc;
     desc.componentType = kAudioUnitType_Output;
@@ -949,12 +943,21 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
-
     AudioObjectPropertyAddress prop_address = {
-        kAudioDeviceProcessorOverload,
-        kAudioObjectPropertyScopeGlobal,
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioObjectPropertyScopeInput,
         kAudioObjectPropertyElementMaster
     };
+    UInt32 buffer_frame_size = outstream->buffer_duration * outstream->sample_rate;
+    if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
+        0, nullptr, sizeof(UInt32), &buffer_frame_size)))
+    {
+        outstream_destroy_ca(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    prop_address.mSelector = kAudioDeviceProcessorOverload;
+    prop_address.mScope = kAudioObjectPropertyScopeGlobal;
     if ((os_err = AudioObjectAddPropertyListener(dca->device_id, &prop_address,
         on_device_overload, os)))
     {
