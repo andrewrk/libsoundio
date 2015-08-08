@@ -154,6 +154,7 @@ enum SoundIoBackend {
     SoundIoBackendPulseAudio,
     SoundIoBackendAlsa,
     SoundIoBackendCoreAudio,
+    SoundIoBackendWasapi,
     SoundIoBackendDummy,
 };
 

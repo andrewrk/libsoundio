@@ -26,6 +26,9 @@ static const SoundIoBackend available_backends[] = {
 #ifdef SOUNDIO_HAVE_COREAUDIO
     SoundIoBackendCoreAudio,
 #endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    SoundIoBackendWasapi,
+#endif
     SoundIoBackendDummy,
 };
 
@@ -50,6 +53,11 @@ static int (*backend_init_fns[])(SoundIoPrivate *) = {
     [SoundIoBackendCoreAudio] = soundio_coreaudio_init,
 #else
     [SoundIoBackendCoreAudio] = nullptr,
+#endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    [SoundIoBackendWasapi] = soundio_wasapi_init,
+#else
+    [SoundIoBackendWasapi] = nullptr,
 #endif
     [SoundIoBackendDummy] = soundio_dummy_init,
 };
@@ -137,6 +145,7 @@ const char *soundio_backend_name(enum SoundIoBackend backend) {
         case SoundIoBackendPulseAudio: return "PulseAudio";
         case SoundIoBackendAlsa: return "ALSA";
         case SoundIoBackendCoreAudio: return "CoreAudio";
+        case SoundIoBackendWasapi: return "WASAPI";
         case SoundIoBackendDummy: return "Dummy";
     }
     return "(invalid backend)";

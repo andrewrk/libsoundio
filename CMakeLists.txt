@@ -77,6 +77,16 @@ else()
     set(AUDIOUNIT_LIBRARY "")
 endif()
 
+find_package(WASAPI)
+if(WASAPI_FOUND)
+    set(STATUS_WASAPI "OK")
+    set(SOUNDIO_HAVE_WASAPI true)
+else()
+    set(STATUS_WASAPI "not found")
+    set(SOUNDIO_HAVE_WASAPI false)
+    set(WASAPI_LIBRARIES "")
+endif()
+
 
 set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
@@ -136,6 +146,14 @@ if(SOUNDIO_HAVE_COREAUDIO)
         "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
     )
 endif()
+if(SOUNDIO_HAVE_WASAPI)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/wasapi.cpp"
+    )
+    set(TEST_SOURCES ${TEST_SOURCES}
+        "${CMAKE_SOURCE_DIR}/src/wasapi.cpp"
+    )
+endif()
 
 
 # GTFO, -lstdc++ !!
@@ -186,6 +204,7 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
+    ${WASAPI_LIBRARIES}
     m
     ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -242,6 +261,7 @@ target_link_libraries(unit_tests LINK_PUBLIC
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
+    ${WASAPI_LIBRARIES}
     m
 )
 set_target_properties(unit_tests PROPERTIES
@@ -289,4 +309,5 @@ message(
     "* PulseAudio (optional)        : ${STATUS_PULSEAUDIO}\n"
     "* ALSA (optional)              : ${STATUS_ALSA}\n"
     "* CoreAudio (optional)         : ${STATUS_COREAUDIO}\n"
+    "* WASAPI (optional)            : ${STATUS_WASAPI}\n"
 )

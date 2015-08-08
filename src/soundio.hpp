@@ -27,6 +27,10 @@
 #include "coreaudio.hpp"
 #endif
 
+#ifdef SOUNDIO_HAVE_WASAPI
+#include "wasapi.hpp"
+#endif
+
 #include "dummy.hpp"
 
 union SoundIoBackendData {
@@ -41,6 +45,9 @@ union SoundIoBackendData {
 #endif
 #ifdef SOUNDIO_HAVE_COREAUDIO
     SoundIoCoreAudio coreaudio;
+#endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    SoundIoWasapi wasapi;
 #endif
     SoundIoDummy dummy;
 };
@@ -58,6 +65,9 @@ union SoundIoDeviceBackendData {
 #ifdef SOUNDIO_HAVE_COREAUDIO
     SoundIoDeviceCoreAudio coreaudio;
 #endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    SoundIoDeviceWasapi wasapi;
+#endif
     SoundIoDeviceDummy dummy;
 };
 
@@ -74,6 +84,9 @@ union SoundIoOutStreamBackendData {
 #ifdef SOUNDIO_HAVE_COREAUDIO
     SoundIoOutStreamCoreAudio coreaudio;
 #endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    SoundIoOutStreamWasapi wasapi;
+#endif
     SoundIoOutStreamDummy dummy;
 };
 
@@ -89,6 +102,9 @@ union SoundIoInStreamBackendData {
 #endif
 #ifdef SOUNDIO_HAVE_COREAUDIO
     SoundIoInStreamCoreAudio coreaudio;
+#endif
+#ifdef SOUNDIO_HAVE_WASAPI
+    SoundIoInStreamWasapi wasapi;
 #endif
     SoundIoInStreamDummy dummy;
 };
