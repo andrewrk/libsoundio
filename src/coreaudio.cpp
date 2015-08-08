@@ -189,15 +189,6 @@ static int aim_to_scope(SoundIoDeviceAim aim) {
     return (aim == SoundIoDeviceAimInput) ?
         kAudioObjectPropertyScopeInput : kAudioObjectPropertyScopeOutput;
 }
-// TODO
-/*
-    @constant       kAudioDevicePropertyLatency
-                        A UInt32 containing the number of frames of latency in the AudioDevice. Note
-                        that input and output latency may differ. Further, the AudioDevice's
-                        AudioStreams may have additional latency so they should be queried as well.
-                        If both the device and the stream say they have latency, then the total
-                        latency for the stream is the device latency summed with the stream latency.
-*/
 
 static SoundIoChannelId from_channel_descr(const AudioChannelDescription *descr) {
     switch (descr->mChannelLabel) {
@@ -637,12 +628,19 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(double);
+            double value;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
-                &io_size, &rd.device->sample_rate_current)))
+                &io_size, &value)))
             {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
+            double floored_value = floor(value);
+            if (value != floored_value) {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorIncompatibleDevice;
+            }
+            rd.device->sample_rate_current = (int)floored_value;
 
             prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
             prop_address.mScope = aim_to_scope(aim);
@@ -676,6 +674,12 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                     rd.device->sample_rate_min = min_val;
                 if (rd.device->sample_rate_max == 0 || max_val > rd.device->sample_rate_max)
                     rd.device->sample_rate_max = max_val;
+            }
+            // If you try to open an input stream with anything but the current
+            // nominal sample rate, AudioUnitRender returns an error.
+            if (aim == SoundIoDeviceAimInput) {
+                rd.device->sample_rate_min = rd.device->sample_rate_current;
+                rd.device->sample_rate_max = rd.device->sample_rate_current;
             }
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
@@ -1056,6 +1060,8 @@ static void instream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
         AudioOutputUnitStop(isca->instance);
         AudioComponentInstanceDispose(isca->instance);
     }
+
+    free(isca->buffer_list);
 }
 
 static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_action_flags,
@@ -1066,11 +1072,38 @@ static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_
     SoundIoInStream *instream = &is->pub;
     SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
 
-    isca->io_data = io_data;
-    isca->buffer_index = 0;
+    for (int i = 0; i < isca->buffer_list->mNumberBuffers; i += 1) {
+        isca->buffer_list->mBuffers[i].mData = nullptr;
+    }
+
+    OSStatus os_err;
+    if ((os_err = AudioUnitRender(isca->instance, io_action_flags, in_time_stamp, 
+        in_bus_number, in_number_frames, isca->buffer_list)))
+    {
+        instream->error_callback(instream, SoundIoErrorStreaming);
+        return noErr;
+    }
+
+    if (isca->buffer_list->mNumberBuffers == 1) {
+        AudioBuffer *audio_buffer = &isca->buffer_list->mBuffers[0];
+        assert(audio_buffer->mNumberChannels == instream->layout.channel_count);
+        assert(audio_buffer->mDataByteSize == in_number_frames * instream->bytes_per_frame);
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            isca->areas[ch].ptr = ((char*)audio_buffer->mData) + instream->bytes_per_sample;
+            isca->areas[ch].step = instream->bytes_per_frame;
+        }
+    } else {
+        assert(isca->buffer_list->mNumberBuffers == instream->layout.channel_count);
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            AudioBuffer *audio_buffer = &isca->buffer_list->mBuffers[ch];
+            assert(audio_buffer->mDataByteSize == in_number_frames * instream->bytes_per_sample);
+            isca->areas[ch].ptr = (char*)audio_buffer->mData;
+            isca->areas[ch].step = instream->bytes_per_sample;
+        }
+    }
+
     isca->frames_left = in_number_frames;
     instream->read_callback(instream, isca->frames_left, isca->frames_left);
-    isca->io_data = nullptr;
 
     return noErr;
 }
@@ -1081,6 +1114,8 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     SoundIoDevice *device = instream->device;
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+    UInt32 io_size;
+    OSStatus os_err;
 
     if (instream->buffer_duration == 0.0)
         instream->buffer_duration = device->buffer_duration_current;
@@ -1089,6 +1124,33 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
             device->buffer_duration_min,
             instream->buffer_duration,
             device->buffer_duration_max);
+
+
+    AudioObjectPropertyAddress prop_address;
+    prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
+    prop_address.mScope = kAudioObjectPropertyScopeInput;
+    prop_address.mElement = kAudioObjectPropertyElementMaster;
+    io_size = 0;
+    if ((os_err = AudioObjectGetPropertyDataSize(dca->device_id, &prop_address,
+        0, nullptr, &io_size)))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    isca->buffer_list = (AudioBufferList*)allocate_nonzero<char>(io_size);
+    if (!isca->buffer_list) {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorNoMem;
+    }
+
+    if ((os_err = AudioObjectGetPropertyData(dca->device_id, &prop_address,
+        0, nullptr, &io_size, isca->buffer_list)))
+    {
+        instream_destroy_ca(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
 
     AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
@@ -1101,7 +1163,6 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
         return SoundIoErrorOpeningDevice;
     }
 
-    OSStatus os_err;
     if ((os_err = AudioComponentInstanceNew(component, &isca->instance))) {
         instream_destroy_ca(si, is);
         return SoundIoErrorOpeningDevice;
@@ -1162,11 +1223,9 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     }
 
 
-    AudioObjectPropertyAddress prop_address = {
-        kAudioDevicePropertyBufferFrameSize,
-        kAudioObjectPropertyScopeOutput,
-        INPUT_ELEMENT
-    };
+    prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
+    prop_address.mScope = kAudioObjectPropertyScopeOutput;
+    prop_address.mElement = INPUT_ELEMENT;
     UInt32 buffer_frame_size = instream->buffer_duration * instream->sample_rate;
     if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
         0, nullptr, sizeof(UInt32), &buffer_frame_size)))
@@ -1210,11 +1269,20 @@ static int instream_start_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPr
 static int instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         SoundIoChannelArea **out_areas, int *frame_count)
 {
-    soundio_panic("TODO begin read");
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+
+    if (*frame_count != isca->frames_left)
+        return SoundIoErrorInvalid;
+
+    *out_areas = isca->areas;
+
+    return 0;
 }
 
 static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO end read");
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+    isca->frames_left = 0;
+    return 0;
 }
 
 

@@ -52,9 +52,9 @@ struct SoundIoOutStreamCoreAudio {
 
 struct SoundIoInStreamCoreAudio {
     AudioComponentInstance instance;
-    AudioBufferList *io_data;
-    int buffer_index;
+    AudioBufferList *buffer_list;
     int frames_left;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif
