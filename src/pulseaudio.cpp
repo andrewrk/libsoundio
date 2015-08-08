@@ -294,8 +294,10 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
         device->sample_rate_current = info->sample_spec.rate;
         // PulseAudio performs resampling, so any value is valid. Let's pick
         // some reasonable min and max values.
-        device->sample_rate_min = min(8000, device->sample_rate_current);
-        device->sample_rate_max = max(5644800, device->sample_rate_current);
+        device->sample_rate_count = 1;
+        device->sample_rates = &dev->prealloc_sample_rate_range;
+        device->sample_rates[0].min = min(8000, device->sample_rate_current);
+        device->sample_rates[0].max = max(5644800, device->sample_rate_current);
 
         device->current_format = from_pulseaudio_format(info->sample_spec);
         // PulseAudio performs sample format conversion, so any PulseAudio
@@ -364,8 +366,10 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
         device->sample_rate_current = info->sample_spec.rate;
         // PulseAudio performs resampling, so any value is valid. Let's pick
         // some reasonable min and max values.
-        device->sample_rate_min = min(8000, device->sample_rate_current);
-        device->sample_rate_max = max(5644800, device->sample_rate_current);
+        device->sample_rate_count = 1;
+        device->sample_rates = &dev->prealloc_sample_rate_range;
+        device->sample_rates[0].min = min(8000, device->sample_rate_current);
+        device->sample_rates[0].max = max(5644800, device->sample_rate_current);
 
         device->current_format = from_pulseaudio_format(info->sample_spec);
         // PulseAudio performs sample format conversion, so any PulseAudio

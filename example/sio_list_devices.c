@@ -50,8 +50,12 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
             fprintf(stderr, "\n");
         }
 
-        fprintf(stderr, "  min sample rate: %d\n", device->sample_rate_min);
-        fprintf(stderr, "  max sample rate: %d\n", device->sample_rate_max);
+        fprintf(stderr, "  sample rates:\n");
+        for (int i = 0; i < device->sample_rate_count; i += 1) {
+            struct SoundIoSampleRateRange *range = &device->sample_rates[i];
+            fprintf(stderr, "    %d - %d\n", range->min, range->max);
+
+        }
         if (device->sample_rate_current)
             fprintf(stderr, "  current sample rate: %d\n", device->sample_rate_current);
         fprintf(stderr, "  formats: ");

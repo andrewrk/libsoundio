@@ -252,6 +252,7 @@ static int set_access(snd_pcm_t *handle, snd_pcm_hw_params_t *hwparams, snd_pcm_
 static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resample,
         int *out_channels_min, int *out_channels_max)
 {
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     int err;
 
     snd_pcm_hw_params_t *hwparams;
@@ -286,8 +287,10 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resam
     if ((err = snd_pcm_hw_params_set_rate_last(handle, hwparams, &rate_max, nullptr)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    device->sample_rate_min = rate_min;
-    device->sample_rate_max = rate_max;
+    device->sample_rate_count = 1;
+    device->sample_rates = &dev->prealloc_sample_rate_range;
+    device->sample_rates[0].min = rate_min;
+    device->sample_rates[0].max = rate_max;
 
     double one_over_actual_rate = 1.0 / (double)rate_max;
 
@@ -437,8 +440,8 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
     maps = nullptr;
 
     if (!device->is_raw) {
-        if (device->sample_rate_min == device->sample_rate_max)
-            device->sample_rate_current = device->sample_rate_min;
+        if (device->sample_rates[0].min == device->sample_rates[0].max)
+            device->sample_rate_current = device->sample_rates[0].min;
 
         if (device->buffer_duration_min == device->buffer_duration_max)
             device->buffer_duration_current = device->buffer_duration_min;

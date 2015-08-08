@@ -238,7 +238,13 @@ struct SoundIoChannelLayout {
     enum SoundIoChannelId channels[SOUNDIO_MAX_CHANNELS];
 };
 
-// The size of this struct is not part of the API or ABI.
+// The size of this struct is OK to use.
+struct SoundIoSampleRateRange {
+    int min;
+    int max;
+};
+
+// The size of this struct is OK to use.
 struct SoundIoChannelArea {
     // Base address of buffer.
     char *ptr;
@@ -336,10 +342,11 @@ struct SoundIoDevice {
     // Sample rate is the number of frames per second.
     // Sample rate is handled very similar to sample format; see those docs.
     // If sample rate information is missing due to a probe error, the field
-    // will be set to zero.
-    // Devices are guaranteed to have at least 1 sample rate available.
-    int sample_rate_min;
-    int sample_rate_max;
+    // will be set to 0 or NULL.
+    // Devices which have `probe_error` set to `SoundIoErrorNone` are
+    // guaranteed to have at least 1 sample rate available.
+    struct SoundIoSampleRateRange *sample_rates;
+    int sample_rate_count;
     int sample_rate_current;
 
     // Buffer duration in seconds. If `buffer_duration_current` is unknown or
@@ -704,6 +711,16 @@ bool soundio_device_supports_format(struct SoundIoDevice *device,
 // supported channel layouts.
 bool soundio_device_supports_layout(struct SoundIoDevice *device,
         const struct SoundIoChannelLayout *layout);
+
+// Convenience function. Returns whether `sample_rate` is included in the
+// device's supported sample rates.
+bool soundio_device_supports_sample_rate(struct SoundIoDevice *device,
+        int sample_rate);
+
+// Convenience function. Returns the available sample rate nearest to
+// `sample_rate`, rounding up.
+int soundio_device_nearest_sample_rate(struct SoundIoDevice *device,
+        int sample_rate);
 
 
 

@@ -363,6 +363,14 @@ static int set_all_device_formats(SoundIoDevice *device) {
     return 0;
 }
 
+static void set_all_device_sample_rates(SoundIoDevice *device) {
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    device->sample_rate_count = 1;
+    device->sample_rates = &dev->prealloc_sample_rate_range;
+    device->sample_rates[0].min = 8000;
+    device->sample_rates[0].max = 5644800;
+}
+
 static int set_all_device_channel_layouts(SoundIoDevice *device) {
     device->layout_count = soundio_channel_layout_builtin_count();
     device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
@@ -429,12 +437,11 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             destroy_dummy(si);
             return err;
         }
+        set_all_device_sample_rates(device);
 
         device->buffer_duration_min = 0.01;
         device->buffer_duration_max = 4;
         device->buffer_duration_current = 0.1;
-        device->sample_rate_min = 2;
-        device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
         device->period_duration_min = 0.01;
         device->period_duration_max = 2;
@@ -479,11 +486,10 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             destroy_dummy(si);
             return err;
         }
+        set_all_device_sample_rates(device);
         device->buffer_duration_min = 0.01;
         device->buffer_duration_max = 4;
         device->buffer_duration_current = 0.1;
-        device->sample_rate_min = 2;
-        device->sample_rate_max = 5644800;
         device->sample_rate_current = 48000;
         device->period_duration_min = 0.01;
         device->period_duration_max = 2;

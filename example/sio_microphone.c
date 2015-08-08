@@ -39,6 +39,14 @@ static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatInvalid,
 };
 
+static int prioritized_sample_rates[] = {
+    48000,
+    44100,
+    96000,
+    24000,
+    0,
+};
+
 
 __attribute__ ((cold))
 __attribute__ ((noreturn))
@@ -274,11 +282,15 @@ int main(int argc, char **argv) {
     if (!layout)
         panic("channel layouts not compatible");
 
-
-    int sample_rate = 48000;
-    if (in_device->sample_rate_max < sample_rate) sample_rate = in_device->sample_rate_max;
-    if (out_device->sample_rate_max < sample_rate) sample_rate = out_device->sample_rate_max;
-    if (in_device->sample_rate_min > sample_rate || out_device->sample_rate_min > sample_rate)
+    int *sample_rate;
+    for (sample_rate = prioritized_sample_rates; *sample_rate; sample_rate += 1) {
+        if (soundio_device_supports_sample_rate(in_device, *sample_rate) &&
+            soundio_device_supports_sample_rate(out_device, *sample_rate))
+        {
+            break;
+        }
+    }
+    if (!*sample_rate)
         panic("incompatible sample rates");
 
     enum SoundIoFormat *fmt;
@@ -296,7 +308,7 @@ int main(int argc, char **argv) {
     if (!instream)
         panic("out of memory");
     instream->format = *fmt;
-    instream->sample_rate = sample_rate;
+    instream->sample_rate = *sample_rate;
     instream->layout = *layout;
     instream->period_duration = microphone_latency / 4.0;
     instream->read_callback = read_callback;
@@ -308,7 +320,7 @@ int main(int argc, char **argv) {
     if (!outstream)
         panic("out of memory");
     outstream->format = *fmt;
-    outstream->sample_rate = sample_rate;
+    outstream->sample_rate = *sample_rate;
     outstream->layout = *layout;
     outstream->buffer_duration = microphone_latency;
     outstream->write_callback = write_callback;

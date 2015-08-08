@@ -368,6 +368,9 @@ void soundio_device_unref(struct SoundIoDevice *device) {
         free(device->formats);
         free(device->layouts);
 
+        if (device->sample_rates != &dev->prealloc_sample_rate_range)
+            free(device->sample_rates);
+
         free(dev);
     }
 }
@@ -451,7 +454,7 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
     }
 
     if (!outstream->sample_rate)
-        outstream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+        outstream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
 
     if (!outstream->name)
         outstream->name = "SoundIoOutStream";
@@ -537,7 +540,7 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
     }
 
     if (!instream->sample_rate)
-        instream->sample_rate = clamp(device->sample_rate_min, 48000, device->sample_rate_max);
+        instream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
 
     if (!instream->name)
         instream->name = "SoundIoInStream";
@@ -686,4 +689,33 @@ bool soundio_device_supports_layout(struct SoundIoDevice *device,
             return true;
     }
     return false;
+}
+
+bool soundio_device_supports_sample_rate(struct SoundIoDevice *device, int sample_rate) {
+    for (int i = 0; i < device->sample_rate_count; i += 1) {
+        SoundIoSampleRateRange *range = &device->sample_rates[i];
+        if (sample_rate >= range->min && sample_rate <= range->max)
+            return true;
+    }
+    return false;
+}
+
+int soundio_device_nearest_sample_rate(struct SoundIoDevice *device, int sample_rate) {
+    int best_rate = -1;
+    int best_delta = -1;
+    for (int i = 0; i < device->sample_rate_count; i += 1) {
+        SoundIoSampleRateRange *range = &device->sample_rates[i];
+        if (sample_rate < range->min) {
+            int delta = range->min - sample_rate;
+            if (best_delta == -1 || delta < best_delta) {
+                best_delta = delta;
+                best_rate = range->min;
+            }
+        } else if (best_rate == -1 && sample_rate > range->max) {
+            best_rate = range->max;
+        } else {
+            return sample_rate;
+        }
+    }
+    return best_rate;
 }

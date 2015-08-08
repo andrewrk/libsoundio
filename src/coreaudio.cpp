@@ -642,44 +642,58 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             }
             rd.device->sample_rate_current = (int)floored_value;
 
-            prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
-            prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
-            if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, nullptr,
-                &io_size)))
-            {
-                deinit_refresh_devices(&rd);
-                return SoundIoErrorOpeningDevice;
-            }
-            int avr_array_len = io_size / sizeof(AudioValueRange);
-            rd.avr_array = (AudioValueRange*)allocate<char>(io_size);
-
-            if (!rd.avr_array) {
-                deinit_refresh_devices(&rd);
-                return SoundIoErrorNoMem;
-            }
-
-            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
-                &io_size, rd.avr_array)))
-            {
-                deinit_refresh_devices(&rd);
-                return SoundIoErrorOpeningDevice;
-            }
-
-            for (int i = 0; i < avr_array_len; i += 1) {
-                AudioValueRange *avr = &rd.avr_array[i];
-                int min_val = ceil(avr->mMinimum);
-                int max_val = floor(avr->mMaximum);
-                if (rd.device->sample_rate_min == 0 || min_val < rd.device->sample_rate_min)
-                    rd.device->sample_rate_min = min_val;
-                if (rd.device->sample_rate_max == 0 || max_val > rd.device->sample_rate_max)
-                    rd.device->sample_rate_max = max_val;
-            }
             // If you try to open an input stream with anything but the current
             // nominal sample rate, AudioUnitRender returns an error.
             if (aim == SoundIoDeviceAimInput) {
-                rd.device->sample_rate_min = rd.device->sample_rate_current;
-                rd.device->sample_rate_max = rd.device->sample_rate_current;
+                device->sample_rate_count = 1;
+                device->sample_rates = &dev->prealloc_sample_rate_range;
+                device->sample_rates[0].min = rd.device->sample_rate_current;
+                device->sample_rates[0].max = rd.device->sample_rate_current;
+            } else {
+                prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
+                prop_address.mScope = aim_to_scope(aim);
+                prop_address.mElement = kAudioObjectPropertyElementMaster;
+                if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, nullptr,
+                    &io_size)))
+                {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorOpeningDevice;
+                }
+                int avr_array_len = io_size / sizeof(AudioValueRange);
+                rd.avr_array = (AudioValueRange*)allocate<char>(io_size);
+
+                if (!rd.avr_array) {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorNoMem;
+                }
+
+                if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
+                    &io_size, rd.avr_array)))
+                {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorOpeningDevice;
+                }
+
+                if (avr_array_len == 1) {
+                    device->sample_rate_count = 1;
+                    device->sample_rates = &dev->prealloc_sample_rate_range;
+                    device->sample_rates[0].min = ceil(avr->mMinimum);
+                    device->sample_rates[0].max = floor(avr->mMaximum);
+                } else {
+                    device->sample_rate_count = avr_array_len;
+                    device->sample_rates = allocate<SoundIoSampleRateRange>(avr_array_len);
+                    if (!device->sample_rates) {
+                        deinit_refresh_devices(&rd);
+                        return SoundIoErrorNoMem;
+                    }
+                    for (int i = 0; i < avr_array_len; i += 1) {
+                        AudioValueRange *avr = &rd.avr_array[i];
+                        int min_val = ceil(avr->mMinimum);
+                        int max_val = floor(avr->mMaximum);
+                        device->sample_rates[i].min = min_val;
+                        device->sample_rates[i].max = max_val;
+                    }
+                }
             }
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;

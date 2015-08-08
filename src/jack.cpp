@@ -192,8 +192,10 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->format_count = 1;
         device->formats = allocate<SoundIoFormat>(1);
         device->current_format = SoundIoFormatFloat32NE;
-        device->sample_rate_min = sij->sample_rate;
-        device->sample_rate_max = sij->sample_rate;
+        device->sample_rate_count = 1;
+        device->sample_rates = &dev->prealloc_sample_rate_range;
+        device->sample_rates[0].min = sij->sample_rate;
+        device->sample_rates[0].max = sij->sample_rate;
         device->sample_rate_current = sij->sample_rate;
         device->period_duration_min = sij->period_size / (double) sij->sample_rate;
         device->period_duration_max = device->period_duration_min;

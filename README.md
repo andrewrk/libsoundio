@@ -249,16 +249,10 @@ view `coverage/index.html` in a browser.
 
 ## Roadmap
 
- 0. ALSA backend for microphone example is broken
- 0. Add some builtin channel layouts from
-    https://developer.apple.com/library/mac/documentation/MusicAudio/Reference/CoreAudioDataTypesRef/#//apple_ref/doc/constant_group/Audio_Channel_Layout_Tags
- 0. Make sure sending bogus device id results in "SoundIoErrorNoSuchDevice" on each backend
- 0. Make sure PulseAudio can handle refresh devices crashing before
-    block_until_have_devices
- 0. CoreAudio exposes a list of min/max pairs of supported sample rates. libsoundio
-    should do the same.
  0. implement WASAPI (Windows) backend, get examples working
  0. implement ASIO (Windows) backend, get examples working
+ 0. Make sure PulseAudio can handle refresh devices crashing before
+    block_until_have_devices
  0. Do we really want `period_duration` in the API?
  0. Integrate into libgroove and test with Groove Basin
  0. clear buffer maybe could take an argument to say how many frames to not clear
