@@ -645,10 +645,10 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             // If you try to open an input stream with anything but the current
             // nominal sample rate, AudioUnitRender returns an error.
             if (aim == SoundIoDeviceAimInput) {
-                device->sample_rate_count = 1;
-                device->sample_rates = &dev->prealloc_sample_rate_range;
-                device->sample_rates[0].min = rd.device->sample_rate_current;
-                device->sample_rates[0].max = rd.device->sample_rate_current;
+                rd.device->sample_rate_count = 1;
+                rd.device->sample_rates = &dev->prealloc_sample_rate_range;
+                rd.device->sample_rates[0].min = rd.device->sample_rate_current;
+                rd.device->sample_rates[0].max = rd.device->sample_rate_current;
             } else {
                 prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
                 prop_address.mScope = aim_to_scope(aim);
@@ -675,14 +675,14 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 }
 
                 if (avr_array_len == 1) {
-                    device->sample_rate_count = 1;
-                    device->sample_rates = &dev->prealloc_sample_rate_range;
-                    device->sample_rates[0].min = ceil(avr->mMinimum);
-                    device->sample_rates[0].max = floor(avr->mMaximum);
+                    rd.device->sample_rate_count = 1;
+                    rd.device->sample_rates = &dev->prealloc_sample_rate_range;
+                    rd.device->sample_rates[0].min = ceil(rd.avr_array[0].mMinimum);
+                    rd.device->sample_rates[0].max = floor(rd.avr_array[0].mMaximum);
                 } else {
-                    device->sample_rate_count = avr_array_len;
-                    device->sample_rates = allocate<SoundIoSampleRateRange>(avr_array_len);
-                    if (!device->sample_rates) {
+                    rd.device->sample_rate_count = avr_array_len;
+                    rd.device->sample_rates = allocate<SoundIoSampleRateRange>(avr_array_len);
+                    if (!rd.device->sample_rates) {
                         deinit_refresh_devices(&rd);
                         return SoundIoErrorNoMem;
                     }
@@ -690,8 +690,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                         AudioValueRange *avr = &rd.avr_array[i];
                         int min_val = ceil(avr->mMinimum);
                         int max_val = floor(avr->mMaximum);
-                        device->sample_rates[i].min = min_val;
-                        device->sample_rates[i].max = max_val;
+                        rd.device->sample_rates[i].min = min_val;
+                        rd.device->sample_rates[i].max = max_val;
                     }
                 }
             }
@@ -707,8 +707,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
-            double use_sample_rate = clamp(rd.device->sample_rate_min, rd.device->sample_rate_current,
-                rd.device->sample_rate_max);
+            double use_sample_rate = rd.device->sample_rate_current;
             rd.device->buffer_duration_current = buffer_frame_size / use_sample_rate;
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSizeRange;
