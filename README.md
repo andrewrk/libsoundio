@@ -34,8 +34,7 @@ behavior on every platform.
  * C library. Depends only on the respective backend API libraries and libc.
    Does *not* depend on libstdc++, and does *not* have exceptions, run-time type
    information, or [setjmp](http://latentcontent.net/2007/12/05/libpng-worst-api-ever/).
- * Errors are communicated via return codes, not logging to stdio. This is one
-   of my many complaints against [PortAudio](http://www.portaudio.com/).
+ * Errors are communicated via return codes, not logging to stdio.
  * Supports channel layouts (also known as channel maps), important for
    surround sound applications.
  * Ability to monitor devices and get an event when available devices change.

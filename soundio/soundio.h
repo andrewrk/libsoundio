@@ -355,7 +355,7 @@ struct SoundIoDevice {
     // PulseAudio allows any value and so reasonable min/max of 0.10 and 4.0
     // are used. You may check that the current backend is PulseAudio and
     // ignore these min/max values.
-    // For JACK, buffer duration and period duration are the same.
+    // For JACK and CoreAudio, buffer duration and period duration are the same.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;
@@ -420,7 +420,8 @@ struct SoundIoOutStream {
     // actual period duration, as near to this value as possible.
     // Defaults to `buffer_duration / 2` (and then clamped into range).
     // If the device has unknown period duration min and max values, you may
-    // still set this. This value is meaningless for PulseAudio.
+    // still set this. This value is meaningless for PulseAudio, JACK, and
+    // CoreAudio.
     double period_duration;
 
     // Defaults to NULL. Put whatever you want here.
@@ -494,8 +495,7 @@ struct SoundIoInStream {
     // Defaults to 1 second (and then clamped into range). For PulseAudio,
     // defaults to PulseAudio's default value, usually large. If you set this
     // and the backend is PulseAudio, it sets `PA_STREAM_ADJUST_LATENCY` and
-    // is the value used for `maxlength`. With PulseAudio, this value is not
-    // replaced with the actual duration until `soundio_instream_start`.
+    // is the value used for `maxlength`.
     double buffer_duration;
 
     // The latency of the captured audio.
@@ -505,8 +505,6 @@ struct SoundIoInStream {
     // Defaults to `buffer_duration / 8`.
     // If you set this and the backend is PulseAudio, it sets
     // `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
-    // With PulseAudio, this value is not replaced with the actual duration
-    // until `soundio_instream_start`.
     double period_duration;
 
     // Defaults to NULL. Put whatever you want here.

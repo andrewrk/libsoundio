@@ -49,6 +49,7 @@
 
 #include <windows.h>
 #include <mmsystem.h>
+#include <objbase.h>
 
 #else
 
@@ -161,7 +162,10 @@ double soundio_os_get_time(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
 static DWORD WINAPI run_win32_thread(LPVOID userdata) {
     struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
+    HRESULT err = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    assert(err == S_OK);
     thread->run(thread->arg);
+    CoUninitialize();
     return 0;
 }
 #else

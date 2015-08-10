@@ -724,6 +724,10 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->buffer_duration_min = avr.mMinimum / use_sample_rate;
             rd.device->buffer_duration_max = avr.mMaximum / use_sample_rate;
 
+            rd.device->period_duration_min = rd.device->buffer_duration_min;
+            rd.device->period_duration_max = rd.device->buffer_duration_max;
+            rd.device->period_duration_current = rd.device->buffer_duration_current;
+
 
 
             SoundIoList<SoundIoDevice *> *device_list;
@@ -906,6 +910,8 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
             device->buffer_duration_min,
             outstream->buffer_duration,
             device->buffer_duration_max);
+
+    outstream->period_duration = outstream->outstream->buffer_duration;
 
     AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
