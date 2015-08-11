@@ -84,7 +84,6 @@ if(WASAPI_FOUND)
 else()
     set(STATUS_WASAPI "not found")
     set(SOUNDIO_HAVE_WASAPI false)
-    set(WASAPI_LIBRARIES "")
 endif()
 
 
@@ -204,7 +203,6 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
-    ${WASAPI_LIBRARIES}
     m
     ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -261,7 +259,6 @@ target_link_libraries(unit_tests LINK_PUBLIC
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
-    ${WASAPI_LIBRARIES}
     m
 )
 set_target_properties(unit_tests PROPERTIES

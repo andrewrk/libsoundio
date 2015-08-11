@@ -7,20 +7,75 @@
 #define CINTERFACE
 #define COBJMACROS
 #define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+
+
+// converts a windows wide string to a UTF-8 encoded char *
+// Possible errors:
+//  * SoundIoErrorNoMem
+//  * SoundIoErrorEncodingString
+static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
+    DWORD flags = 0;
+    int buf_size = WideCharToMultiByte(CP_UTF8, flags, lpwstr, -1, nullptr, 0, nullptr, nullptr);
+
+    if (buf_size == 0)
+        return SoundIoErrorEncodingString;
+
+    char *buf = allocate<char>(buf_size + 1);
+    if (!buf)
+        return SoundIoErrorNoMem;
+
+    if (WideCharToMultiByte(CP_UTF8, flags, lpwstr, -1, buf, buf_size, nullptr, nullptr) != buf_size) {
+        free(buf);
+        return SoundIoErrorEncodingString;
+    }
+
+    *out_str = buf;
+    *out_str_len = buf_size;
+
+    return 0;
+}
+
+static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
+    return (data_flow == eRender) ? SoundIoDeviceAimOutput : SoundIoDeviceAimInput;
+}
 
 struct RefreshDevices {
     IMMDeviceCollection *collection;
+    IMMDevice *mm_device;
+    IMMEndpoint *endpoint;
+    IPropertyStore *prop_store;
+    LPWSTR lpwstr;
+    PROPVARIANT prop_variant_value;
+    bool prop_variant_value_inited;
+    SoundIoDevicesInfo *devices_info;
+    SoundIoDevice *device;
 };
 
 static void deinit_refresh_devices(RefreshDevices *rd) {
+    soundio_destroy_devices_info(rd->devices_info);
+    soundio_device_unref(rd->device);
+    if (rd->mm_device)
+        IMMDevice_Release(rd->mm_device);
     if (rd->collection)
         IMMDeviceCollection_Release(rd->collection);
+    if (rd->lpwstr)
+        CoTaskMemFree(rd->lpwstr);
+    if (rd->endpoint)
+        IMMEndpoint_Release(rd->endpoint);
+    if (rd->prop_store)
+        IPropertyStore_Release(rd->prop_store);
+    if (rd->prop_variant_value_inited)
+        PropVariantClear(&rd->prop_variant_value);
 }
 
 static int refresh_devices(SoundIoPrivate *si) {
+    SoundIo *soundio = &si->pub;
     SoundIoWasapi *siw = &si->backend_data.wasapi;
     RefreshDevices rd = {0};
+    int err;
     HRESULT hr;
     if (FAILED(hr = IMMDeviceEnumerator_EnumAudioEndpoints(siw->device_enumerator,
                     eAll, DEVICE_STATE_ACTIVE, &rd.collection)))
@@ -29,14 +84,127 @@ static int refresh_devices(SoundIoPrivate *si) {
         return SoundIoErrorOpeningDevice;
     }
 
-    UINT device_count;
-    if (FAILED(hr = IMMDeviceCollection_GetCount(rd.collection, &device_count))) {
+    UINT unsigned_count;
+    if (FAILED(hr = IMMDeviceCollection_GetCount(rd.collection, &unsigned_count))) {
         deinit_refresh_devices(&rd);
         return SoundIoErrorOpeningDevice;
     }
 
-    // TODO
-    fprintf(stderr, "device count: %d\n", (int) device_count);
+    if (unsigned_count > (UINT)INT_MAX) {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorIncompatibleDevice;
+    }
+
+    int device_count = unsigned_count;
+
+    if (!(rd.devices_info = allocate<SoundIoDevicesInfo>(1))) {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorNoMem;
+    }
+
+    for (int device_i = 0; device_i < device_count; device_i += 1) {
+        if (rd.mm_device)
+            IMMDevice_Release(rd.mm_device);
+        if (FAILED(hr = IMMDeviceCollection_Item(rd.collection, device_i, &rd.mm_device))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        if (rd.lpwstr)
+            CoTaskMemFree(rd.lpwstr);
+        if (FAILED(hr = IMMDevice_GetId(rd.mm_device, &rd.lpwstr))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+
+        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
+        if (!dev) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+        assert(!rd.device);
+        rd.device = &dev->pub;
+        rd.device->ref_count = 1;
+        rd.device->soundio = soundio;
+        rd.device->is_raw = false; // TODO
+
+
+        int device_id_len;
+        if ((err = from_lpwstr(rd.lpwstr, &rd.device->id, &device_id_len))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+
+        if (rd.endpoint)
+            IMMEndpoint_Release(rd.endpoint);
+        if (FAILED(hr = IMMDevice_QueryInterface(rd.mm_device, IID_IMMEndpoint, (void**)&rd.endpoint))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        EDataFlow data_flow;
+        if (FAILED(hr = IMMEndpoint_GetDataFlow(rd.endpoint, &data_flow))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        rd.device->aim = data_flow_to_aim(data_flow);
+
+        if (rd.prop_store)
+            IPropertyStore_Release(rd.prop_store);
+        if (FAILED(hr = IMMDevice_OpenPropertyStore(rd.mm_device, STGM_READ, &rd.prop_store))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        if (rd.prop_variant_value_inited)
+            PropVariantClear(&rd.prop_variant_value);
+        PropVariantInit(&rd.prop_variant_value);
+        rd.prop_variant_value_inited = true;
+        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store,
+                        PKEY_Device_FriendlyName, &rd.prop_variant_value)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        if (!rd.prop_variant_value.pwszVal) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        int device_name_len;
+        if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device->name, &device_name_len))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        // TODO
+
+        SoundIoList<SoundIoDevice *> *device_list;
+        if (rd.device->aim == SoundIoDeviceAimOutput) {
+            device_list = &rd.devices_info->output_devices;
+            // TODO default detection
+        } else {
+            assert(rd.device->aim == SoundIoDeviceAimInput);
+            device_list = &rd.devices_info->input_devices;
+            // TODO default detection
+        }
+
+        if ((err = device_list->append(rd.device))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+        rd.device = nullptr;
+    }
+
+    soundio_os_mutex_lock(siw->mutex);
+    soundio_destroy_devices_info(siw->ready_devices_info);
+    siw->ready_devices_info = rd.devices_info;
+    soundio->on_events_signal(soundio);
+    soundio_os_mutex_unlock(siw->mutex);
+
+    rd.devices_info = nullptr;
+    deinit_refresh_devices(&rd);
+
     return 0;
 }
 
