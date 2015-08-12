@@ -11,6 +11,7 @@
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmreg.h>
+#include <audioclient.h>
 
 // Attempting to use the Windows-supplied versions of these constants resulted
 // in `undefined reference` linker errors.
@@ -50,6 +51,11 @@ static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
     return (data_flow == eRender) ? SoundIoDeviceAimOutput : SoundIoDeviceAimInput;
 }
 
+
+static double from_reference_time(REFERENCE_TIME rt) {
+    return ((double)rt) / 10000000.0;
+}
+
 struct RefreshDevices {
     IMMDeviceCollection *collection;
     IMMDevice *mm_device;
@@ -87,6 +93,12 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
         IPropertyStore_Release(rd->prop_store);
     if (rd->prop_variant_value_inited)
         PropVariantClear(&rd->prop_variant_value);
+}
+
+static void destruct_device(SoundIoDevicePrivate *dev) {
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    if (dw->audio_client)
+        IUnknown_Release(dw->audio_client);
 }
 
 static int refresh_devices(SoundIoPrivate *si) {
@@ -172,23 +184,44 @@ static int refresh_devices(SoundIoPrivate *si) {
         }
 
 
+
         SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
         if (!dev) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorNoMem;
         }
+        SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+        dev->destruct = destruct_device;
         assert(!rd.device);
         rd.device = &dev->pub;
         rd.device->ref_count = 1;
         rd.device->soundio = soundio;
         rd.device->is_raw = false; // TODO
 
-
         int device_id_len;
         if ((err = from_lpwstr(rd.lpwstr, &rd.device->id, &device_id_len))) {
             deinit_refresh_devices(&rd);
             return err;
         }
+
+        if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAudioClient,
+                        CLSCTX_ALL, nullptr, (void**)&dw->audio_client)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        REFERENCE_TIME default_device_period;
+        REFERENCE_TIME min_device_period;
+        if (FAILED(hr = IAudioClient_GetDevicePeriod(dw->audio_client,
+                        &default_device_period, &min_device_period)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        rd.device->period_duration_current = from_reference_time(default_device_period);
+        rd.device->period_duration_min = from_reference_time(min_device_period);
+
 
         if (rd.endpoint)
             IMMEndpoint_Release(rd.endpoint);
@@ -265,7 +298,6 @@ static int refresh_devices(SoundIoPrivate *si) {
         rd.device->sample_rates[0].max = rd.device->sample_rate_current;
 
         fprintf(stderr, "bits per sample: %d\n", (int)wave_format->Format.wBitsPerSample);
-
 
         SoundIoList<SoundIoDevice *> *device_list;
         if (rd.device->aim == SoundIoDeviceAimOutput) {

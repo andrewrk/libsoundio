@@ -12,10 +12,12 @@
 #include "soundio/os.h"
 #include "atomics.hpp"
 struct IMMDeviceEnumerator;
+struct IAudioClient;
 
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceWasapi {
+    IAudioClient *audio_client;
 };
 
 struct SoundIoWasapi {
