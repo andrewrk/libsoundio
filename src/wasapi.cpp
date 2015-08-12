@@ -10,7 +10,15 @@
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
 
+// Attempting to use the Windows-supplied versions of these constants resulted
+// in `undefined reference` linker errors.
+const static GUID SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = {
+    0x00000003,0x0000,0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
+
+const static GUID SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM = {
+    0x00000001,0x0000,0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 
 // converts a windows wide string to a UTF-8 encoded char *
 // Possible errors:
@@ -45,6 +53,8 @@ static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
 struct RefreshDevices {
     IMMDeviceCollection *collection;
     IMMDevice *mm_device;
+    IMMDevice *default_render_device;
+    IMMDevice *default_capture_device;
     IMMEndpoint *endpoint;
     IPropertyStore *prop_store;
     LPWSTR lpwstr;
@@ -52,6 +62,10 @@ struct RefreshDevices {
     bool prop_variant_value_inited;
     SoundIoDevicesInfo *devices_info;
     SoundIoDevice *device;
+    char *default_render_id;
+    int default_render_id_len;
+    char *default_capture_id;
+    int default_capture_id_len;
 };
 
 static void deinit_refresh_devices(RefreshDevices *rd) {
@@ -59,6 +73,10 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
     soundio_device_unref(rd->device);
     if (rd->mm_device)
         IMMDevice_Release(rd->mm_device);
+    if (rd->default_render_device)
+        IMMDevice_Release(rd->default_render_device);
+    if (rd->default_capture_device)
+        IMMDevice_Release(rd->default_capture_device);
     if (rd->collection)
         IMMDeviceCollection_Release(rd->collection);
     if (rd->lpwstr)
@@ -77,6 +95,43 @@ static int refresh_devices(SoundIoPrivate *si) {
     RefreshDevices rd = {0};
     int err;
     HRESULT hr;
+
+    if (FAILED(hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(siw->device_enumerator, eRender,
+                    eMultimedia, &rd.default_render_device)))
+    {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorOpeningDevice;
+    }
+    if (rd.lpwstr)
+        CoTaskMemFree(rd.lpwstr);
+    if (FAILED(hr = IMMDevice_GetId(rd.default_render_device, &rd.lpwstr))) {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorOpeningDevice;
+    }
+    if ((err = from_lpwstr(rd.lpwstr, &rd.default_render_id, &rd.default_render_id_len))) {
+        deinit_refresh_devices(&rd);
+        return err;
+    }
+
+
+    if (FAILED(hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(siw->device_enumerator, eCapture,
+                    eMultimedia, &rd.default_capture_device)))
+    {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorOpeningDevice;
+    }
+    if (rd.lpwstr)
+        CoTaskMemFree(rd.lpwstr);
+    if (FAILED(hr = IMMDevice_GetId(rd.default_capture_device, &rd.lpwstr))) {
+        deinit_refresh_devices(&rd);
+        return SoundIoErrorOpeningDevice;
+    }
+    if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
+        deinit_refresh_devices(&rd);
+        return err;
+    }
+
+
     if (FAILED(hr = IMMDeviceEnumerator_EnumAudioEndpoints(siw->device_enumerator,
                     eAll, DEVICE_STATE_ACTIVE, &rd.collection)))
     {
@@ -177,16 +232,51 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
 
-        // TODO
+        if (rd.prop_variant_value_inited)
+            PropVariantClear(&rd.prop_variant_value);
+        PropVariantInit(&rd.prop_variant_value);
+        rd.prop_variant_value_inited = true;
+        if ((FAILED(hr = IPropertyStore_GetValue(rd.prop_store,
+                            PKEY_AudioEngine_DeviceFormat, &rd.prop_variant_value))))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        WAVEFORMATEXTENSIBLE *wave_format = (WAVEFORMATEXTENSIBLE *)rd.prop_variant_value.blob.pBlobData;
+        if (wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        /*
+        if (IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM)) {
+        } else if (IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)) {
+        } else {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        */
+
+        rd.device->sample_rate_count = 1;
+        rd.device->sample_rates = &dev->prealloc_sample_rate_range;
+        rd.device->sample_rate_current = wave_format->Format.nSamplesPerSec;
+        rd.device->sample_rates[0].min = rd.device->sample_rate_current;
+        rd.device->sample_rates[0].max = rd.device->sample_rate_current;
+
+        fprintf(stderr, "bits per sample: %d\n", (int)wave_format->Format.wBitsPerSample);
+
 
         SoundIoList<SoundIoDevice *> *device_list;
         if (rd.device->aim == SoundIoDeviceAimOutput) {
             device_list = &rd.devices_info->output_devices;
-            // TODO default detection
+            if (soundio_streql(rd.device->id, device_id_len, rd.default_render_id, rd.default_render_id_len))
+                rd.devices_info->default_output_index = device_list->length;
         } else {
             assert(rd.device->aim == SoundIoDeviceAimInput);
             device_list = &rd.devices_info->input_devices;
-            // TODO default detection
+            if (soundio_streql(rd.device->id, device_id_len, rd.default_capture_id, rd.default_capture_id_len))
+                rd.devices_info->default_input_index = device_list->length;
         }
 
         if ((err = device_list->append(rd.device))) {
@@ -244,6 +334,7 @@ static void device_thread_run(void *arg) {
             if (err)
                 shutdown_backend(si, err);
             if (!siw->have_devices_flag.exchange(true)) {
+                // TODO separate cond for signaling devices like coreaudio
                 soundio_os_cond_signal(siw->cond, nullptr);
                 soundio->on_events_signal(soundio);
             }

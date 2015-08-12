@@ -24,9 +24,8 @@ behavior on every platform.
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
    - [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
+   - (in progress) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - Dummy (silence)
-   - (planned) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
-   - (planned) [ASIO](http://www.asio4all.com/)
  * Supports optimal usage of each supported backend. The same API does the
    right thing whether the backend has a fixed buffer size, such as on JACK and
    CoreAudio, or whether it allows directly managing the buffer, such as on
@@ -45,6 +44,9 @@ behavior on every platform.
    an ALSA device open and a JACK device open at the same time.
  * Meticulously checks all return codes and memory allocations and uses
    meaningful error codes.
+ * Exposes extra API that is only available on some backends. For example you
+   can provide application name and stream names which is used by JACK and
+   PulseAudio.
 
 ## Synopsis
 
@@ -166,7 +168,6 @@ or the server not running, or the platform is wrong, the next backend is tried.
  0. ALSA (Linux)
  0. CoreAudio (OSX)
  0. WASAPI (Windows)
- 0. ASIO (Windows)
  0. Dummy
 
 If you don't like this order, you can use `soundio_connect_backend` to
@@ -249,7 +250,15 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement WASAPI (Windows) backend, get examples working
- 0. implement ASIO (Windows) backend, get examples working
+    - list devices
+      - period duration
+      - buffer duration
+      - raw mode
+      - channel layout
+      - formats
+      - watching
+    - sine wave
+    - microphone
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Do we really want `period_duration` in the API?
@@ -288,6 +297,7 @@ view `coverage/index.html` in a browser.
  0. Consider testing on FreeBSD
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
+ 0. Add [sndio](http://www.sndio.org/) backend to support OpenBSD.
 
 ## Planned Uses for libsoundio
 
