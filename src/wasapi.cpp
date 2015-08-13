@@ -650,7 +650,11 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
         rd.device_shared->period_duration_current = from_reference_time(default_device_period);
-        rd.device_shared->period_duration_min = from_reference_time(min_device_period);
+        rd.device_shared->period_duration_min = rd.device_shared->period_duration_current;
+        rd.device_shared->period_duration_max = rd.device_shared->period_duration_current;
+
+        rd.device_raw->period_duration_min = from_reference_time(min_device_period);
+        rd.device_raw->period_duration_max = 4.0;
 
 
         if (rd.endpoint)

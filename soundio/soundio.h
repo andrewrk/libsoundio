@@ -364,9 +364,12 @@ struct SoundIoDevice {
     double buffer_duration_current;
 
     // Period duration in seconds. After this much time passes, write_callback
-    // is called. If values are unknown, they are set to 0.0. These values are
-    // meaningless for PulseAudio and CoreAudio. For JACK, buffer duration and
-    // period duration are the same.
+    // is called. If values are unknown, they are set to 0.0.
+    // For PulseAudio and CoreAudio, these values are meaningless.
+    // For JACK, buffer duration and period duration are the same.
+    // For WASAPI, `period_duration_max` is unknown for raw devices, so a
+    // reasonable max of 4.0 is used. You may check that the current backend is
+    // WASAPI and ignore the max value for raw devices.
     double period_duration_min;
     double period_duration_max;
     double period_duration_current;
