@@ -51,7 +51,7 @@ static int test_sample_rates[] = {
     5644800,
 };
 
-// If you modify this list, also modify `to_wave_format` appropriately.
+// If you modify this list, also modify `to_wave_format_format` appropriately.
 static SoundIoFormat test_formats[] = {
     SoundIoFormatU8,
     SoundIoFormatS16LE,
@@ -59,6 +59,17 @@ static SoundIoFormat test_formats[] = {
     SoundIoFormatS32LE,
     SoundIoFormatFloat32LE,
     SoundIoFormatFloat64LE,
+};
+
+// If you modify this list, also modify `to_wave_format_layout` appropriately.
+static SoundIoChannelLayoutId test_layouts[] = {
+    SoundIoChannelLayoutIdMono,
+    SoundIoChannelLayoutIdStereo,
+    SoundIoChannelLayoutIdQuad,
+    SoundIoChannelLayoutId4Point0,
+    SoundIoChannelLayoutId5Point1,
+    SoundIoChannelLayoutId7Point1,
+    SoundIoChannelLayoutId5Point1Back,
 };
 
 // converts a windows wide string to a UTF-8 encoded char *
@@ -87,47 +98,52 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     return 0;
 }
 
-static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, SoundIoChannelLayout *layout) {
-    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+static void from_channel_mask_layout(UINT channel_mask, SoundIoChannelLayout *layout) {
     layout->channel_count = 0;
-    if (wave_format->dwChannelMask & SPEAKER_FRONT_LEFT)
+    if (channel_mask & SPEAKER_FRONT_LEFT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdFrontLeft;
-    if (wave_format->dwChannelMask & SPEAKER_FRONT_RIGHT)
+    if (channel_mask & SPEAKER_FRONT_RIGHT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdFrontRight;
-    if (wave_format->dwChannelMask & SPEAKER_FRONT_CENTER)
+    if (channel_mask & SPEAKER_FRONT_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdFrontCenter;
-    if (wave_format->dwChannelMask & SPEAKER_LOW_FREQUENCY)
+    if (channel_mask & SPEAKER_LOW_FREQUENCY)
         layout->channels[layout->channel_count++] = SoundIoChannelIdLfe;
-    if (wave_format->dwChannelMask & SPEAKER_BACK_LEFT)
+    if (channel_mask & SPEAKER_BACK_LEFT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdBackLeft;
-    if (wave_format->dwChannelMask & SPEAKER_BACK_RIGHT)
+    if (channel_mask & SPEAKER_BACK_RIGHT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdBackRight;
-    if (wave_format->dwChannelMask & SPEAKER_FRONT_LEFT_OF_CENTER)
+    if (channel_mask & SPEAKER_FRONT_LEFT_OF_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdFrontLeftCenter;
-    if (wave_format->dwChannelMask & SPEAKER_FRONT_RIGHT_OF_CENTER)
+    if (channel_mask & SPEAKER_FRONT_RIGHT_OF_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdFrontRightCenter;
-    if (wave_format->dwChannelMask & SPEAKER_BACK_CENTER)
+    if (channel_mask & SPEAKER_BACK_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdBackCenter;
-    if (wave_format->dwChannelMask & SPEAKER_SIDE_LEFT)
+    if (channel_mask & SPEAKER_SIDE_LEFT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdSideLeft;
-    if (wave_format->dwChannelMask & SPEAKER_SIDE_RIGHT)
+    if (channel_mask & SPEAKER_SIDE_RIGHT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdSideRight;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_CENTER)
+    if (channel_mask & SPEAKER_TOP_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopCenter;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_LEFT)
+    if (channel_mask & SPEAKER_TOP_FRONT_LEFT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontLeft;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_CENTER)
+    if (channel_mask & SPEAKER_TOP_FRONT_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontCenter;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_RIGHT)
+    if (channel_mask & SPEAKER_TOP_FRONT_RIGHT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontRight;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_LEFT)
+    if (channel_mask & SPEAKER_TOP_BACK_LEFT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackLeft;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_CENTER)
+    if (channel_mask & SPEAKER_TOP_BACK_CENTER)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackCenter;
-    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_RIGHT)
+    if (channel_mask & SPEAKER_TOP_BACK_RIGHT)
         layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackRight;
 
     soundio_channel_layout_detect_builtin(layout);
+}
+
+static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, SoundIoChannelLayout *layout) {
+    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+    layout->channel_count = 0;
+    from_channel_mask_layout(wave_format->dwChannelMask, layout);
 }
 
 static SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) {
@@ -160,8 +176,75 @@ static SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) 
     return SoundIoFormatInvalid;
 }
 
+// only needs to support the layouts in test_layouts
+static void to_wave_format_layout(const SoundIoChannelLayout *layout, WAVEFORMATEXTENSIBLE *wave_format) {
+    wave_format->dwChannelMask = 0;
+    wave_format->Format.nChannels = layout->channel_count;
+    for (int i = 0; i < layout->channel_count; i += 1) {
+        SoundIoChannelId channel_id = layout->channels[i];
+        switch (channel_id) {
+            case SoundIoChannelIdFrontLeft:
+                wave_format->dwChannelMask |= SPEAKER_FRONT_LEFT;
+                break;
+            case SoundIoChannelIdFrontRight:
+                wave_format->dwChannelMask |= SPEAKER_FRONT_RIGHT;
+                break;
+            case SoundIoChannelIdFrontCenter:
+                wave_format->dwChannelMask |= SPEAKER_FRONT_CENTER;
+                break;
+            case SoundIoChannelIdLfe:
+                wave_format->dwChannelMask |= SPEAKER_LOW_FREQUENCY;
+                break;
+            case SoundIoChannelIdBackLeft:
+                wave_format->dwChannelMask |= SPEAKER_BACK_LEFT;
+                break;
+            case SoundIoChannelIdBackRight:
+                wave_format->dwChannelMask |= SPEAKER_BACK_RIGHT;
+                break;
+            case SoundIoChannelIdFrontLeftCenter:
+                wave_format->dwChannelMask |= SPEAKER_FRONT_LEFT_OF_CENTER;
+                break;
+            case SoundIoChannelIdFrontRightCenter:
+                wave_format->dwChannelMask |= SPEAKER_FRONT_RIGHT_OF_CENTER;
+                break;
+            case SoundIoChannelIdBackCenter:
+                wave_format->dwChannelMask |= SPEAKER_BACK_CENTER;
+                break;
+            case SoundIoChannelIdSideLeft:
+                wave_format->dwChannelMask |= SPEAKER_SIDE_LEFT;
+                break;
+            case SoundIoChannelIdSideRight:
+                wave_format->dwChannelMask |= SPEAKER_SIDE_RIGHT;
+                break;
+            case SoundIoChannelIdTopCenter:
+                wave_format->dwChannelMask |= SPEAKER_TOP_CENTER;
+                break;
+            case SoundIoChannelIdTopFrontLeft:
+                wave_format->dwChannelMask |= SPEAKER_TOP_FRONT_LEFT;
+                break;
+            case SoundIoChannelIdTopFrontCenter:
+                wave_format->dwChannelMask |= SPEAKER_TOP_FRONT_CENTER;
+                break;
+            case SoundIoChannelIdTopFrontRight:
+                wave_format->dwChannelMask |= SPEAKER_TOP_FRONT_RIGHT;
+                break;
+            case SoundIoChannelIdTopBackLeft:
+                wave_format->dwChannelMask |= SPEAKER_TOP_BACK_LEFT;
+                break;
+            case SoundIoChannelIdTopBackCenter:
+                wave_format->dwChannelMask |= SPEAKER_TOP_BACK_CENTER;
+                break;
+            case SoundIoChannelIdTopBackRight:
+                wave_format->dwChannelMask |= SPEAKER_TOP_BACK_RIGHT;
+                break;
+            default:
+                soundio_panic("to_wave_format_layout: unsupported channel id");
+        }
+    }
+}
+
 // only needs to support the formats in test_formats
-static void to_wave_format(SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_format) {
+static void to_wave_format_format(SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_format) {
     switch (format) {
     case SoundIoFormatU8:
         wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
@@ -194,7 +277,7 @@ static void to_wave_format(SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_form
         wave_format->Samples.wValidBitsPerSample = 64;
         break;
     default:
-        soundio_panic("to_wave_format: unsupported format");
+        soundio_panic("to_wave_format_format: unsupported format");
     }
 }
 
@@ -258,6 +341,46 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
         CoTaskMemFree(rd->wave_format);
 }
 
+static int detect_valid_layouts(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_format,
+        SoundIoDevicePrivate *dev, AUDCLNT_SHAREMODE share_mode)
+{
+    SoundIoDevice *device = &dev->pub;
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    HRESULT hr;
+
+    device->layout_count = 0;
+    device->layouts = allocate<SoundIoChannelLayout>(array_length(test_layouts));
+    if (!device->layouts)
+        return SoundIoErrorNoMem;
+
+    WAVEFORMATEX *closest_match = nullptr;
+    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+
+    for (int i = 0; i < array_length(test_formats); i += 1) {
+        SoundIoChannelLayoutId test_layout_id = test_layouts[i];
+        const SoundIoChannelLayout *test_layout = soundio_channel_layout_get_builtin(test_layout_id);
+        to_wave_format_layout(test_layout, wave_format);
+
+        HRESULT hr = IAudioClient_IsFormatSupported(dw->audio_client, share_mode,
+                (WAVEFORMATEX*)wave_format, &closest_match);
+        if (closest_match) {
+            CoTaskMemFree(closest_match);
+            closest_match = nullptr;
+        }
+        if (hr == S_OK) {
+            device->layouts[device->layout_count++] = *test_layout;
+        } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
+            continue;
+        } else {
+            *wave_format = orig_wave_format;
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+
+    *wave_format = orig_wave_format;
+    return 0;
+}
+
 static int detect_valid_formats(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_format,
         SoundIoDevicePrivate *dev, AUDCLNT_SHAREMODE share_mode)
 {
@@ -275,7 +398,7 @@ static int detect_valid_formats(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_f
 
     for (int i = 0; i < array_length(test_formats); i += 1) {
         SoundIoFormat test_format = test_formats[i];
-        to_wave_format(test_format, wave_format);
+        to_wave_format_format(test_format, wave_format);
 
         HRESULT hr = IAudioClient_IsFormatSupported(dw->audio_client, share_mode,
                 (WAVEFORMATEX*)wave_format, &closest_match);
@@ -642,15 +765,14 @@ static int refresh_devices(SoundIoPrivate *si) {
 
         from_wave_format_layout(rd.wave_format, &rd.device_shared->current_layout);
         rd.device_shared->layout_count = 1;
-        rd.device_shared->layouts = allocate<SoundIoChannelLayout>(1);
+        rd.device_shared->layouts = &rd.device_shared->current_layout;
 
-        if (!rd.device_shared->layouts) {
+        if ((err = detect_valid_layouts(&rd, valid_wave_format, dev_raw,
+                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
             deinit_refresh_devices(&rd);
-            return SoundIoErrorNoMem;
+            return err;
         }
-
-        rd.device_shared->layouts[0] = rd.device_shared->current_layout;
-
 
 
         SoundIoList<SoundIoDevice *> *device_list;

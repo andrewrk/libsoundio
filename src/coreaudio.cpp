@@ -589,10 +589,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->aim = aim;
             rd.device->id = soundio_str_dupe(rd.device_uid, rd.device_uid_len);
             rd.device->name = soundio_str_dupe(rd.device_name, rd.device_name_len);
-            rd.device->layout_count = 1;
-            rd.device->layouts = allocate<SoundIoChannelLayout>(1);
 
-            if (!rd.device->id || !rd.device->name || !rd.device->layouts) {
+            if (!rd.device->id || !rd.device->name) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorNoMem;
             }
@@ -625,7 +623,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                     rd.device->current_layout = *guessed_layout;
             }
 
-            rd.device->layouts[0] = rd.device->current_layout;
+            rd.device->layout_count = 1;
+            rd.device->layouts = &rd.device->current_layout;
             // in CoreAudio, format is always 32-bit native endian float
             rd.device->format_count = 1;
             rd.device->formats = &dev->prealloc_format;
