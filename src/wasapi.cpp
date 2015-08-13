@@ -47,7 +47,50 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     return 0;
 }
 
-static SoundIoFormat from_wave_format(WAVEFORMATEXTENSIBLE *wave_format) {
+static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, SoundIoChannelLayout *layout) {
+    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+    layout->channel_count = 0;
+    if (wave_format->dwChannelMask & SPEAKER_FRONT_LEFT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdFrontLeft;
+    if (wave_format->dwChannelMask & SPEAKER_FRONT_RIGHT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdFrontRight;
+    if (wave_format->dwChannelMask & SPEAKER_FRONT_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdFrontCenter;
+    if (wave_format->dwChannelMask & SPEAKER_LOW_FREQUENCY)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdLfe;
+    if (wave_format->dwChannelMask & SPEAKER_BACK_LEFT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdBackLeft;
+    if (wave_format->dwChannelMask & SPEAKER_BACK_RIGHT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdBackRight;
+    if (wave_format->dwChannelMask & SPEAKER_FRONT_LEFT_OF_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdFrontLeftCenter;
+    if (wave_format->dwChannelMask & SPEAKER_FRONT_RIGHT_OF_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdFrontRightCenter;
+    if (wave_format->dwChannelMask & SPEAKER_BACK_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdBackCenter;
+    if (wave_format->dwChannelMask & SPEAKER_SIDE_LEFT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdSideLeft;
+    if (wave_format->dwChannelMask & SPEAKER_SIDE_RIGHT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdSideRight;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopCenter;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_LEFT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontLeft;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontCenter;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_FRONT_RIGHT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopFrontRight;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_LEFT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackLeft;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_CENTER)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackCenter;
+    if (wave_format->dwChannelMask & SPEAKER_TOP_BACK_RIGHT)
+        layout->channels[layout->channel_count++] = SoundIoChannelIdTopBackRight;
+
+    soundio_channel_layout_detect_builtin(layout);
+}
+
+static SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) {
     assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
     bool is_pcm = IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
     bool is_float = IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
@@ -201,6 +244,8 @@ static int refresh_devices(SoundIoPrivate *si) {
         deinit_refresh_devices(&rd);
         return SoundIoErrorNoMem;
     }
+    rd.devices_info->default_input_index = -1;
+    rd.devices_info->default_output_index = -1;
 
     for (int device_i = 0; device_i < device_count; device_i += 1) {
         if (rd.mm_device)
@@ -314,11 +359,21 @@ static int refresh_devices(SoundIoPrivate *si) {
         rd.device->sample_rates[0].min = rd.device->sample_rate_current;
         rd.device->sample_rates[0].max = rd.device->sample_rate_current;
 
-        rd.device->current_format = from_wave_format(rd.wave_format);
+        rd.device->current_format = from_wave_format_format(rd.wave_format);
         rd.device->format_count = 1;
         rd.device->formats = &dev->prealloc_format;
         rd.device->formats[0] = rd.device->current_format;
 
+        from_wave_format_layout(rd.wave_format, &rd.device->current_layout);
+        rd.device->layout_count = 1;
+        rd.device->layouts = allocate<SoundIoChannelLayout>(1);
+
+        if (!rd.device->layouts) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+
+        rd.device->layouts[0] = rd.device->current_layout;
 
 
 
