@@ -189,8 +189,6 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->name = allocate<char>(description_len);
         device->layout_count = 1;
         device->layouts = allocate<SoundIoChannelLayout>(1);
-        device->format_count = 1;
-        device->formats = allocate<SoundIoFormat>(1);
         device->current_format = SoundIoFormatFloat32NE;
         device->sample_rate_count = 1;
         device->sample_rates = &dev->prealloc_sample_rate_range;
@@ -206,7 +204,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         dj->port_count = client->port_count;
         dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
 
-        if (!device->id || !device->name || !device->layouts || !device->formats || !dj->ports) {
+        if (!device->id || !device->name || !device->layouts || !dj->ports) {
             jack_free(port_names);
             soundio_device_unref(device);
             soundio_destroy_devices_info(devices_info);
@@ -257,6 +255,8 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         }
 
         device->layouts[0] = device->current_layout;
+        device->format_count = 1;
+        device->formats = &dev->prealloc_format;
         device->formats[0] = device->current_format;
 
         SoundIoList<SoundIoDevice *> *device_list;

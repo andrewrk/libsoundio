@@ -304,7 +304,9 @@ struct SoundIoDevice {
     // If the same physical device supports both input and output, that makes
     // one SoundIoDevice for the input and one SoundIoDevice for the output.
     // In this case, the `id` of each SoundIoDevice will be the same, and the
-    // `aim` field will be different.
+    // `aim` field will be different. Additionally, if the device supports raw
+    // mode, there may be up to four devices with the same id: one for each
+    // value of `is_raw` and one for each value of `aim`.
     char *id;
     char *name;
 

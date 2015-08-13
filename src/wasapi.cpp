@@ -47,6 +47,36 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     return 0;
 }
 
+static SoundIoFormat from_wave_format(WAVEFORMATEXTENSIBLE *wave_format) {
+    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+    bool is_pcm = IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
+    bool is_float = IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+
+    if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
+        if (wave_format->Format.wBitsPerSample == 8) {
+            if (is_pcm)
+                return SoundIoFormatU8;
+        } else if (wave_format->Format.wBitsPerSample == 16) {
+            if (is_pcm)
+                return SoundIoFormatS16LE;
+        } else if (wave_format->Format.wBitsPerSample == 32) {
+            if (is_pcm)
+                return SoundIoFormatS32LE;
+            else if (is_float)
+                return SoundIoFormatFloat32LE;
+        } else if (wave_format->Format.wBitsPerSample == 64) {
+            if (is_float)
+                return SoundIoFormatFloat64LE;
+        }
+    } else if (wave_format->Format.wBitsPerSample == 32 &&
+            wave_format->Samples.wValidBitsPerSample == 24)
+    {
+        return SoundIoFormatS24LE;
+    }
+
+    return SoundIoFormatInvalid;
+}
+
 static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
     return (data_flow == eRender) ? SoundIoDeviceAimOutput : SoundIoDeviceAimInput;
 }
@@ -65,6 +95,7 @@ struct RefreshDevices {
     IPropertyStore *prop_store;
     LPWSTR lpwstr;
     PROPVARIANT prop_variant_value;
+    WAVEFORMATEXTENSIBLE *wave_format;
     bool prop_variant_value_inited;
     SoundIoDevicesInfo *devices_info;
     SoundIoDevice *device;
@@ -93,6 +124,8 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
         IPropertyStore_Release(rd->prop_store);
     if (rd->prop_variant_value_inited)
         PropVariantClear(&rd->prop_variant_value);
+    if (rd->wave_format)
+        CoTaskMemFree(rd->wave_format);
 }
 
 static void destruct_device(SoundIoDevicePrivate *dev) {
@@ -265,39 +298,29 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
 
-        if (rd.prop_variant_value_inited)
-            PropVariantClear(&rd.prop_variant_value);
-        PropVariantInit(&rd.prop_variant_value);
-        rd.prop_variant_value_inited = true;
-        if ((FAILED(hr = IPropertyStore_GetValue(rd.prop_store,
-                            PKEY_AudioEngine_DeviceFormat, &rd.prop_variant_value))))
-        {
+        if (rd.wave_format)
+            CoTaskMemFree(rd.wave_format);
+        if (FAILED(hr = IAudioClient_GetMixFormat(dw->audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
-
-        WAVEFORMATEXTENSIBLE *wave_format = (WAVEFORMATEXTENSIBLE *)rd.prop_variant_value.blob.pBlobData;
-        if (wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+        if (rd.wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
-
-        /*
-        if (IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM)) {
-        } else if (IsEqualGUID(wave_format->SubFormat, SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)) {
-        } else {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        */
-
         rd.device->sample_rate_count = 1;
         rd.device->sample_rates = &dev->prealloc_sample_rate_range;
-        rd.device->sample_rate_current = wave_format->Format.nSamplesPerSec;
+        rd.device->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
         rd.device->sample_rates[0].min = rd.device->sample_rate_current;
         rd.device->sample_rates[0].max = rd.device->sample_rate_current;
 
-        fprintf(stderr, "bits per sample: %d\n", (int)wave_format->Format.wBitsPerSample);
+        rd.device->current_format = from_wave_format(rd.wave_format);
+        rd.device->format_count = 1;
+        rd.device->formats = &dev->prealloc_format;
+        rd.device->formats[0] = rd.device->current_format;
+
+
+
 
         SoundIoList<SoundIoDevice *> *device_list;
         if (rd.device->aim == SoundIoDeviceAimOutput) {
