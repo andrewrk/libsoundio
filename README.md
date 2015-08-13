@@ -254,7 +254,6 @@ view `coverage/index.html` in a browser.
       - raw mode
         - channel layout
         - period duration
-        - formats
       - watching
     - sine wave
     - microphone

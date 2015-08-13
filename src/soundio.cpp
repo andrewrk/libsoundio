@@ -112,8 +112,8 @@ int soundio_get_bytes_per_sample(enum SoundIoFormat format) {
 
 const char * soundio_format_string(enum SoundIoFormat format) {
     switch (format) {
-    case SoundIoFormatU8:         return "signed 8-bit";
-    case SoundIoFormatS8:         return "unsigned 8-bit";
+    case SoundIoFormatS8:         return "signed 8-bit";
+    case SoundIoFormatU8:         return "unsigned 8-bit";
     case SoundIoFormatS16LE:      return "signed 16-bit LE";
     case SoundIoFormatS16BE:      return "signed 16-bit BE";
     case SoundIoFormatU16LE:      return "unsigned 16-bit LE";

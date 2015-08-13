@@ -28,6 +28,39 @@ const static GUID SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = {
 const static GUID SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM = {
     0x00000001,0x0000,0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 
+// Adding more common sample rates helps the heuristics; feel free to do that.
+static int test_sample_rates[] = {
+    8000,
+    11025,
+    16000,
+    22050,
+    32000,
+    37800,
+    44056,
+    44100,
+    47250,
+    48000,
+    50000,
+    50400,
+    88200,
+    96000,
+    176400,
+    192000,
+    352800,
+    2822400,
+    5644800,
+};
+
+// If you modify this list, also modify `to_wave_format` appropriately.
+static SoundIoFormat test_formats[] = {
+    SoundIoFormatU8,
+    SoundIoFormatS16LE,
+    SoundIoFormatS24LE,
+    SoundIoFormatS32LE,
+    SoundIoFormatFloat32LE,
+    SoundIoFormatFloat64LE,
+};
+
 // converts a windows wide string to a UTF-8 encoded char *
 // Possible errors:
 //  * SoundIoErrorNoMem
@@ -127,6 +160,44 @@ static SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) 
     return SoundIoFormatInvalid;
 }
 
+// only needs to support the formats in test_formats
+static void to_wave_format(SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_format) {
+    switch (format) {
+    case SoundIoFormatU8:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
+        wave_format->Format.wBitsPerSample = 8;
+        wave_format->Samples.wValidBitsPerSample = 8;
+        break;
+    case SoundIoFormatS16LE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
+        wave_format->Format.wBitsPerSample = 16;
+        wave_format->Samples.wValidBitsPerSample = 16;
+        break;
+    case SoundIoFormatS24LE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
+        wave_format->Format.wBitsPerSample = 32;
+        wave_format->Samples.wValidBitsPerSample = 24;
+        break;
+    case SoundIoFormatS32LE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
+        wave_format->Format.wBitsPerSample = 32;
+        wave_format->Samples.wValidBitsPerSample = 32;
+        break;
+    case SoundIoFormatFloat32LE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+        wave_format->Format.wBitsPerSample = 32;
+        wave_format->Samples.wValidBitsPerSample = 32;
+        break;
+    case SoundIoFormatFloat64LE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+        wave_format->Format.wBitsPerSample = 64;
+        wave_format->Samples.wValidBitsPerSample = 64;
+        break;
+    default:
+        soundio_panic("to_wave_format: unsupported format");
+    }
+}
+
 static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
     return (data_flow == eRender) ? SoundIoDeviceAimOutput : SoundIoDeviceAimInput;
 }
@@ -134,6 +205,13 @@ static SoundIoDeviceAim data_flow_to_aim(EDataFlow data_flow) {
 
 static double from_reference_time(REFERENCE_TIME rt) {
     return ((double)rt) / 10000000.0;
+}
+
+static void destruct_device(SoundIoDevicePrivate *dev) {
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    if (dw->audio_client)
+        IUnknown_Release(dw->audio_client);
+    dw->sample_rates.deinit();
 }
 
 struct RefreshDevices {
@@ -180,11 +258,128 @@ static void deinit_refresh_devices(RefreshDevices *rd) {
         CoTaskMemFree(rd->wave_format);
 }
 
-static void destruct_device(SoundIoDevicePrivate *dev) {
+static int detect_valid_formats(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_format,
+        SoundIoDevicePrivate *dev, AUDCLNT_SHAREMODE share_mode)
+{
+    SoundIoDevice *device = &dev->pub;
     SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
-    if (dw->audio_client)
-        IUnknown_Release(dw->audio_client);
+    HRESULT hr;
+
+    device->format_count = 0;
+    device->formats = allocate<SoundIoFormat>(array_length(test_formats));
+    if (!device->formats)
+        return SoundIoErrorNoMem;
+
+    WAVEFORMATEX *closest_match = nullptr;
+    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+
+    for (int i = 0; i < array_length(test_formats); i += 1) {
+        SoundIoFormat test_format = test_formats[i];
+        to_wave_format(test_format, wave_format);
+
+        HRESULT hr = IAudioClient_IsFormatSupported(dw->audio_client, share_mode,
+                (WAVEFORMATEX*)wave_format, &closest_match);
+        if (closest_match) {
+            CoTaskMemFree(closest_match);
+            closest_match = nullptr;
+        }
+        if (hr == S_OK) {
+            device->formats[device->format_count++] = test_format;
+        } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
+            continue;
+        } else {
+            *wave_format = orig_wave_format;
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+
+    *wave_format = orig_wave_format;
+    return 0;
 }
+
+static int add_sample_rate(SoundIoList<SoundIoSampleRateRange> *sample_rates, int *current_min, int the_max) {
+    int err;
+    if ((err = sample_rates->add_one()))
+        return err;
+
+    SoundIoSampleRateRange *last_range = &sample_rates->last();
+    last_range->min = *current_min;
+    last_range->max = the_max;
+    return 0;
+}
+
+static int do_sample_rate_test(SoundIoDevicePrivate *dev, WAVEFORMATEXTENSIBLE *wave_format,
+        int test_sample_rate, AUDCLNT_SHAREMODE share_mode, int *current_min, int *last_success_rate)
+{
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    WAVEFORMATEX *closest_match = nullptr;
+    int err;
+
+    wave_format->Format.nSamplesPerSec = test_sample_rate;
+    HRESULT hr = IAudioClient_IsFormatSupported(dw->audio_client, share_mode,
+            (WAVEFORMATEX*)wave_format, &closest_match);
+    if (closest_match) {
+        CoTaskMemFree(closest_match);
+        closest_match = nullptr;
+    }
+    if (hr == S_OK) {
+        if (*current_min == -1) {
+            *current_min = test_sample_rate;
+        }
+        *last_success_rate = test_sample_rate;
+    } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
+        if (*current_min != -1) {
+            if ((err = add_sample_rate(&dw->sample_rates, current_min, *last_success_rate)))
+                return err;
+            *current_min = -1;
+        }
+    } else {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    return 0;
+}
+
+static int detect_valid_sample_rates(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_format,
+        SoundIoDevicePrivate *dev, AUDCLNT_SHAREMODE share_mode)
+{
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    int err;
+
+    DWORD orig_sample_rate = wave_format->Format.nSamplesPerSec;
+
+    assert(dw->sample_rates.length == 0);
+
+    int current_min = -1;
+    int last_success_rate = -1;
+    for (int i = 0; i < array_length(test_sample_rates); i += 1) {
+        for (int offset = -1; offset <= 1; offset += 1) {
+            int test_sample_rate = test_sample_rates[i] + offset;
+            if ((err = do_sample_rate_test(dev, wave_format, test_sample_rate, share_mode,
+                            &current_min, &last_success_rate)))
+            {
+                wave_format->Format.nSamplesPerSec = orig_sample_rate;
+                return err;
+            }
+        }
+    }
+
+    if (current_min != -1) {
+        if ((err = add_sample_rate(&dw->sample_rates, &current_min, last_success_rate))) {
+            wave_format->Format.nSamplesPerSec = orig_sample_rate;
+            return err;
+        }
+    }
+
+    SoundIoDevice *device = &dev->pub;
+
+    device->sample_rate_count = dw->sample_rates.length;
+    device->sample_rates = dw->sample_rates.items;
+
+    wave_format->Format.nSamplesPerSec = orig_sample_rate;
+    return 0;
+}
+
 
 static int refresh_devices(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
@@ -384,6 +579,37 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorNoMem;
         }
 
+        // Get the format that WASAPI opens the device with for shared streams.
+        // This is guaranteed to work, so we use this to modulate the sample
+        // rate while holding the format constant and vice versa.
+        if (rd.prop_variant_value_inited)
+            PropVariantClear(&rd.prop_variant_value);
+        PropVariantInit(&rd.prop_variant_value);
+        rd.prop_variant_value_inited = true;
+        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store, PKEY_AudioEngine_DeviceFormat,
+                        &rd.prop_variant_value)))
+        {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        WAVEFORMATEXTENSIBLE *valid_wave_format = (WAVEFORMATEXTENSIBLE *)rd.prop_variant_value.blob.pBlobData;
+        if (valid_wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        if ((err = detect_valid_sample_rates(&rd, valid_wave_format, dev_raw,
+                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+        if ((err = detect_valid_formats(&rd, valid_wave_format, dev_raw,
+                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+
         if (rd.wave_format)
             CoTaskMemFree(rd.wave_format);
         if (FAILED(hr = IAudioClient_GetMixFormat(dev_w_shared->audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
@@ -395,17 +621,24 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
         rd.device_shared->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
+        rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
+
+
         // WASAPI performs resampling in shared mode, so any value is valid.
         // Let's pick some reasonable min and max values.
         rd.device_shared->sample_rate_count = 1;
         rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
-        rd.device_shared->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE, rd.device_shared->sample_rate_current);
-        rd.device_shared->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE, rd.device_shared->sample_rate_current);
+        rd.device_shared->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE,
+                rd.device_shared->sample_rate_current);
+        rd.device_shared->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE,
+                rd.device_shared->sample_rate_current);
 
-        rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
-        rd.device_shared->format_count = 1;
-        rd.device_shared->formats = &dev_shared->prealloc_format;
-        rd.device_shared->formats[0] = rd.device_shared->current_format;
+        if ((err = detect_valid_formats(&rd, rd.wave_format, dev_shared,
+                        AUDCLNT_SHAREMODE_SHARED)))
+        {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
 
         from_wave_format_layout(rd.wave_format, &rd.device_shared->current_layout);
         rd.device_shared->layout_count = 1;
