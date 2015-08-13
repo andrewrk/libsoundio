@@ -252,6 +252,9 @@ view `coverage/index.html` in a browser.
  0. implement WASAPI (Windows) backend, get examples working
     - list devices
       - raw mode
+        - channel layout
+        - period duration
+        - formats
       - watching
     - sine wave
     - microphone

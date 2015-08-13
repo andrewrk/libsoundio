@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Andrew Kelley
+ *
+ * This file is part of libsoundio, which is MIT licensed.
+ * See http://opensource.org/licenses/MIT
+ */
+
 #include "wasapi.hpp"
 #include "soundio.hpp"
 
@@ -32,7 +39,7 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     if (buf_size == 0)
         return SoundIoErrorEncodingString;
 
-    char *buf = allocate<char>(buf_size + 1);
+    char *buf = allocate<char>(buf_size);
     if (!buf)
         return SoundIoErrorNoMem;
 
@@ -42,7 +49,7 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     }
 
     *out_str = buf;
-    *out_str_len = buf_size;
+    *out_str_len = buf_size - 1;
 
     return 0;
 }
@@ -141,7 +148,8 @@ struct RefreshDevices {
     WAVEFORMATEXTENSIBLE *wave_format;
     bool prop_variant_value_inited;
     SoundIoDevicesInfo *devices_info;
-    SoundIoDevice *device;
+    SoundIoDevice *device_shared;
+    SoundIoDevice *device_raw;
     char *default_render_id;
     int default_render_id_len;
     char *default_capture_id;
@@ -150,7 +158,8 @@ struct RefreshDevices {
 
 static void deinit_refresh_devices(RefreshDevices *rd) {
     soundio_destroy_devices_info(rd->devices_info);
-    soundio_device_unref(rd->device);
+    soundio_device_unref(rd->device_shared);
+    soundio_device_unref(rd->device_raw);
     if (rd->mm_device)
         IMMDevice_Release(rd->mm_device);
     if (rd->default_render_device)
@@ -263,42 +272,67 @@ static int refresh_devices(SoundIoPrivate *si) {
 
 
 
-        SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
-        if (!dev) {
+        SoundIoDevicePrivate *dev_shared = allocate<SoundIoDevicePrivate>(1);
+        if (!dev_shared) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorNoMem;
         }
-        SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
-        dev->destruct = destruct_device;
-        assert(!rd.device);
-        rd.device = &dev->pub;
-        rd.device->ref_count = 1;
-        rd.device->soundio = soundio;
-        rd.device->is_raw = false; // TODO
+        SoundIoDeviceWasapi *dev_w_shared = &dev_shared->backend_data.wasapi;
+        dev_shared->destruct = destruct_device;
+        assert(!rd.device_shared);
+        rd.device_shared = &dev_shared->pub;
+        rd.device_shared->ref_count = 1;
+        rd.device_shared->soundio = soundio;
+        rd.device_shared->is_raw = false;
+
+        SoundIoDevicePrivate *dev_raw = allocate<SoundIoDevicePrivate>(1);
+        if (!dev_raw) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+        SoundIoDeviceWasapi *dev_w_raw = &dev_raw->backend_data.wasapi;
+        dev_raw->destruct = destruct_device;
+        assert(!rd.device_raw);
+        rd.device_raw = &dev_raw->pub;
+        rd.device_raw->ref_count = 1;
+        rd.device_raw->soundio = soundio;
+        rd.device_raw->is_raw = true;
 
         int device_id_len;
-        if ((err = from_lpwstr(rd.lpwstr, &rd.device->id, &device_id_len))) {
+        if ((err = from_lpwstr(rd.lpwstr, &rd.device_shared->id, &device_id_len))) {
             deinit_refresh_devices(&rd);
             return err;
         }
 
+        rd.device_raw->id = soundio_str_dupe(rd.device_shared->id, device_id_len);
+        if (!rd.device_raw->id) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+
         if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAudioClient,
-                        CLSCTX_ALL, nullptr, (void**)&dw->audio_client)))
+                        CLSCTX_ALL, nullptr, (void**)&dev_w_shared->audio_client)))
         {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
 
+        if (FAILED(hr = IAudioClient_AddRef(dev_w_shared->audio_client))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        dev_w_raw->audio_client = dev_w_shared->audio_client;
+
         REFERENCE_TIME default_device_period;
         REFERENCE_TIME min_device_period;
-        if (FAILED(hr = IAudioClient_GetDevicePeriod(dw->audio_client,
+        if (FAILED(hr = IAudioClient_GetDevicePeriod(dev_w_shared->audio_client,
                         &default_device_period, &min_device_period)))
         {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
-        rd.device->period_duration_current = from_reference_time(default_device_period);
-        rd.device->period_duration_min = from_reference_time(min_device_period);
+        rd.device_shared->period_duration_current = from_reference_time(default_device_period);
+        rd.device_shared->period_duration_min = from_reference_time(min_device_period);
 
 
         if (rd.endpoint)
@@ -314,7 +348,8 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
 
-        rd.device->aim = data_flow_to_aim(data_flow);
+        rd.device_shared->aim = data_flow_to_aim(data_flow);
+        rd.device_raw->aim = rd.device_shared->aim;
 
         if (rd.prop_store)
             IPropertyStore_Release(rd.prop_store);
@@ -338,14 +373,20 @@ static int refresh_devices(SoundIoPrivate *si) {
             return SoundIoErrorOpeningDevice;
         }
         int device_name_len;
-        if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device->name, &device_name_len))) {
+        if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device_shared->name, &device_name_len))) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
 
+        rd.device_raw->name = soundio_str_dupe(rd.device_shared->name, device_name_len);
+        if (!rd.device_raw->name) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+
         if (rd.wave_format)
             CoTaskMemFree(rd.wave_format);
-        if (FAILED(hr = IAudioClient_GetMixFormat(dw->audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
+        if (FAILED(hr = IAudioClient_GetMixFormat(dev_w_shared->audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
@@ -353,49 +394,61 @@ static int refresh_devices(SoundIoPrivate *si) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
-        rd.device->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
+        rd.device_shared->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
         // WASAPI performs resampling in shared mode, so any value is valid.
         // Let's pick some reasonable min and max values.
-        rd.device->sample_rate_count = 1;
-        rd.device->sample_rates = &dev->prealloc_sample_rate_range;
-        rd.device->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE, rd.device->sample_rate_current);
-        rd.device->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE, rd.device->sample_rate_current);
+        rd.device_shared->sample_rate_count = 1;
+        rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
+        rd.device_shared->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE, rd.device_shared->sample_rate_current);
+        rd.device_shared->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE, rd.device_shared->sample_rate_current);
 
-        rd.device->current_format = from_wave_format_format(rd.wave_format);
-        rd.device->format_count = 1;
-        rd.device->formats = &dev->prealloc_format;
-        rd.device->formats[0] = rd.device->current_format;
+        rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
+        rd.device_shared->format_count = 1;
+        rd.device_shared->formats = &dev_shared->prealloc_format;
+        rd.device_shared->formats[0] = rd.device_shared->current_format;
 
-        from_wave_format_layout(rd.wave_format, &rd.device->current_layout);
-        rd.device->layout_count = 1;
-        rd.device->layouts = allocate<SoundIoChannelLayout>(1);
+        from_wave_format_layout(rd.wave_format, &rd.device_shared->current_layout);
+        rd.device_shared->layout_count = 1;
+        rd.device_shared->layouts = allocate<SoundIoChannelLayout>(1);
 
-        if (!rd.device->layouts) {
+        if (!rd.device_shared->layouts) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorNoMem;
         }
 
-        rd.device->layouts[0] = rd.device->current_layout;
+        rd.device_shared->layouts[0] = rd.device_shared->current_layout;
 
 
 
         SoundIoList<SoundIoDevice *> *device_list;
-        if (rd.device->aim == SoundIoDeviceAimOutput) {
+        if (rd.device_shared->aim == SoundIoDeviceAimOutput) {
             device_list = &rd.devices_info->output_devices;
-            if (soundio_streql(rd.device->id, device_id_len, rd.default_render_id, rd.default_render_id_len))
+            if (soundio_streql(rd.device_shared->id, device_id_len,
+                        rd.default_render_id, rd.default_render_id_len))
+            {
                 rd.devices_info->default_output_index = device_list->length;
+            }
         } else {
-            assert(rd.device->aim == SoundIoDeviceAimInput);
+            assert(rd.device_shared->aim == SoundIoDeviceAimInput);
             device_list = &rd.devices_info->input_devices;
-            if (soundio_streql(rd.device->id, device_id_len, rd.default_capture_id, rd.default_capture_id_len))
+            if (soundio_streql(rd.device_shared->id, device_id_len,
+                        rd.default_capture_id, rd.default_capture_id_len))
+            {
                 rd.devices_info->default_input_index = device_list->length;
+            }
         }
 
-        if ((err = device_list->append(rd.device))) {
+        if ((err = device_list->append(rd.device_shared))) {
             deinit_refresh_devices(&rd);
             return err;
         }
-        rd.device = nullptr;
+        rd.device_shared = nullptr;
+
+        if ((err = device_list->append(rd.device_raw))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
+        rd.device_raw = nullptr;
     }
 
     soundio_os_mutex_lock(siw->mutex);
