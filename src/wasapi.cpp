@@ -10,16 +10,6 @@
 
 #include <stdio.h>
 
-#define INITGUID
-#define CINTERFACE
-#define COBJMACROS
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmdeviceapi.h>
-#include <functiondiscoverykeys_devpkey.h>
-#include <mmreg.h>
-#include <audioclient.h>
-
 // Attempting to use the Windows-supplied versions of these constants resulted
 // in `undefined reference` linker errors.
 const static GUID SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = {
@@ -849,6 +839,16 @@ static void device_thread_run(void *arg) {
         return;
     }
 
+    if (FAILED(hr = IMMDeviceEnumerator_RegisterEndpointNotificationCallback(
+                    siw->device_enumerator, &siw->device_events)))
+    {
+        shutdown_backend(si, SoundIoErrorSystemResources);
+        if (!siw->have_devices_flag.exchange(true)) {
+            soundio_os_cond_signal(siw->cond, nullptr);
+            soundio->on_events_signal(soundio);
+        }
+        return;
+    }
 
     for (;;) {
         if (!siw->abort_flag.test_and_set())
@@ -858,7 +858,6 @@ static void device_thread_run(void *arg) {
             if (err)
                 shutdown_backend(si, err);
             if (!siw->have_devices_flag.exchange(true)) {
-                // TODO separate cond for signaling devices like coreaudio
                 soundio_os_cond_signal(siw->cond, nullptr);
                 soundio->on_events_signal(soundio);
             }
@@ -866,9 +865,10 @@ static void device_thread_run(void *arg) {
                 break;
             soundio_os_cond_signal(siw->cond, nullptr);
         }
-        soundio_os_cond_wait(siw->cond, nullptr);
+        soundio_os_cond_wait(siw->scan_devices_cond, nullptr);
     }
 
+    IMMDeviceEnumerator_UnregisterEndpointNotificationCallback(siw->device_enumerator, &siw->device_events);
     IMMDeviceEnumerator_Release(siw->device_enumerator);
     siw->device_enumerator = nullptr;
 }
@@ -986,18 +986,100 @@ static void destroy_wasapi(struct SoundIoPrivate *si) {
 
     if (siw->thread) {
         siw->abort_flag.clear();
-        soundio_os_cond_signal(siw->cond, nullptr);
+        soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
         soundio_os_thread_destroy(siw->thread);
     }
 
     if (siw->cond)
         soundio_os_cond_destroy(siw->cond);
 
+    if (siw->scan_devices_cond)
+        soundio_os_cond_destroy(siw->scan_devices_cond);
+
     if (siw->mutex)
         soundio_os_mutex_destroy(siw->mutex);
 
     soundio_destroy_devices_info(siw->ready_devices_info);
 }
+
+static inline SoundIoPrivate *soundio_MMNotificationClient_si(IMMNotificationClient *client) {
+    SoundIoWasapi *siw = (SoundIoWasapi *)(((char *)client) - offsetof(SoundIoWasapi, device_events));
+    SoundIoPrivate *si = (SoundIoPrivate *)(((char *)siw) - offsetof(SoundIoPrivate, backend_data));
+    return si;
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_QueryInterface(IMMNotificationClient *client,
+        REFIID riid, void **ppv)
+{
+    if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_IMMNotificationClient)) {
+        *ppv = client;
+        IUnknown_AddRef(client);
+        return S_OK;
+    } else {
+       *ppv = nullptr;
+        return E_NOINTERFACE;
+    }
+}
+
+static STDMETHODIMP_(ULONG) soundio_MMNotificationClient_AddRef(IMMNotificationClient *client) {
+    SoundIoPrivate *si = soundio_MMNotificationClient_si(client);
+    SoundIoWasapi *siw = &si->backend_data.wasapi;
+    return InterlockedIncrement(&siw->device_events_refs);
+}
+
+static STDMETHODIMP_(ULONG) soundio_MMNotificationClient_Release(IMMNotificationClient *client) {
+    SoundIoPrivate *si = soundio_MMNotificationClient_si(client);
+    SoundIoWasapi *siw = &si->backend_data.wasapi;
+    return InterlockedDecrement(&siw->device_events_refs);
+}
+
+static HRESULT queue_device_scan(IMMNotificationClient *client) {
+    SoundIoPrivate *si = soundio_MMNotificationClient_si(client);
+    SoundIoWasapi *siw = &si->backend_data.wasapi;
+
+    siw->device_scan_queued.store(true);
+    soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
+
+    return S_OK;
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_OnDeviceStateChanged(IMMNotificationClient *client,
+        LPCWSTR wid, DWORD state)
+{
+    return queue_device_scan(client);
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_OnDeviceAdded(IMMNotificationClient *client, LPCWSTR wid) {
+    return queue_device_scan(client);
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_OnDeviceRemoved(IMMNotificationClient *client, LPCWSTR wid) {
+    return queue_device_scan(client);
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_OnDefaultDeviceChange(IMMNotificationClient *client,
+        EDataFlow flow, ERole role, LPCWSTR wid)
+{
+    return queue_device_scan(client);
+}
+
+static STDMETHODIMP soundio_MMNotificationClient_OnPropertyValueChanged(IMMNotificationClient *client,
+        LPCWSTR wid, const PROPERTYKEY key)
+{
+    return queue_device_scan(client);
+}
+
+
+static struct IMMNotificationClientVtbl soundio_MMNotificationClient = {
+    soundio_MMNotificationClient_QueryInterface,
+    soundio_MMNotificationClient_AddRef,
+    soundio_MMNotificationClient_Release,
+    soundio_MMNotificationClient_OnDeviceStateChanged,
+    soundio_MMNotificationClient_OnDeviceAdded,
+    soundio_MMNotificationClient_OnDeviceRemoved,
+    soundio_MMNotificationClient_OnDefaultDeviceChange,
+    soundio_MMNotificationClient_OnPropertyValueChanged,
+};
 
 int soundio_wasapi_init(SoundIoPrivate *si) {
     SoundIoWasapi *siw = &si->backend_data.wasapi;
@@ -1018,6 +1100,15 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
         destroy_wasapi(si);
         return SoundIoErrorNoMem;
     }
+
+    siw->scan_devices_cond = soundio_os_cond_create();
+    if (!siw->scan_devices_cond) {
+        destroy_wasapi(si);
+        return SoundIoErrorNoMem;
+    }
+
+    siw->device_events.lpVtbl = &soundio_MMNotificationClient;
+    siw->device_events_refs = 1;
 
     if ((err = soundio_os_thread_create(device_thread_run, si, false, &siw->thread))) {
         destroy_wasapi(si);

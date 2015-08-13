@@ -12,8 +12,16 @@
 #include "soundio/os.h"
 #include "atomics.hpp"
 #include "list.hpp"
-struct IMMDeviceEnumerator;
-struct IAudioClient;
+
+#define INITGUID
+#define CINTERFACE
+#define COBJMACROS
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
+#include <audioclient.h>
 
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
@@ -25,6 +33,7 @@ struct SoundIoDeviceWasapi {
 struct SoundIoWasapi {
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
+    SoundIoOsCond *scan_devices_cond;
     struct SoundIoOsThread *thread;
     atomic_flag abort_flag;
     // this one is ready to be read with flush_events. protected by mutex
@@ -35,6 +44,8 @@ struct SoundIoWasapi {
     bool emitted_shutdown_cb;
 
     IMMDeviceEnumerator* device_enumerator;
+    IMMNotificationClient device_events;
+    LONG device_events_refs;
 };
 
 struct SoundIoOutStreamWasapi {

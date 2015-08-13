@@ -26,6 +26,10 @@ behavior on every platform.
    - [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - (in progress) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - Dummy (silence)
+ * Exposes both raw devices and shared devices. Raw devices give you the best
+   performance but prevent other applications from using them. Shared devices
+   are default and usually provide sample rate conversion and format
+   conversion.
  * Supports optimal usage of each supported backend. The same API does the
    right thing whether the backend has a fixed buffer size, such as on JACK and
    CoreAudio, or whether it allows directly managing the buffer, such as on
@@ -250,8 +254,6 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement WASAPI (Windows) backend, get examples working
-    - list devices
-      - watching
     - sine wave
     - microphone
  0. Make sure PulseAudio can handle refresh devices crashing before
