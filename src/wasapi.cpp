@@ -353,11 +353,13 @@ static int refresh_devices(SoundIoPrivate *si) {
             deinit_refresh_devices(&rd);
             return SoundIoErrorOpeningDevice;
         }
+        rd.device->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
+        // WASAPI performs resampling in shared mode, so any value is valid.
+        // Let's pick some reasonable min and max values.
         rd.device->sample_rate_count = 1;
         rd.device->sample_rates = &dev->prealloc_sample_rate_range;
-        rd.device->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
-        rd.device->sample_rates[0].min = rd.device->sample_rate_current;
-        rd.device->sample_rates[0].max = rd.device->sample_rate_current;
+        rd.device->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE, rd.device->sample_rate_current);
+        rd.device->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE, rd.device->sample_rate_current);
 
         rd.device->current_format = from_wave_format_format(rd.wave_format);
         rd.device->format_count = 1;

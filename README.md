@@ -29,7 +29,7 @@ behavior on every platform.
  * Supports optimal usage of each supported backend. The same API does the
    right thing whether the backend has a fixed buffer size, such as on JACK and
    CoreAudio, or whether it allows directly managing the buffer, such as on
-   ALSA or PulseAudio.
+   ALSA, PulseAudio, and WASAPI.
  * C library. Depends only on the respective backend API libraries and libc.
    Does *not* depend on libstdc++, and does *not* have exceptions, run-time type
    information, or [setjmp](http://latentcontent.net/2007/12/05/libpng-worst-api-ever/).
@@ -251,7 +251,6 @@ view `coverage/index.html` in a browser.
 
  0. implement WASAPI (Windows) backend, get examples working
     - list devices
-      - buffer duration
       - raw mode
       - watching
     - sine wave

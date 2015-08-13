@@ -367,8 +367,8 @@ static void set_all_device_sample_rates(SoundIoDevice *device) {
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     device->sample_rate_count = 1;
     device->sample_rates = &dev->prealloc_sample_rate_range;
-    device->sample_rates[0].min = 8000;
-    device->sample_rates[0].max = 5644800;
+    device->sample_rates[0].min = SOUNDIO_MIN_SAMPLE_RATE;
+    device->sample_rates[0].max = SOUNDIO_MAX_SAMPLE_RATE;
 }
 
 static int set_all_device_channel_layouts(SoundIoDevice *device) {

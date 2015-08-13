@@ -358,6 +358,7 @@ struct SoundIoDevice {
     // are used. You may check that the current backend is PulseAudio and
     // ignore these min/max values.
     // For JACK and CoreAudio, buffer duration and period duration are the same.
+    // For WASAPI, buffer duration is unknown.
     double buffer_duration_min;
     double buffer_duration_max;
     double buffer_duration_current;

@@ -169,5 +169,7 @@ struct SoundIoDevicePrivate {
 
 void soundio_destroy_devices_info(struct SoundIoDevicesInfo *devices_info);
 
+static const int SOUNDIO_MIN_SAMPLE_RATE = 8000;
+static const int SOUNDIO_MAX_SAMPLE_RATE = 5644800;
 
 #endif
