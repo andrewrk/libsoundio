@@ -22,12 +22,14 @@
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmreg.h>
 #include <audioclient.h>
+#include <audiosessiontypes.h>
 
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceWasapi {
-    IAudioClient *audio_client;
     SoundIoList<SoundIoSampleRateRange> sample_rates;
+    double period_duration;
+    IMMDevice *mm_device;
 };
 
 struct SoundIoWasapi {
@@ -49,6 +51,13 @@ struct SoundIoWasapi {
 };
 
 struct SoundIoOutStreamWasapi {
+    IAudioClient *audio_client;
+    IAudioClockAdjustment *audio_clock_adjustment;
+    bool need_resample;
+    SoundIoOsThread *thread;
+    atomic_flag thread_exit_flag;
+    bool is_raw;
+    UINT32 buffer_frame_count;
 };
 
 struct SoundIoInStreamWasapi {

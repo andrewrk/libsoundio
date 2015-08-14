@@ -29,7 +29,7 @@ static void playback_thread_run(void *arg) {
         double now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
-            ceil(time_passed / outstream->period_duration) * outstream->period_duration;
+            ceil(time_passed / osd->period_duration) * osd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(osd->cond, nullptr, relative_time);
 
@@ -70,7 +70,7 @@ static void capture_thread_run(void *arg) {
         double now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
-            ceil(time_passed / instream->period_duration) * instream->period_duration;
+            ceil(time_passed / isd->period_duration) * isd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(isd->cond, nullptr, relative_time);
 
@@ -149,22 +149,20 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
 
-    if (outstream->buffer_duration == 0.0)
-        outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    if (outstream->period_duration == 0.0) {
-        outstream->period_duration = clamp(device->period_duration_min,
-                outstream->buffer_duration / 2.0, device->period_duration_max);
-    }
+    if (outstream->software_latency == 0.0)
+        outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
+
+    osd->period_duration = outstream->software_latency / 2.0;
 
     int err;
-    int buffer_size = outstream->bytes_per_frame * outstream->sample_rate * outstream->buffer_duration;
+    int buffer_size = outstream->bytes_per_frame * outstream->sample_rate * outstream->software_latency;
     if ((err = soundio_ring_buffer_init(&osd->ring_buffer, buffer_size))) {
         outstream_destroy_dummy(si, os);
         return err;
     }
     int actual_capacity = soundio_ring_buffer_capacity(&osd->ring_buffer);
     osd->buffer_frame_count = actual_capacity / outstream->bytes_per_frame;
-    outstream->buffer_duration = osd->buffer_frame_count / (double) outstream->sample_rate;
+    outstream->software_latency = osd->buffer_frame_count / (double) outstream->sample_rate;
 
     osd->cond = soundio_os_cond_create();
     if (!osd->cond) {
@@ -254,15 +252,16 @@ static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStream *instream = &is->pub;
     SoundIoDevice *device = instream->device;
 
-    if (instream->buffer_duration == 0.0)
-        instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    if (instream->period_duration == 0.0) {
-        instream->period_duration = clamp(instream->device->period_duration_min,
-                instream->buffer_duration / 8.0, instream->device->period_duration_max);
-    }
+
+    if (instream->software_latency == 0.0)
+        instream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
+
+    isd->period_duration = instream->software_latency;
+
+    double target_buffer_duration = isd->period_duration * 4.0;
 
     int err;
-    int buffer_size = instream->bytes_per_frame * instream->sample_rate * instream->buffer_duration;
+    int buffer_size = instream->bytes_per_frame * instream->sample_rate * target_buffer_duration;
     if ((err = soundio_ring_buffer_init(&isd->ring_buffer, buffer_size))) {
         instream_destroy_dummy(si, is);
         return err;
@@ -270,7 +269,6 @@ static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     int actual_capacity = soundio_ring_buffer_capacity(&isd->ring_buffer);
     isd->buffer_frame_count = actual_capacity / instream->bytes_per_frame;
-    instream->buffer_duration = isd->buffer_frame_count / (double) instream->sample_rate;
 
     isd->cond = soundio_os_cond_create();
     if (!isd->cond) {
@@ -439,13 +437,11 @@ int soundio_dummy_init(SoundIoPrivate *si) {
         }
         set_all_device_sample_rates(device);
 
-        device->buffer_duration_min = 0.01;
-        device->buffer_duration_max = 4;
-        device->buffer_duration_current = 0.1;
+        device->software_latency_current = 0.1;
+        device->software_latency_min = 0.01;
+        device->software_latency_max = 4.0;
+
         device->sample_rate_current = 48000;
-        device->period_duration_min = 0.01;
-        device->period_duration_max = 2;
-        device->period_duration_current = 0.05;
         device->aim = SoundIoDeviceAimOutput;
 
         if (si->safe_devices_info->output_devices.append(device)) {
@@ -487,13 +483,10 @@ int soundio_dummy_init(SoundIoPrivate *si) {
             return err;
         }
         set_all_device_sample_rates(device);
-        device->buffer_duration_min = 0.01;
-        device->buffer_duration_max = 4;
-        device->buffer_duration_current = 0.1;
+        device->software_latency_current = 0.1;
+        device->software_latency_min = 0.01;
+        device->software_latency_max = 4.0;
         device->sample_rate_current = 48000;
-        device->period_duration_min = 0.01;
-        device->period_duration_max = 2;
-        device->period_duration_current = 0.05;
         device->aim = SoundIoDeviceAimInput;
 
         if (si->safe_devices_info->input_devices.append(device)) {

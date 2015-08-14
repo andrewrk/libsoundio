@@ -352,27 +352,13 @@ struct SoundIoDevice {
     int sample_rate_count;
     int sample_rate_current;
 
-    // Buffer duration in seconds. If `buffer_duration_current` is unknown or
-    // irrelevant, it is set to 0.0.
-    // PulseAudio allows any value and so reasonable min/max of 0.10 and 4.0
-    // are used. You may check that the current backend is PulseAudio and
-    // ignore these min/max values.
-    // For JACK and CoreAudio, buffer duration and period duration are the same.
-    // For WASAPI, buffer duration is unknown.
-    double buffer_duration_min;
-    double buffer_duration_max;
-    double buffer_duration_current;
-
-    // Period duration in seconds. After this much time passes, write_callback
-    // is called. If values are unknown, they are set to 0.0.
-    // For PulseAudio and CoreAudio, these values are meaningless.
-    // For JACK, buffer duration and period duration are the same.
-    // For WASAPI, `period_duration_max` is unknown for raw devices, so a
-    // reasonable max of 4.0 is used. You may check that the current backend is
-    // WASAPI and ignore the max value for raw devices.
-    double period_duration_min;
-    double period_duration_max;
-    double period_duration_current;
+    // Software latency in seconds. If any of these values are unknown or
+    // irrelevant, they are set to 0.0.
+    // For PulseAudio and WASAPI these values are unknown until you open a
+    // stream.
+    double software_latency_min;
+    double software_latency_max;
+    double software_latency_current;
 
     // Raw means that you are directly opening the hardware device and not
     // going through a proxy such as dmix, PulseAudio, or JACK. When you open a
@@ -408,27 +394,23 @@ struct SoundIoOutStream {
     // Defaults to Stereo, if available, followed by the first layout supported.
     struct SoundIoChannelLayout layout;
 
-    // Buffer duration in seconds.
-    // After you call `soundio_outstream_open` this value is replaced with the
-    // actual duration, as near to this value as possible.
-    // Defaults to a big buffer, potentially upwards of 1 second. If you want
-    // lower latency, set this value to the latency you want.
-    // If the device has unknown buffer duration min and max values, you may
-    // still set this, but you might not get the value you requested. If you
-    // set this and the backend is PulseAudio, it sets
+    // Ignoring hardware latency, this is the number of seconds it takes for
+    // the last sample in a full buffer to be played.
+    // After you call `soundio_outstream_open`, this value is replaced with the
+    // actual software latency, as near to this value as possible.
+    // On systems that support clearing the buffer, this defaults to a large
+    // latency, potentially upwards of 2 seconds, with the understanding that
+    // you will call `soundio_outstream_clear_buffer` when you want to reduce
+    // the latency to 0. On systems that do not support clearing the buffer,
+    // this defaults to a reasonable lower latency value.
+    // If the device has unknown software latency min and max values, you may
+    // still set this, but you might not get the value you requested.
+    // For PulseAudio, if you set this value to non-default, it sets
     // `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength` and
     // `tlength`.
-    double buffer_duration;
-
-    // `period_duration` is the latency; how much time it takes
-    // for a sample put in the buffer to get played.
-    // After you call `soundio_outstream_open` this value is replaced with the
-    // actual period duration, as near to this value as possible.
-    // Defaults to `buffer_duration / 2` (and then clamped into range).
-    // If the device has unknown period duration min and max values, you may
-    // still set this. This value is meaningless for PulseAudio, JACK, and
-    // CoreAudio.
-    double period_duration;
+    // For JACK, this value is always equal to `software_latency_current` of
+    // the device.
+    double software_latency;
 
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
@@ -493,25 +475,19 @@ struct SoundIoInStream {
     // Defaults to Stereo, if available, followed by the first layout supported.
     struct SoundIoChannelLayout layout;
 
-    // Buffer duration in seconds.
-    // After you call `soundio_instream_open` this value is replaced with the
-    // actual duration, as near to this value as possible.
-    // If the captured audio frames exceeds this before they are read, a buffer
-    // overrun occurs and the frames are lost.
-    // Defaults to 1 second (and then clamped into range). For PulseAudio,
-    // defaults to PulseAudio's default value, usually large. If you set this
-    // and the backend is PulseAudio, it sets `PA_STREAM_ADJUST_LATENCY` and
-    // is the value used for `maxlength`.
-    double buffer_duration;
-
-    // The latency of the captured audio.
-    // After you call `soundio_instream_open` this value is replaced with the
-    // actual duration, as near to this value as possible.
-    // After this many seconds pass, `read_callback` is called.
-    // Defaults to `buffer_duration / 8`.
-    // If you set this and the backend is PulseAudio, it sets
+    // Ignoring hardware latency, this is the number of seconds it takes for a
+    // captured sample to become available for reading.
+    // After you call `soundio_instream_open`, this value is replaced with the
+    // actual software latency, as near to this value as possible.
+    // A higher value means less CPU usage. Defaults to a large value,
+    // potentially upwards of 2 seconds.
+    // If the device has unknown software latency min and max values, you may
+    // still set this, but you might not get the value you requested.
+    // For PulseAudio, if you set this value to non-default, it sets
     // `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
-    double period_duration;
+    // For JACK, this value is always equal to `software_latency_current` of
+    // the device.
+    double software_latency;
 
     // Defaults to NULL. Put whatever you want here.
     void *userdata;
@@ -736,8 +712,8 @@ struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
 // You may not call this function from the `write_callback` thread context.
 void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
-// After you call this function, `buffer_duration` and `period_duration` are
-// set to the correct values, if available.
+// After you call this function, `software_latency` is set to the correct
+// value.
 // The next thing to do is call `soundio_instream_start`.
 int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
@@ -790,8 +766,8 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
 // You may not call this function from `read_callback`.
 void soundio_instream_destroy(struct SoundIoInStream *instream);
 
-// After you call this function, `buffer_duration` and `period_duration` are
-// set to the correct values, if available.
+// After you call this function, `software_latency` is set to the correct
+// value.
 // The next thing to do is call `soundio_instream_start`.
 int soundio_instream_open(struct SoundIoInStream *instream);
 

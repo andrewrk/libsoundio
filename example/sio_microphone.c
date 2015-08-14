@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
     instream->format = *fmt;
     instream->sample_rate = *sample_rate;
     instream->layout = *layout;
-    instream->period_duration = microphone_latency / 4.0;
+    instream->software_latency = microphone_latency;
     instream->read_callback = read_callback;
 
     if ((err = soundio_instream_open(instream)))
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
     outstream->format = *fmt;
     outstream->sample_rate = *sample_rate;
     outstream->layout = *layout;
-    outstream->buffer_duration = microphone_latency;
+    outstream->software_latency = microphone_latency;
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
 

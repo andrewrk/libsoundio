@@ -30,6 +30,9 @@ behavior on every platform.
    performance but prevent other applications from using them. Shared devices
    are default and usually provide sample rate conversion and format
    conversion.
+ * Exposes both device id and friendly name. id you could save in a config file
+   because it persists between devices becoming plugged and unplugged, while
+   friendly name is suitable for exposing to users.
  * Supports optimal usage of each supported backend. The same API does the
    right thing whether the backend has a fixed buffer size, such as on JACK and
    CoreAudio, or whether it allows directly managing the buffer, such as on
@@ -258,9 +261,9 @@ view `coverage/index.html` in a browser.
     - microphone
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
- 0. Do we really want `period_duration` in the API?
  0. Integrate into libgroove and test with Groove Basin
  0. clear buffer maybe could take an argument to say how many frames to not clear
+ 0. create a test for clear buffer; ensure pause/play semantics work
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.

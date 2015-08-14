@@ -21,14 +21,13 @@ struct SoundIoDummy {
     bool devices_emitted;
 };
 
-struct SoundIoDeviceDummy {
-
-};
+struct SoundIoDeviceDummy { };
 
 struct SoundIoOutStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
+    double period_duration;
     int buffer_frame_count;
     int frames_left;
     int write_frame_count;
@@ -41,6 +40,7 @@ struct SoundIoInStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
+    double period_duration;
     int frames_left;
     int read_frame_count;
     int buffer_frame_count;

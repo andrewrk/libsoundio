@@ -714,7 +714,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 return SoundIoErrorOpeningDevice;
             }
             double use_sample_rate = rd.device->sample_rate_current;
-            rd.device->buffer_duration_current = buffer_frame_size / use_sample_rate;
+            rd.device->software_latency_current = buffer_frame_size / use_sample_rate;
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSizeRange;
             prop_address.mScope = aim_to_scope(aim);
@@ -727,13 +727,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
-            rd.device->buffer_duration_min = avr.mMinimum / use_sample_rate;
-            rd.device->buffer_duration_max = avr.mMaximum / use_sample_rate;
-
-            rd.device->period_duration_min = rd.device->buffer_duration_min;
-            rd.device->period_duration_max = rd.device->buffer_duration_max;
-            rd.device->period_duration_current = rd.device->buffer_duration_current;
-
+            rd.device->software_latency_min = avr.mMinimum / use_sample_rate;
+            rd.device->software_latency_max = avr.mMaximum / use_sample_rate;
 
 
             SoundIoList<SoundIoDevice *> *device_list;
@@ -909,15 +904,13 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
 
-    if (outstream->buffer_duration == 0.0)
-        outstream->buffer_duration = device->buffer_duration_current;
+    if (outstream->software_latency == 0.0)
+        outstream->software_latency = device->software_latency_current;
 
-    outstream->buffer_duration = clamp(
-            device->buffer_duration_min,
-            outstream->buffer_duration,
-            device->buffer_duration_max);
-
-    outstream->period_duration = outstream->outstream->buffer_duration;
+    outstream->software_latency = clamp(
+            device->software_latency_min,
+            outstream->software_latency,
+            device->software_latency_max);
 
     AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
@@ -978,7 +971,7 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         kAudioObjectPropertyScopeInput,
         OUTPUT_ELEMENT
     };
-    UInt32 buffer_frame_size = outstream->buffer_duration * outstream->sample_rate;
+    UInt32 buffer_frame_size = outstream->software_latency * outstream->sample_rate;
     if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
         0, nullptr, sizeof(UInt32), &buffer_frame_size)))
     {
@@ -1142,13 +1135,13 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     UInt32 io_size;
     OSStatus os_err;
 
-    if (instream->buffer_duration == 0.0)
-        instream->buffer_duration = device->buffer_duration_current;
+    if (instream->software_latency == 0.0)
+        instream->software_latency = device->software_latency_current;
 
-    instream->buffer_duration = clamp(
-            device->buffer_duration_min,
-            instream->buffer_duration,
-            device->buffer_duration_max);
+    instream->software_latency = clamp(
+            device->software_latency_min,
+            instream->software_latency,
+            device->software_latency_max);
 
 
     AudioObjectPropertyAddress prop_address;
@@ -1251,7 +1244,7 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
     prop_address.mScope = kAudioObjectPropertyScopeOutput;
     prop_address.mElement = INPUT_ELEMENT;
-    UInt32 buffer_frame_size = instream->buffer_duration * instream->sample_rate;
+    UInt32 buffer_frame_size = instream->software_latency * instream->sample_rate;
     if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
         0, nullptr, sizeof(UInt32), &buffer_frame_size)))
     {

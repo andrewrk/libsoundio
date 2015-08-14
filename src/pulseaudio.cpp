@@ -318,10 +318,6 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
             return;
         }
 
-        device->buffer_duration_min = 0.10;
-        device->buffer_duration_max = 4.0;
-
-        // "period" is not a recognized concept in PulseAudio.
 
         device->aim = SoundIoDeviceAimOutput;
 
@@ -389,11 +385,6 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             return;
         }
-
-        device->buffer_duration_min = 0.10;
-        device->buffer_duration_max = 4.0;
-
-        // "period" is not a recognized concept in PulseAudio.
 
         device->aim = SoundIoDeviceAimInput;
 
@@ -710,16 +701,16 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     ospa->buffer_attr.fragsize = UINT32_MAX;
 
     int bytes_per_second = outstream->bytes_per_frame * outstream->sample_rate;
-    if (outstream->buffer_duration > 0.0) {
+    if (outstream->software_latency > 0.0) {
         int buffer_length = outstream->bytes_per_frame *
-            ceil(outstream->buffer_duration * bytes_per_second / (double)outstream->bytes_per_frame);
+            ceil(outstream->software_latency * bytes_per_second / (double)outstream->bytes_per_frame);
 
         ospa->buffer_attr.maxlength = buffer_length;
         ospa->buffer_attr.tlength = buffer_length;
     }
 
     pa_stream_flags_t flags = PA_STREAM_START_CORKED;
-    if (outstream->buffer_duration > 0.0)
+    if (outstream->software_latency > 0.0)
         flags = (pa_stream_flags_t) (flags | PA_STREAM_ADJUST_LATENCY);
 
     int err = pa_stream_connect_playback(ospa->stream,
@@ -734,7 +725,9 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         pa_threaded_mainloop_wait(sipa->main_loop);
 
     size_t writable_size = pa_stream_writable_size(ospa->stream);
-    outstream->buffer_duration = writable_size / bytes_per_second;
+    outstream->software_latency = writable_size / bytes_per_second;
+
+    // TODO get the correct software_latency value
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
@@ -922,16 +915,10 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     ispa->buffer_attr.minreq = UINT32_MAX;
     ispa->buffer_attr.fragsize = UINT32_MAX;
 
-    int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
-    if (instream->buffer_duration > 0.0) {
+    if (instream->software_latency > 0.0) {
+        int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
         int buffer_length = instream->bytes_per_frame *
-            ceil(instream->buffer_duration * bytes_per_second / (double)instream->bytes_per_frame);
-        ispa->buffer_attr.maxlength = buffer_length;
-    }
-
-    if (instream->period_duration > 0.0) {
-        int buffer_length = instream->bytes_per_frame *
-            ceil(instream->period_duration * bytes_per_second / (double)instream->bytes_per_frame);
+            ceil(instream->software_latency * bytes_per_second / (double)instream->bytes_per_frame);
         ispa->buffer_attr.fragsize = buffer_length;
     }
 
@@ -946,7 +933,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_stream_flags_t flags = (instream->period_duration > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
+    pa_stream_flags_t flags = (instream->software_latency > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
 
     int err = pa_stream_connect_record(ispa->stream,
             instream->device->id,
@@ -958,12 +945,6 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     while (!ispa->stream_ready)
         pa_threaded_mainloop_wait(sipa->main_loop);
-
-    const pa_buffer_attr *attr = pa_stream_get_buffer_attr(ispa->stream);
-    instream->buffer_duration = (attr->maxlength /
-        (double)instream->bytes_per_frame) / (double)instream->sample_rate;
-    instream->period_duration = (attr->fragsize /
-        (double)instream->bytes_per_frame) / (double)instream->sample_rate;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
     return 0;

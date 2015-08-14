@@ -299,29 +299,14 @@ static int probe_open_device(SoundIoDevice *device, snd_pcm_t *handle, int resam
     snd_pcm_uframes_t min_frames;
     snd_pcm_uframes_t max_frames;
 
-    if ((err = snd_pcm_hw_params_set_period_size_integer(handle, hwparams)) < 0)
-        return SoundIoErrorIncompatibleDevice;
-
-    if ((err = snd_pcm_hw_params_get_period_size_min(hwparams, &min_frames, nullptr)) < 0)
-        return SoundIoErrorIncompatibleDevice;
-
-    if ((err = snd_pcm_hw_params_get_period_size_max(hwparams, &max_frames, nullptr)) < 0)
-        return SoundIoErrorIncompatibleDevice;
-
-    device->period_duration_min = min_frames * one_over_actual_rate;
-    device->period_duration_max = max_frames * one_over_actual_rate;
-
-    if ((err = snd_pcm_hw_params_set_period_size_first(handle, hwparams, &min_frames, nullptr)) < 0)
-        return SoundIoErrorIncompatibleDevice;
-
 
     if ((err = snd_pcm_hw_params_get_buffer_size_min(hwparams, &min_frames)) < 0)
         return SoundIoErrorOpeningDevice;
     if ((err = snd_pcm_hw_params_get_buffer_size_max(hwparams, &max_frames)) < 0)
         return SoundIoErrorOpeningDevice;
 
-    device->buffer_duration_min = min_frames * one_over_actual_rate;
-    device->buffer_duration_max = max_frames * one_over_actual_rate;
+    device->software_latency_min = min_frames * one_over_actual_rate;
+    device->software_latency_max = max_frames * one_over_actual_rate;
 
     if ((err = snd_pcm_hw_params_set_buffer_size_first(handle, hwparams, &min_frames)) < 0)
         return SoundIoErrorOpeningDevice;
@@ -443,11 +428,8 @@ static int probe_device(SoundIoDevice *device, snd_pcm_chmap_query_t **maps) {
         if (device->sample_rates[0].min == device->sample_rates[0].max)
             device->sample_rate_current = device->sample_rates[0].min;
 
-        if (device->buffer_duration_min == device->buffer_duration_max)
-            device->buffer_duration_current = device->buffer_duration_min;
-
-        if (device->period_duration_min == device->period_duration_max)
-            device->period_duration_current = device->period_duration_min;
+        if (device->software_latency_min == device->software_latency_max)
+            device->software_latency_current = device->software_latency_min;
 
         // now say that resampling is OK and see what the real min and max is.
         if ((err = probe_open_device(device, handle, 1, &channels_min, &channels_max)) < 0) {
@@ -1111,12 +1093,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
 
-    if (outstream->buffer_duration == 0.0)
-        outstream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    if (outstream->period_duration == 0.0) {
-        outstream->period_duration = clamp(device->period_duration_min,
-                outstream->buffer_duration / 2.0, device->period_duration_max);
-    }
+    if (outstream->software_latency == 0.0)
+        outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
 
     int ch_count = outstream->layout.channel_count;
 
@@ -1177,21 +1155,31 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    snd_pcm_uframes_t period_frames = ceil(outstream->period_duration * (double)outstream->sample_rate);
-    if ((err = snd_pcm_hw_params_set_period_size_near(osa->handle, hwparams, &period_frames, nullptr)) < 0) {
-        outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
+
+    if (device->is_raw) {
+        unsigned int microseconds;
+        if ((err = snd_pcm_hw_params_set_period_time_first(osa->handle, hwparams, &microseconds, nullptr)) < 0) {
+            outstream_destroy_alsa(si, os);
+            return SoundIoErrorOpeningDevice;
+        }
+    } else {
+        double period_duration = outstream->software_latency / 2.0;
+        snd_pcm_uframes_t period_frames = ceil(period_duration * (double)outstream->sample_rate);
+
+        if ((err = snd_pcm_hw_params_set_period_size_near(osa->handle, hwparams, &period_frames, nullptr)) < 0) {
+            outstream_destroy_alsa(si, os);
+            return SoundIoErrorOpeningDevice;
+        }
     }
-    outstream->period_duration = ((double)period_frames) / (double)outstream->sample_rate;
 
 
-    snd_pcm_uframes_t buffer_size_frames = ceil(outstream->buffer_duration * (double)outstream->sample_rate);
+    snd_pcm_uframes_t buffer_size_frames = ceil(outstream->software_latency * (double)outstream->sample_rate);
 
     if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &buffer_size_frames)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
-    outstream->buffer_duration = ((double)buffer_size_frames) / (double)outstream->sample_rate;
+    outstream->software_latency = ((double)buffer_size_frames) / (double)outstream->sample_rate;
 
 
 
@@ -1400,12 +1388,8 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStream *instream = &is->pub;
     SoundIoDevice *device = instream->device;
 
-    if (instream->buffer_duration == 0.0)
-        instream->buffer_duration = clamp(device->buffer_duration_min, 1.0, device->buffer_duration_max);
-    if (instream->period_duration == 0.0) {
-        instream->period_duration = clamp(device->period_duration_min,
-                instream->buffer_duration / 8.0, device->period_duration_max);
-    }
+    if (instream->software_latency == 0.0)
+        instream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
 
     int ch_count = instream->layout.channel_count;
 
@@ -1466,21 +1450,19 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorOpeningDevice;
     }
 
-    snd_pcm_uframes_t period_frames = ceil(instream->period_duration * (double)instream->sample_rate);
+    snd_pcm_uframes_t period_frames = ceil(instream->software_latency * (double)instream->sample_rate);
     if ((err = snd_pcm_hw_params_set_period_size_near(isa->handle, hwparams, &period_frames, nullptr)) < 0) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;
     }
-    instream->period_duration = ((double)period_frames) / (double)instream->sample_rate;
+    instream->software_latency = ((double)period_frames) / (double)instream->sample_rate;
 
 
-    snd_pcm_uframes_t buffer_size_frames = ceil(instream->buffer_duration * (double)instream->sample_rate);
-
-    if ((err = snd_pcm_hw_params_set_buffer_size_near(isa->handle, hwparams, &buffer_size_frames)) < 0) {
+    snd_pcm_uframes_t buffer_size_frames;
+    if ((err = snd_pcm_hw_params_set_buffer_size_last(isa->handle, hwparams, &buffer_size_frames)) < 0) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;
     }
-    instream->buffer_duration = ((double)buffer_size_frames) / (double)instream->sample_rate;
 
     snd_pcm_uframes_t period_size;
     if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, nullptr)) < 0) {

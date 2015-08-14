@@ -193,12 +193,11 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         device->sample_rates[0].min = sij->sample_rate;
         device->sample_rates[0].max = sij->sample_rate;
         device->sample_rate_current = sij->sample_rate;
-        device->period_duration_min = sij->period_size / (double) sij->sample_rate;
-        device->period_duration_max = device->period_duration_min;
-        device->period_duration_current = device->period_duration_min;
-        device->buffer_duration_min = device->period_duration_min;
-        device->buffer_duration_max = device->period_duration_min;
-        device->buffer_duration_current = device->period_duration_min;
+
+        device->software_latency_current = sij->period_size / (double) sij->sample_rate;
+        device->software_latency_min = sij->period_size / (double) sij->sample_rate;
+        device->software_latency_max = sij->period_size / (double) sij->sample_rate;
+
         dj->port_count = client->port_count;
         dj->ports = allocate<SoundIoDeviceJackPort>(dj->port_count);
 
@@ -416,8 +415,7 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    outstream->buffer_duration = device->period_duration_current;
-    outstream->period_duration = device->period_duration_current;
+    outstream->software_latency = device->software_latency_current;
     osj->period_size = sij->period_size;
 
     jack_status_t status;
@@ -619,8 +617,7 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    instream->buffer_duration = device->period_duration_current;
-    instream->period_duration = device->period_duration_current;
+    instream->software_latency = device->software_latency_current;
     isj->period_size = sij->period_size;
 
     jack_status_t status;
