@@ -794,6 +794,7 @@ static int refresh_devices(SoundIoPrivate *si) {
             return err;
         }
 
+        IMMDevice_AddRef(rd.mm_device);
         dev_w_shared->mm_device = rd.mm_device;
         dev_w_raw->mm_device = rd.mm_device;
         rd.mm_device = nullptr;
