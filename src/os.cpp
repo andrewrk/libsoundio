@@ -287,8 +287,6 @@ void soundio_os_thread_destroy(struct SoundIoOsThread *thread) {
 }
 
 struct SoundIoOsMutex *soundio_os_mutex_create(void) {
-    int err;
-
     struct SoundIoOsMutex *mutex = allocate<SoundIoOsMutex>(1);
     if (!mutex) {
         soundio_os_mutex_destroy(mutex);
@@ -298,6 +296,7 @@ struct SoundIoOsMutex *soundio_os_mutex_create(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
     InitializeCriticalSection(&mutex->id);
 #else
+    int err;
     if ((err = pthread_mutex_init(&mutex->id, NULL))) {
         soundio_os_mutex_destroy(mutex);
         return NULL;

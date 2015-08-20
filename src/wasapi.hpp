@@ -53,11 +53,17 @@ struct SoundIoWasapi {
 struct SoundIoOutStreamWasapi {
     IAudioClient *audio_client;
     IAudioClockAdjustment *audio_clock_adjustment;
+    IAudioRenderClient *audio_render_client;
     bool need_resample;
     SoundIoOsThread *thread;
+    SoundIoOsMutex *mutex;
+    SoundIoOsCond *cond;
     atomic_flag thread_exit_flag;
     bool is_raw;
+    int writable_frame_count;
     UINT32 buffer_frame_count;
+    int write_frame_count;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamWasapi {
