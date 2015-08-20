@@ -159,12 +159,12 @@ endif()
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable -Wno-unused-but-set-variable")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable -Wno-unused-but-set-variable")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Werror -pedantic")
 
 
-set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -Werror -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes")
-set(EXAMPLE_CFLAGS "-std=c99 -pedantic -Werror -Wall")
+set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes")
+set(EXAMPLE_CFLAGS "-std=c99 -Wall")
 set(EXAMPLE_INCLUDES "${CMAKE_SOURCE_DIR}/src")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
 set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
@@ -296,6 +296,7 @@ message("\n"
     "Installation Summary\n"
     "--------------------\n"
     "* Install Directory            : ${CMAKE_INSTALL_PREFIX}\n"
+    "* Build Type                   : ${CMAKE_BUILD_TYPE}\n"
 )
 
 message(
