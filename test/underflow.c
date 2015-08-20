@@ -6,13 +6,13 @@
  */
 
 #include <soundio/soundio.h>
-#include <soundio/os.h>
 
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 
 __attribute__ ((cold))
 __attribute__ ((noreturn))
@@ -34,7 +34,6 @@ static int usage(char *exe) {
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
 static bool caused_underflow = false;
-static struct SoundIoOsCond *cond = NULL;
 static struct SoundIo *soundio = NULL;
 static float seconds_end = 9.0f;
 
@@ -46,7 +45,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
 
     if (!caused_underflow && seconds_offset >= 3.0f) {
         caused_underflow = true;
-        soundio_os_cond_timed_wait(cond, NULL, 3.0);
+        sleep(3);
     }
 
     if (seconds_offset >= seconds_end) {
@@ -137,10 +136,6 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Output device: %s\n", device->name);
 
-    cond = soundio_os_cond_create();
-    if (!cond)
-        panic("out of memory");
-
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
@@ -160,7 +155,6 @@ int main(int argc, char **argv) {
 
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);
-    soundio_os_cond_destroy(cond);
     soundio_destroy(soundio);
     return 0;
 }

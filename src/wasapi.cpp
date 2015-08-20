@@ -1176,8 +1176,11 @@ void outstream_shared_run(void *arg) {
             return;
         }
         osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        if (osw->writable_frame_count > 0)
+        if (osw->writable_frame_count > 0) {
+            if (frames_used == 0)
+                outstream->underflow_callback(outstream);
             outstream->write_callback(outstream, 0, osw->writable_frame_count);
+        }
     }
 }
 

@@ -52,7 +52,7 @@ static inline bool soundio_streql(const char *str1, int str1_len, const char *st
 
 
 template <typename T, long n>
-constexpr long array_length(const T (&)[n]) {
+static constexpr long array_length(const T (&)[n]) {
     return n;
 }
 

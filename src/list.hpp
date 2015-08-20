@@ -9,7 +9,7 @@
 #define SOUNDIO_LIST_HPP
 
 #include "util.hpp"
-#include "soundio/soundio.h"
+#include "soundio_private.h"
 
 #include <assert.h>
 

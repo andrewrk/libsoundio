@@ -8,7 +8,7 @@
 #ifndef SOUNDIO_SOUNDIO_HPP
 #define SOUNDIO_SOUNDIO_HPP
 
-#include "soundio/soundio.h"
+#include "soundio_private.h"
 #include "list.hpp"
 
 #ifdef SOUNDIO_HAVE_JACK

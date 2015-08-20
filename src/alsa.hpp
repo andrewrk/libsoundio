@@ -8,8 +8,8 @@
 #ifndef SOUNDIO_ALSA_HPP
 #define SOUNDIO_ALSA_HPP
 
-#include "soundio/soundio.h"
-#include "soundio/os.h"
+#include "soundio_private.h"
+#include "os.h"
 #include "atomics.hpp"
 
 #include <alsa/asoundlib.h>

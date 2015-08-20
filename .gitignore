@@ -1,2 +1,3 @@
 build/
-build-win/
+build-win32/
+build-win64/

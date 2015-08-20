@@ -99,7 +99,6 @@ set(LIBSOUNDIO_SOURCES
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${CMAKE_SOURCE_DIR}/soundio/soundio.h"
-    "${CMAKE_SOURCE_DIR}/soundio/os.h"
     ${CONFIGURE_OUT_FILE}
 )
 
@@ -163,7 +162,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Werror -pedantic")
 
 
-set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes")
+set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes")
 set(EXAMPLE_CFLAGS "-std=c99 -Wall")
 set(EXAMPLE_INCLUDES "${CMAKE_SOURCE_DIR}/src")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")

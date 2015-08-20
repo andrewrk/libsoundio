@@ -1,7 +1,7 @@
 #undef NDEBUG
 
 #include "soundio.hpp"
-#include "soundio/os.h"
+#include "os.h"
 #include "util.hpp"
 #include "atomics.hpp"
 

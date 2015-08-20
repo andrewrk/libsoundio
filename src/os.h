@@ -11,12 +11,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-
 // safe to call from any thread(s) multiple times, but
 // must be called at least once before calling any other os functions
 // soundio_create calls this function.
@@ -68,9 +62,5 @@ struct SoundIoOsMirroredMemory {
 // system page size
 int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t capacity);
 void soundio_os_deinit_mirrored_memory(struct SoundIoOsMirroredMemory *mem);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

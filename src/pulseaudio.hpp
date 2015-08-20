@@ -8,7 +8,7 @@
 #ifndef SOUNDIO_PULSEAUDIO_HPP
 #define SOUNDIO_PULSEAUDIO_HPP
 
-#include "soundio/soundio.h"
+#include "soundio_private.h"
 #include "atomics.hpp"
 
 #include <pulse/pulseaudio.h>

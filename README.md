@@ -225,16 +225,23 @@ packages necessary on your system. Then somewhere on your file system:
 ```
 git clone https://github.com/mxe/mxe
 cd mxe
-make gcc
+make MXE_TARGETS='x86_64-w64-mingw32.static i686-w64-mingw32.static' gcc
 ```
 
 Then in the libsoundio source directory (replace "/path/to/mxe" with the
 appropriate path):
 
 ```
-mkdir build-win
-cd build-win
+mkdir build-win32
+cd build-win32
 cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/i686-w64-mingw32.static/share/cmake/mxe-conf.cmake
+make
+```
+
+```
+mkdir build-win64
+cd build-win64
+cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/x86_64-w64-mingw32.static/share/cmake/mxe-conf.cmake
 make
 ```
 
@@ -257,8 +264,9 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement WASAPI (Windows) backend, get examples working
-    - sine wave
+    - sine wave (raw device)
     - microphone
+    - set display name of output stream
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin
@@ -283,8 +291,6 @@ view `coverage/index.html` in a browser.
     - make sure every function which can return an error documents which errors
       it can return
  0. use a documentation generator and host the docs somewhere
- 0. -fvisibility=hidden and then explicitly export stuff, or
-    explicitly make the unexported stuff private
  0. add len arguments to APIs that have char *
     - replace strdup with `soundio_str_dupe`
  0. Support PulseAudio proplist properties for main context and streams
@@ -298,6 +304,10 @@ view `coverage/index.html` in a browser.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Add [sndio](http://www.sndio.org/) backend to support OpenBSD.
+ 0. Support for stream icon.
+    - PulseAudio: XDG icon name
+    - WASAPI: path to .exe, .dll, or .ico
+    - CoreAudio: CFURLRef image file
 
 ## Planned Uses for libsoundio
 

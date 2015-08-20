@@ -8,8 +8,8 @@
 #ifndef SOUNDIO_COREAUDIO_HPP
 #define SOUNDIO_COREAUDIO_HPP
 
-#include "soundio/soundio.h"
-#include "soundio/os.h"
+#include "soundio_private.h"
+#include "os.h"
 #include "atomics.hpp"
 #include "list.hpp"
 
