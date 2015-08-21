@@ -69,9 +69,6 @@ backend:
 #include <string.h>
 #include <math.h>
 
-__attribute__ ((cold))
-__attribute__ ((noreturn))
-__attribute__ ((format (printf, 1, 2)))
 static void panic(const char *format, ...) {
     va_list ap;
     va_start(ap, format);

@@ -23,8 +23,9 @@ static void panic(const char *format, ...) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack]\n", exe);
-    return 1;
+    fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi] [--device id] [--raw]\n",
+            exe);
+    return EXIT_FAILURE;
 }
 
 static const float PI = 3.1415926535f;
@@ -78,16 +79,40 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 int main(int argc, char **argv) {
     char *exe = argv[0];
     enum SoundIoBackend backend = SoundIoBackendNone;
+    char *device_id = NULL;
+    bool raw = false;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
-        if (strcmp("--dummy", arg) == 0) {
-            backend = SoundIoBackendDummy;
-        } else if (strcmp("--alsa", arg) == 0) {
-            backend = SoundIoBackendAlsa;
-        } else if (strcmp("--pulseaudio", arg) == 0) {
-            backend = SoundIoBackendPulseAudio;
-        } else if (strcmp("--jack", arg) == 0) {
-            backend = SoundIoBackendJack;
+        if (arg[0] == '-' && arg[1] == '-') {
+            if (strcmp(arg, "--raw") == 0) {
+                raw = true;
+            } else {
+                i += 1;
+                if (i >= argc) {
+                    return usage(exe);
+                } else if (strcmp(arg, "--backend") == 0) {
+                    if (strcmp(argv[i], "dummy") == 0) {
+                        backend = SoundIoBackendDummy;
+                    } else if (strcmp(argv[i], "alsa") == 0) {
+                        backend = SoundIoBackendAlsa;
+                    } else if (strcmp(argv[i], "pulseaudio") == 0) {
+                        backend = SoundIoBackendPulseAudio;
+                    } else if (strcmp(argv[i], "jack") == 0) {
+                        backend = SoundIoBackendJack;
+                    } else if (strcmp(argv[i], "coreaudio") == 0) {
+                        backend = SoundIoBackendCoreAudio;
+                    } else if (strcmp(argv[i], "wasapi") == 0) {
+                        backend = SoundIoBackendWasapi;
+                    } else {
+                        fprintf(stderr, "Invalid backend: %s\n", argv[i]);
+                        return EXIT_FAILURE;
+                    }
+                } else if (strcmp(arg, "--device") == 0) {
+                    device_id = argv[i];
+                } else {
+                    return usage(exe);
+                }
+            }
         } else {
             return usage(exe);
         }
@@ -100,16 +125,33 @@ int main(int argc, char **argv) {
     int err = (backend == SoundIoBackendNone) ?
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
-    if (err)
-        panic("error connecting: %s", soundio_strerror(err));
+    if (err) {
+        fprintf(stderr, "Unable to connect to backend: %s\n", soundio_strerror(err));
+        return EXIT_FAILURE;
+    }
 
     soundio_flush_events(soundio);
 
-    int default_out_device_index = soundio_default_output_device_index(soundio);
-    if (default_out_device_index < 0)
-        panic("no output device found");
+    int selected_device_index = -1;
+    if (device_id) {
+        int device_count = soundio_output_device_count(soundio);
+        for (int i = 0; i < device_count; i += 1) {
+            struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
+            if (strcmp(device->id, device_id) == 0 && device->is_raw == raw) {
+                selected_device_index = i;
+                break;
+            }
+        }
+    } else {
+        selected_device_index = soundio_default_output_device_index(soundio);
+    }
 
-    struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);
+    if (selected_device_index < 0) {
+        fprintf(stderr, "Output device not found\n");
+        return EXIT_SUCCESS;
+    }
+
+    struct SoundIoDevice *device = soundio_get_output_device(soundio, selected_device_index);
     if (!device)
         panic("out of memory");
 
@@ -120,8 +162,10 @@ int main(int argc, char **argv) {
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
 
-    if ((err = soundio_outstream_open(outstream)))
-        panic("unable to open device: %s", soundio_strerror(err));
+    if ((err = soundio_outstream_open(outstream))) {
+        fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
+        return EXIT_FAILURE;
+    }
 
     if (outstream->layout_error)
         fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
@@ -135,5 +179,5 @@ int main(int argc, char **argv) {
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);
     soundio_destroy(soundio);
-    return 0;
+    return EXIT_SUCCESS;
 }
