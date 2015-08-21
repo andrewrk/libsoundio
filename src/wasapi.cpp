@@ -295,7 +295,6 @@ static void destruct_device(SoundIoDevicePrivate *dev) {
     SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
     if (dw->mm_device)
         IMMDevice_Release(dw->mm_device);
-    dw->sample_rates.deinit();
 }
 
 struct RefreshDevices {
@@ -438,7 +437,6 @@ static int add_sample_rate(SoundIoList<SoundIoSampleRateRange> *sample_rates, in
 static int do_sample_rate_test(RefreshDevices *rd, SoundIoDevicePrivate *dev, WAVEFORMATEXTENSIBLE *wave_format,
         int test_sample_rate, AUDCLNT_SHAREMODE share_mode, int *current_min, int *last_success_rate)
 {
-    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
     WAVEFORMATEX *closest_match = nullptr;
     int err;
 
@@ -456,7 +454,7 @@ static int do_sample_rate_test(RefreshDevices *rd, SoundIoDevicePrivate *dev, WA
         *last_success_rate = test_sample_rate;
     } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
         if (*current_min != -1) {
-            if ((err = add_sample_rate(&dw->sample_rates, current_min, *last_success_rate)))
+            if ((err = add_sample_rate(&dev->sample_rates, current_min, *last_success_rate)))
                 return err;
             *current_min = -1;
         }
@@ -470,12 +468,11 @@ static int do_sample_rate_test(RefreshDevices *rd, SoundIoDevicePrivate *dev, WA
 static int detect_valid_sample_rates(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *wave_format,
         SoundIoDevicePrivate *dev, AUDCLNT_SHAREMODE share_mode)
 {
-    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
     int err;
 
     DWORD orig_sample_rate = wave_format->Format.nSamplesPerSec;
 
-    assert(dw->sample_rates.length == 0);
+    assert(dev->sample_rates.length == 0);
 
     int current_min = -1;
     int last_success_rate = -1;
@@ -492,7 +489,7 @@ static int detect_valid_sample_rates(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *w
     }
 
     if (current_min != -1) {
-        if ((err = add_sample_rate(&dw->sample_rates, &current_min, last_success_rate))) {
+        if ((err = add_sample_rate(&dev->sample_rates, &current_min, last_success_rate))) {
             wave_format->Format.nSamplesPerSec = orig_sample_rate;
             return err;
         }
@@ -500,8 +497,8 @@ static int detect_valid_sample_rates(RefreshDevices *rd, WAVEFORMATEXTENSIBLE *w
 
     SoundIoDevice *device = &dev->pub;
 
-    device->sample_rate_count = dw->sample_rates.length;
-    device->sample_rates = dw->sample_rates.items;
+    device->sample_rate_count = dev->sample_rates.length;
+    device->sample_rates = dev->sample_rates.items;
 
     wave_format->Format.nSamplesPerSec = orig_sample_rate;
     return 0;

@@ -164,6 +164,7 @@ struct SoundIoDevicePrivate {
     SoundIoDeviceBackendData backend_data;
     void (*destruct)(SoundIoDevicePrivate *);
     SoundIoSampleRateRange prealloc_sample_rate_range;
+    SoundIoList<SoundIoSampleRateRange> sample_rates;
     SoundIoFormat prealloc_format;
 };
 

@@ -14,7 +14,7 @@
 // list or keep a watch on audio devices
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--watch] [--dummy] [--alsa] [--pulseaudio] [--jack]\n", exe);
+    fprintf(stderr, "Usage: %s [--watch] [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n", exe);
     return 1;
 }
 
@@ -114,14 +114,30 @@ int main(int argc, char **argv) {
         char *arg = argv[i];
         if (strcmp("--watch", arg) == 0) {
             watch = true;
-        } else if (strcmp("--dummy", arg) == 0) {
-            backend = SoundIoBackendDummy;
-        } else if (strcmp("--alsa", arg) == 0) {
-            backend = SoundIoBackendAlsa;
-        } else if (strcmp("--pulseaudio", arg) == 0) {
-            backend = SoundIoBackendPulseAudio;
-        } else if (strcmp("--jack", arg) == 0) {
-            backend = SoundIoBackendJack;
+        } else if (arg[0] == '-' && arg[1] == '-') {
+            i += 1;
+            if (i >= argc) {
+                return usage(exe);
+            } else if (strcmp(arg, "--backend") == 0) {
+                if (strcmp("-dummy", argv[i]) == 0) {
+                    backend = SoundIoBackendDummy;
+                } else if (strcmp("alsa", argv[i]) == 0) {
+                    backend = SoundIoBackendAlsa;
+                } else if (strcmp("pulseaudio", argv[i]) == 0) {
+                    backend = SoundIoBackendPulseAudio;
+                } else if (strcmp("jack", argv[i]) == 0) {
+                    backend = SoundIoBackendJack;
+                } else if (strcmp("coreaudio", argv[i]) == 0) {
+                    backend = SoundIoBackendCoreAudio;
+                } else if (strcmp("wasapi", argv[i]) == 0) {
+                    backend = SoundIoBackendWasapi;
+                } else {
+                    fprintf(stderr, "Invalid backend: %s\n", argv[i]);
+                    return 1;
+                }
+            } else {
+                return usage(exe);
+            }
         } else {
             return usage(exe);
         }

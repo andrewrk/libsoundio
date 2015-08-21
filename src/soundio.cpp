@@ -375,8 +375,12 @@ void soundio_device_unref(struct SoundIoDevice *device) {
         free(device->id);
         free(device->name);
 
-        if (device->sample_rates != &dev->prealloc_sample_rate_range)
+        if (device->sample_rates != &dev->prealloc_sample_rate_range &&
+            device->sample_rates != dev->sample_rates.items)
+        {
             free(device->sample_rates);
+        }
+        dev->sample_rates.deinit();
 
         if (device->formats != &dev->prealloc_format)
             free(device->formats);

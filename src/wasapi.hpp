@@ -27,7 +27,6 @@
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceWasapi {
-    SoundIoList<SoundIoSampleRateRange> sample_rates;
     double period_duration;
     IMMDevice *mm_device;
 };
