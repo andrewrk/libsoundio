@@ -1,6 +1,14 @@
-cmake_minimum_required(VERSION 2.8)
-cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0046 NEW)
+cmake_minimum_required(VERSION 2.8.5)
+
+if(CMAKE_VERSION VERSION_LESS 3.0.0)
+    set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "library install dir (lib)")
+    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE PATH "header base install dir (include)")
+    set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH "user executables (bin)")
+else()
+    cmake_policy(SET CMP0042 NEW)
+    cmake_policy(SET CMP0046 NEW)
+    include(GNUInstallDirs)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
@@ -205,7 +213,7 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC
     m
     ${CMAKE_THREAD_LIBS_INIT}
 )
-install(TARGETS libsoundio_shared DESTINATION lib)
+install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 
 add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
@@ -214,11 +222,11 @@ set_target_properties(libsoundio_static PROPERTIES
     COMPILE_FLAGS ${LIB_CFLAGS}
     LINKER_LANGUAGE C
 )
-install(TARGETS libsoundio_static DESTINATION lib)
+install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(FILES
     ${LIBSOUNDIO_HEADERS}
-    DESTINATION "include/soundio")
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/soundio")
 
 # Example Programs
 
@@ -228,7 +236,7 @@ set_target_properties(sio_sine PROPERTIES
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_sine libsoundio_shared)
-install(TARGETS sio_sine DESTINATION bin)
+install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_executable(sio_list_devices example/sio_list_devices.c)
 set_target_properties(sio_list_devices PROPERTIES
@@ -236,7 +244,7 @@ set_target_properties(sio_list_devices PROPERTIES
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_list_devices libsoundio_shared)
-install(TARGETS sio_list_devices DESTINATION bin)
+install(TARGETS sio_list_devices DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_executable(sio_microphone example/sio_microphone.c)
 set_target_properties(sio_microphone PROPERTIES
@@ -244,7 +252,7 @@ set_target_properties(sio_microphone PROPERTIES
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_microphone libsoundio_shared)
-install(TARGETS sio_microphone DESTINATION bin)
+install(TARGETS sio_microphone DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
 
