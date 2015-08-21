@@ -183,12 +183,6 @@ configure_file (
     ${CONFIGURE_OUT_FILE}
 )
 
-if(MINGW)
-    set(LIB_LINK_FLAGS "-Wl,--output-def,libsoundio.def")
-else()
-    set(LIB_LINK_FLAGS " ")
-endif()
-
 add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
 set_target_properties(libsoundio_shared PROPERTIES
     OUTPUT_NAME soundio
@@ -196,7 +190,6 @@ set_target_properties(libsoundio_shared PROPERTIES
     VERSION ${LIBSOUNDIO_VERSION}
     COMPILE_FLAGS ${LIB_CFLAGS}
     LINKER_LANGUAGE C
-    LINK_FLAGS ${LIB_LINK_FLAGS}
 )
 include_directories(
     ${CMAKE_SOURCE_DIR}
