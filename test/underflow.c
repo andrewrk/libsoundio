@@ -113,7 +113,8 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "You should hear a sine wave for 3 seconds, then some period of silence or glitches,\n"
                     "then you should see at least one buffer underflow message, then hear a sine\n"
-                    "wave for 3 seconds, then the program should exit successfully.\n");
+                    "wave for 3 seconds, then the program should exit successfully.\n"
+                    "WASAPI does not report buffer underflows.\n");
 
     if (!(soundio = soundio_create()))
         panic("out of memory");

@@ -454,9 +454,6 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
     if (device->aim != SoundIoDeviceAimOutput)
         return SoundIoErrorInvalid;
 
-    if (outstream->format <= SoundIoFormatInvalid)
-        return SoundIoErrorInvalid;
-
     if (device->probe_error)
         return device->probe_error;
 
@@ -464,6 +461,9 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
         outstream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
             SoundIoFormatFloat32NE : device->formats[0];
     }
+
+    if (outstream->format <= SoundIoFormatInvalid)
+        return SoundIoErrorInvalid;
 
     if (!outstream->layout.channel_count) {
         const SoundIoChannelLayout *stereo = soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);

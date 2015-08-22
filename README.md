@@ -242,7 +242,23 @@ cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/x86_64-w64-mingw32.static/share
 make
 ```
 
-#### Running the Tests
+### Testing
+
+For each backend, do the following:
+
+ 0. Run the unit tests: `./unit_tests`. To see test coverage, install lcov, run
+   `make coverage`, and then view `coverage/index.html` in a browser.
+ 0. Run the example `./sio_list_devices` and make sure it does not crash, and
+    the output looks good. If valgrind is available, use it.
+ 0. Run `./sio_list_devices --watch` and make sure it detects when you plug and
+    unplug a USB microphone.
+ 0. Run `./sio_sine` and make sure you hear a sine wave. For backends with raw
+    devices, run `./sio_sine --device id` (where 'id' is a device id you got
+    from `sio_list_devices` and make sure you hear a sine wave.
+ 0. Run `./underflow` and read the testing instructions that it prints.
+ 0. Run `./sio_microphone` and ensure that it is both recording and playing
+    back correctly. If possible use the `--in-device` and `--out-device`
+    parameters to test a USB microphone in raw mode.
 
 ```
 make test

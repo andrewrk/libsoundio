@@ -62,6 +62,7 @@ struct SoundIoOutStreamWasapi {
     int writable_frame_count;
     UINT32 buffer_frame_count;
     int write_frame_count;
+    HANDLE h_event;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
