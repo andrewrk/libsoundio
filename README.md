@@ -24,7 +24,7 @@ behavior on every platform.
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
    - [ALSA](http://www.alsa-project.org/)
    - [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
-   - (in progress) [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
+   - [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - Dummy (silence)
  * Exposes both raw devices and shared devices. Raw devices give you the best
    performance but prevent other applications from using them. Shared devices
@@ -260,24 +260,9 @@ For each backend, do the following:
     back correctly. If possible use the `--in-device` and `--out-device`
     parameters to test a USB microphone in raw mode.
 
-```
-make test
-```
-
-For more detailed output:
-
-```
-make
-./unit_tests
-```
-
-To see test coverage, install lcov, run `make coverage` and then
-view `coverage/index.html` in a browser.
-
 ## Roadmap
 
  0. implement WASAPI (Windows) backend, get examples working
-    - set display name of output stream
     - move the bulk of the `outstream_open_wasapi` code to the thread and
       have them communicate back and forth. because the thread has to do
       weird thread-local com stuff, and all that com stuff really needs to be

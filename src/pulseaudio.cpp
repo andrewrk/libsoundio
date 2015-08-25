@@ -672,6 +672,9 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     if ((unsigned)outstream->layout.channel_count > PA_CHANNELS_MAX)
         return SoundIoErrorIncompatibleBackend;
 
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     ospa->stream_ready.store(false);
 
@@ -883,6 +886,8 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorInvalid;
     if ((unsigned)instream->layout.channel_count > PA_CHANNELS_MAX)
         return SoundIoErrorIncompatibleBackend;
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     ispa->stream_ready = false;

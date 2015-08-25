@@ -109,6 +109,25 @@ static int from_lpwstr(LPWSTR lpwstr, char **out_str, int *out_str_len) {
     return 0;
 }
 
+static int to_lpwstr(const char *str, int str_len, LPWSTR *out_lpwstr) {
+    DWORD flags = 0;
+    int w_len = MultiByteToWideChar(CP_UTF8, flags, str, str_len, nullptr, 0);
+    if (w_len <= 0)
+        return SoundIoErrorEncodingString;
+
+    LPWSTR buf = allocate<wchar_t>(w_len + 1);
+    if (!buf)
+        return SoundIoErrorNoMem;
+
+    if (MultiByteToWideChar(CP_UTF8, flags, str, str_len, buf, w_len) != w_len) {
+        free(buf);
+        return SoundIoErrorEncodingString;
+    }
+
+    *out_lpwstr = buf;
+    return 0;
+}
+
 static void from_channel_mask_layout(UINT channel_mask, SoundIoChannelLayout *layout) {
     layout->channel_count = 0;
     if (channel_mask & SPEAKER_FRONT_LEFT)
@@ -1000,6 +1019,8 @@ static void outstream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoOu
 
     if (osw->audio_render_client)
         IUnknown_Release(osw->audio_render_client);
+    if (osw->audio_session_control)
+        IUnknown_Release(osw->audio_session_control);
     if (osw->audio_clock_adjustment)
         IUnknown_Release(osw->audio_clock_adjustment);
     if (osw->audio_client)
@@ -1009,6 +1030,8 @@ static void outstream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoOu
 
     soundio_os_cond_destroy(osw->cond);
     soundio_os_mutex_destroy(osw->mutex);
+
+    free(osw->stream_name);
 
     CoUninitialize();
 }
@@ -1166,6 +1189,27 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
         }
         if (FAILED(hr = IAudioClockAdjustment_SetSampleRate(osw->audio_clock_adjustment,
                         outstream->sample_rate)))
+        {
+            outstream_destroy_wasapi(si, os);
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+
+    if (outstream->name) {
+        if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAudioSessionControl,
+                        (void **)&osw->audio_session_control)))
+        {
+            outstream_destroy_wasapi(si, os);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        int err;
+        if ((err = to_lpwstr(outstream->name, strlen(outstream->name), &osw->stream_name))) {
+            outstream_destroy_wasapi(si, os);
+            return err;
+        }
+        if (FAILED(hr = IAudioSessionControl_SetDisplayName(osw->audio_session_control,
+                        osw->stream_name, nullptr)))
         {
             outstream_destroy_wasapi(si, os);
             return SoundIoErrorOpeningDevice;
@@ -1510,6 +1554,27 @@ static int instream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoInStrea
             return SoundIoErrorOpeningDevice;
         }
         if (FAILED(hr = IAudioClient_SetEventHandle(isw->audio_client, isw->h_event))) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+
+    if (instream->name) {
+        if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAudioSessionControl,
+                        (void **)&isw->audio_session_control)))
+        {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+
+        int err;
+        if ((err = to_lpwstr(instream->name, strlen(instream->name), &isw->stream_name))) {
+            instream_destroy_wasapi(si, is);
+            return err;
+        }
+        if (FAILED(hr = IAudioSessionControl_SetDisplayName(isw->audio_session_control,
+                        isw->stream_name, nullptr)))
+        {
             instream_destroy_wasapi(si, is);
             return SoundIoErrorOpeningDevice;
         }

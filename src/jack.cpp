@@ -415,6 +415,9 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
     outstream->software_latency = device->software_latency_current;
     osj->period_size = sij->period_size;
 
@@ -616,6 +619,9 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
 
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
+
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
     instream->software_latency = device->software_latency_current;
     isj->period_size = sij->period_size;

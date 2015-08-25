@@ -24,8 +24,13 @@ static void panic(const char *format, ...) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi] [--device id] [--raw]\n",
-            exe);
+    fprintf(stderr, "Usage: %s [options]\n"
+            "Options:\n"
+            "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
+            "  [--device id]\n"
+            "  [--raw]\n"
+            "  [--name stream_name]\n"
+            , exe);
     return EXIT_FAILURE;
 }
 
@@ -107,6 +112,7 @@ int main(int argc, char **argv) {
     enum SoundIoBackend backend = SoundIoBackendNone;
     char *device_id = NULL;
     bool raw = false;
+    char *stream_name = NULL;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (arg[0] == '-' && arg[1] == '-') {
@@ -135,6 +141,8 @@ int main(int argc, char **argv) {
                     }
                 } else if (strcmp(arg, "--device") == 0) {
                     device_id = argv[i];
+                } else if (strcmp(arg, "--name") == 0) {
+                    stream_name = argv[i];
                 } else {
                     return usage(exe);
                 }
@@ -186,6 +194,7 @@ int main(int argc, char **argv) {
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
+    outstream->name = stream_name;
 
     if (soundio_device_supports_format(device, SoundIoFormatFloat32NE)) {
         outstream->format = SoundIoFormatFloat32NE;

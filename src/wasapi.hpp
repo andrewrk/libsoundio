@@ -23,6 +23,7 @@
 #include <mmreg.h>
 #include <audioclient.h>
 #include <audiosessiontypes.h>
+#include <audiopolicy.h>
 
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
@@ -53,6 +54,8 @@ struct SoundIoOutStreamWasapi {
     IAudioClient *audio_client;
     IAudioClockAdjustment *audio_clock_adjustment;
     IAudioRenderClient *audio_render_client;
+    IAudioSessionControl *audio_session_control;
+    LPWSTR stream_name;
     bool need_resample;
     SoundIoOsThread *thread;
     SoundIoOsMutex *mutex;
@@ -70,6 +73,8 @@ struct SoundIoOutStreamWasapi {
 struct SoundIoInStreamWasapi {
     IAudioClient *audio_client;
     IAudioCaptureClient *audio_capture_client;
+    IAudioSessionControl *audio_session_control;
+    LPWSTR stream_name;
     SoundIoOsThread *thread;
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;

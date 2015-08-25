@@ -453,6 +453,7 @@ struct SoundIoOutStream {
     // PulseAudio uses this for the stream name.
     // JACK uses this for the client name of the client that connects when you
     // open the stream.
+    // WASAPI uses this for the session display name.
     // Must not contain a colon (":").
     const char *name;
 
@@ -521,6 +522,7 @@ struct SoundIoInStream {
     // PulseAudio uses this for the stream name.
     // JACK uses this for the client name of the client that connects when you
     // open the stream.
+    // WASAPI uses this for the session display name.
     // Must not contain a colon (":").
     const char *name;
 

@@ -473,9 +473,6 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
     if (!outstream->sample_rate)
         outstream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
 
-    if (!outstream->name)
-        outstream->name = "SoundIoOutStream";
-
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
     outstream->bytes_per_sample = soundio_get_bytes_per_sample(outstream->format);
@@ -558,9 +555,6 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
 
     if (!instream->sample_rate)
         instream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
-
-    if (!instream->name)
-        instream->name = "SoundIoInStream";
 
 
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);
