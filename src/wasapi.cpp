@@ -1628,7 +1628,23 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
 }
 
 static void instream_raw_run(SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO instream_raw_run");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    SoundIoInStream *instream = &is->pub;
+
+    HRESULT hr;
+
+    if (FAILED(hr = IAudioClient_Start(isw->audio_client))) {
+        instream->error_callback(instream, SoundIoErrorStreaming);
+        return;
+    }
+
+    for (;;) {
+        WaitForSingleObject(isw->h_event, INFINITE);
+        if (!isw->thread_exit_flag.test_and_set())
+            return;
+
+        instream->read_callback(instream, isw->buffer_frame_count, isw->buffer_frame_count);
+    }
 }
 
 static void instream_shared_run(SoundIoInStreamPrivate *is) {
