@@ -8,20 +8,10 @@
 #include <soundio/soundio.h>
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
-
-static void panic(const char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    abort();
-}
 
 static int usage(char *exe) {
     fprintf(stderr, "Usage: %s [options]\n"
@@ -31,7 +21,7 @@ static int usage(char *exe) {
             "  [--raw]\n"
             "  [--name stream_name]\n"
             , exe);
-    return EXIT_FAILURE;
+    return 1;
 }
 
 static void write_sample_s16ne(char *ptr, double sample) {
@@ -71,8 +61,10 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
 
     for (;;) {
         int frame_count = frames_left;
-        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
-            panic("%s", soundio_strerror(err));
+        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
+            fprintf(stderr, "%s\n", soundio_strerror(err));
+            exit(1);
+        }
 
         if (!frame_count)
             break;
@@ -93,7 +85,8 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
-            panic("%s", soundio_strerror(err));
+            fprintf(stderr, "%s\n", soundio_strerror(err));
+            exit(1);
         }
 
         frames_left -= frame_count;
@@ -137,7 +130,7 @@ int main(int argc, char **argv) {
                         backend = SoundIoBackendWasapi;
                     } else {
                         fprintf(stderr, "Invalid backend: %s\n", argv[i]);
-                        return EXIT_FAILURE;
+                        return 1;
                     }
                 } else if (strcmp(arg, "--device") == 0) {
                     device_id = argv[i];
@@ -153,15 +146,17 @@ int main(int argc, char **argv) {
     }
 
     struct SoundIo *soundio = soundio_create();
-    if (!soundio)
-        panic("out of memory");
+    if (!soundio) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
 
     int err = (backend == SoundIoBackendNone) ?
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err) {
         fprintf(stderr, "Unable to connect to backend: %s\n", soundio_strerror(err));
-        return EXIT_FAILURE;
+        return 1;
     }
 
     soundio_flush_events(soundio);
@@ -182,12 +177,14 @@ int main(int argc, char **argv) {
 
     if (selected_device_index < 0) {
         fprintf(stderr, "Output device not found\n");
-        return EXIT_SUCCESS;
+        return 1;
     }
 
     struct SoundIoDevice *device = soundio_get_output_device(soundio, selected_device_index);
-    if (!device)
-        panic("out of memory");
+    if (!device) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
 
     fprintf(stderr, "Output device: %s\n", device->name);
 
@@ -210,20 +207,22 @@ int main(int argc, char **argv) {
         write_sample = write_sample_s16ne;
     } else {
         fprintf(stderr, "No suitable device format available.\n");
-        return EXIT_FAILURE;
+        return 1;
     }
 
     if ((err = soundio_outstream_open(outstream))) {
         fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
-        return EXIT_FAILURE;
+        return 1;
     }
 
 
     if (outstream->layout_error)
         fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
 
-    if ((err = soundio_outstream_start(outstream)))
-        panic("unable to start device: %s", soundio_strerror(err));
+    if ((err = soundio_outstream_start(outstream))) {
+        fprintf(stderr, "unable to start device: %s\n", soundio_strerror(err));
+        return 1;
+    }
 
     for (;;)
         soundio_wait_events(soundio);
@@ -231,5 +230,5 @@ int main(int argc, char **argv) {
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);
     soundio_destroy(soundio);
-    return EXIT_SUCCESS;
+    return 0;
 }

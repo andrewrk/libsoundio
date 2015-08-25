@@ -64,19 +64,9 @@ backend:
 #include <soundio/soundio.h>
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
-static void panic(const char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    abort();
-}
 
 static const float PI = 3.1415926535f;
 static float seconds_offset = 0.0f;
@@ -93,8 +83,10 @@ static void write_callback(struct SoundIoOutStream *outstream,
     while (frames_left > 0) {
         int frame_count = frames_left;
 
-        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
-            panic("%s", soundio_strerror(err));
+        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
+            fprintf(stderr, "%s\n", soundio_strerror(err));
+            exit(1);
+        }
 
         if (!frame_count)
             break;
@@ -110,8 +102,10 @@ static void write_callback(struct SoundIoOutStream *outstream,
         }
         seconds_offset += seconds_per_frame * frame_count;
 
-        if ((err = soundio_outstream_end_write(outstream)))
-            panic("%s", soundio_strerror(err));
+        if ((err = soundio_outstream_end_write(outstream))) {
+            fprintf(stderr, "%s\n", soundio_strerror(err));
+            exit(1);
+        }
 
         frames_left -= frame_count;
     }
@@ -120,21 +114,29 @@ static void write_callback(struct SoundIoOutStream *outstream,
 int main(int argc, char **argv) {
     int err;
     struct SoundIo *soundio = soundio_create();
-    if (!soundio)
-        panic("out of memory");
+    if (!soundio) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
 
-    if ((err = soundio_connect(soundio)))
-        panic("error connecting: %s", soundio_strerror(err));
+    if ((err = soundio_connect(soundio))) {
+        fprintf(stderr, "error connecting: %s", soundio_strerror(err));
+        return 1;
+    }
 
     soundio_flush_events(soundio);
 
     int default_out_device_index = soundio_default_output_device_index(soundio);
-    if (default_out_device_index < 0)
-        panic("no output device found");
+    if (default_out_device_index < 0) {
+        fprintf(stderr, "no output device found");
+        return 1;
+    }
 
     struct SoundIoDevice *device = soundio_get_output_device(soundio, default_out_device_index);
-    if (!device)
-        panic("out of memory");
+    if (!device) {
+        fprintf(stderr, "out of memory");
+        return 1;
+    }
 
     fprintf(stderr, "Output device: %s\n", device->name);
 
@@ -142,14 +144,18 @@ int main(int argc, char **argv) {
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
 
-    if ((err = soundio_outstream_open(outstream)))
-        panic("unable to open device: %s", soundio_strerror(err));
+    if ((err = soundio_outstream_open(outstream))) {
+        fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
+        return 1;
+    }
 
     if (outstream->layout_error)
         fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
 
-    if ((err = soundio_outstream_start(outstream)))
-        panic("unable to start device: %s", soundio_strerror(err));
+    if ((err = soundio_outstream_start(outstream))) {
+        fprintf(stderr, "unable to start device: %s", soundio_strerror(err));
+        return 1;
+    }
 
     for (;;)
         soundio_wait_events(soundio);
@@ -262,11 +268,6 @@ For each backend, do the following:
 
 ## Roadmap
 
- 0. implement WASAPI (Windows) backend, get examples working
-    - move the bulk of the `outstream_open_wasapi` code to the thread and
-      have them communicate back and forth. because the thread has to do
-      weird thread-local com stuff, and all that com stuff really needs to be
-      called from the same thread.
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin
