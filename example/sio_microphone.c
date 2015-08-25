@@ -175,7 +175,14 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--dummy] [--alsa] [--pulseaudio] [--jack] [--in-device id] [--out-device id]\n", exe);
+    fprintf(stderr, "Usage: %s [options]\n"
+            "Options:\n"
+            "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
+            "  [--in-device id]\n"
+            "  [--in-raw]\n"
+            "  [--out-device id]\n"
+            "  [--out-raw]\n"
+            , exe);
     return 1;
 }
 
@@ -184,27 +191,40 @@ int main(int argc, char **argv) {
     enum SoundIoBackend backend = SoundIoBackendNone;
     char *in_device_id = NULL;
     char *out_device_id = NULL;
+    bool in_raw = false;
+    bool out_raw = false;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
-        if (strcmp("--dummy", arg) == 0) {
-            backend = SoundIoBackendDummy;
-        } else if (strcmp("--alsa", arg) == 0) {
-            backend = SoundIoBackendAlsa;
-        } else if (strcmp("--pulseaudio", arg) == 0) {
-            backend = SoundIoBackendPulseAudio;
-        } else if (strcmp("--jack", arg) == 0) {
-            backend = SoundIoBackendJack;
-        } else if (strcmp("--in-device", arg) == 0) {
-            if (++i >= argc) {
+        if (arg[0] == '-' && arg[1] == '-') {
+            if (strcmp(arg, "--in-raw") == 0) {
+                in_raw = true;
+            } else if (strcmp(arg, "--out-raw") == 0) {
+                out_raw = true;
+            } else if (++i >= argc) {
                 return usage(exe);
-            } else {
+            } else if (strcmp(arg, "--backend") == 0) {
+                if (strcmp("dummy", argv[i]) == 0) {
+                    backend = SoundIoBackendDummy;
+                } else if (strcmp("alsa", argv[i]) == 0) {
+                    backend = SoundIoBackendAlsa;
+                } else if (strcmp("pulseaudio", argv[i]) == 0) {
+                    backend = SoundIoBackendPulseAudio;
+                } else if (strcmp("jack", argv[i]) == 0) {
+                    backend = SoundIoBackendJack;
+                } else if (strcmp("coreaudio", argv[i]) == 0) {
+                    backend = SoundIoBackendCoreAudio;
+                } else if (strcmp("wasapi", argv[i]) == 0) {
+                    backend = SoundIoBackendWasapi;
+                } else {
+                    fprintf(stderr, "Invalid backend: %s\n", argv[i]);
+                    return 1;
+                }
+            } else if (strcmp(arg, "--in-device") == 0) {
                 in_device_id = argv[i];
-            }
-        } else if (strcmp("--out-device", arg) == 0) {
-            if (++i >= argc) {
-                return usage(exe);
-            } else {
+            } else if (strcmp(arg, "--out-device") == 0) {
                 out_device_id = argv[i];
+            } else {
+                return usage(exe);
             }
         } else {
             return usage(exe);
@@ -234,7 +254,7 @@ int main(int argc, char **argv) {
         bool found = false;
         for (int i = 0; i < soundio_input_device_count(soundio); i += 1) {
             struct SoundIoDevice *device = soundio_get_input_device(soundio, i);
-            if (strcmp(device->id, in_device_id) == 0) {
+            if (device->is_raw == in_raw && strcmp(device->id, in_device_id) == 0) {
                 in_device_index = i;
                 found = true;
                 soundio_device_unref(device);
@@ -251,7 +271,7 @@ int main(int argc, char **argv) {
         bool found = false;
         for (int i = 0; i < soundio_output_device_count(soundio); i += 1) {
             struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
-            if (strcmp(device->id, out_device_id) == 0) {
+            if (device->is_raw == out_raw && strcmp(device->id, out_device_id) == 0) {
                 out_device_index = i;
                 found = true;
                 soundio_device_unref(device);
