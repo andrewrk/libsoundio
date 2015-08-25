@@ -313,8 +313,10 @@ int main(int argc, char **argv) {
     instream->software_latency = microphone_latency;
     instream->read_callback = read_callback;
 
-    if ((err = soundio_instream_open(instream)))
-        panic("unable to open input stream: %s", soundio_strerror(err));
+    if ((err = soundio_instream_open(instream))) {
+        fprintf(stderr, "unable to open input stream: %s", soundio_strerror(err));
+        return 1;
+    }
 
     struct SoundIoOutStream *outstream = soundio_outstream_create(out_device);
     if (!outstream)
@@ -326,8 +328,10 @@ int main(int argc, char **argv) {
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
 
-    if ((err = soundio_outstream_open(outstream)))
-        panic("unable to open output stream: %s", soundio_strerror(err));
+    if ((err = soundio_outstream_open(outstream))) {
+        fprintf(stderr, "unable to open output stream: %s", soundio_strerror(err));
+        return 1;
+    }
 
     int capacity = microphone_latency * 2 * instream->sample_rate * instream->bytes_per_frame;
     ring_buffer = soundio_ring_buffer_create(soundio, capacity);

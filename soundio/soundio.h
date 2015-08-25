@@ -765,6 +765,8 @@ SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outst
 // prevents `write_callback` from being called. Otherwise this returns
 // `SoundIoErrorIncompatibleDevice`.
 // You must call this function only from the `write_callback` thread context.
+// Pausing when already paused or unpausing when already unpaused has no
+// effect and always returns SoundIoErrorNone.
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
 
@@ -820,6 +822,8 @@ SOUNDIO_EXPORT int soundio_instream_end_read(struct SoundIoInStream *instream);
 // prevents `read_callback` from being called. Otherwise this returns
 // `SoundIoErrorIncompatibleDevice`.
 // You must call this function only from the `read_callback` thread context.
+// Pausing when already paused or unpausing when already unpaused has no
+// effect and always returns SoundIoErrorNone.
 SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool pause);
 
 

@@ -788,14 +788,23 @@ static int refresh_devices(SoundIoPrivate *si) {
         rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
 
 
-        // WASAPI performs resampling in shared mode, so any value is valid.
-        // Let's pick some reasonable min and max values.
-        rd.device_shared->sample_rate_count = 1;
-        rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
-        rd.device_shared->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE,
-                rd.device_shared->sample_rate_current);
-        rd.device_shared->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE,
-                rd.device_shared->sample_rate_current);
+        if (rd.device_shared->aim == SoundIoDeviceAimOutput) {
+            // For output streams in shared mode,
+            // WASAPI performs resampling, so any value is valid.
+            // Let's pick some reasonable min and max values.
+            rd.device_shared->sample_rate_count = 1;
+            rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
+            rd.device_shared->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE,
+                    rd.device_shared->sample_rate_current);
+            rd.device_shared->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE,
+                    rd.device_shared->sample_rate_current);
+        } else {
+            // Shared mode input stream: mix format is all we can do.
+            rd.device_shared->sample_rate_count = 1;
+            rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
+            rd.device_shared->sample_rates[0].min = rd.device_shared->sample_rate_current;
+            rd.device_shared->sample_rates[0].max = rd.device_shared->sample_rate_current;
+        }
 
         if ((err = detect_valid_formats(&rd, rd.wave_format, dev_shared,
                         AUDCLNT_SHAREMODE_SHARED)))
@@ -1014,7 +1023,10 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
 
     if (FAILED(hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) {
         outstream_destroy_wasapi(si, os);
-        return SoundIoErrorNoMem;
+        if (hr == E_OUTOFMEMORY)
+            return SoundIoErrorNoMem;
+        else
+            return SoundIoErrorOpeningDevice;
     }
 
     osw->is_raw = device->is_raw;
@@ -1174,8 +1186,15 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
 static int outstream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     HRESULT hr;
-    if (FAILED(hr = IAudioClient_Stop(osw->audio_client)))
-        return SoundIoErrorStreaming;
+    if (pause && !osw->is_paused) {
+        if (FAILED(hr = IAudioClient_Stop(osw->audio_client)))
+            return SoundIoErrorStreaming;
+        osw->is_paused = true;
+    } else if (!pause && osw->is_paused) {
+        if (FAILED(hr = IAudioClient_Start(osw->audio_client)))
+            return SoundIoErrorStreaming;
+        osw->is_paused = false;
+    }
     return 0;
 }
 
@@ -1320,29 +1339,307 @@ static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct Sound
 
 
 static void instream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+
+    if (isw->thread) {
+        isw->thread_exit_flag.clear();
+        if (isw->is_raw) {
+            if (isw->h_event)
+                SetEvent(isw->h_event);
+        } else {
+            soundio_os_mutex_lock(isw->mutex);
+            soundio_os_cond_signal(isw->cond, isw->mutex);
+            soundio_os_mutex_unlock(isw->mutex);
+        }
+        soundio_os_thread_destroy(isw->thread);
+    }
+
+    if (isw->audio_capture_client)
+        IUnknown_Release(isw->audio_capture_client);
+    if (isw->audio_client)
+        IUnknown_Release(isw->audio_client);
+    if (isw->h_event)
+        CloseHandle(isw->h_event);
+
+    soundio_os_cond_destroy(isw->cond);
+    soundio_os_mutex_destroy(isw->mutex);
+
+    CoUninitialize();
 }
 
 static int instream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoDevice *device = instream->device;
+    SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
+    SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
+    HRESULT hr;
+
+    if (FAILED(hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) {
+        instream_destroy_wasapi(si, is);
+        if (hr == E_OUTOFMEMORY)
+            return SoundIoErrorNoMem;
+        else
+            return SoundIoErrorOpeningDevice;
+    }
+
+    isw->is_raw = device->is_raw;
+
+    if (!(isw->cond = soundio_os_cond_create())) {
+        instream_destroy_wasapi(si, is);
+        return SoundIoErrorNoMem;
+    }
+
+    if (!(isw->mutex = soundio_os_mutex_create())) {
+        instream_destroy_wasapi(si, is);
+        return SoundIoErrorNoMem;
+    }
+
+    if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAudioClient,
+                    CLSCTX_ALL, nullptr, (void**)&isw->audio_client)))
+    {
+        instream_destroy_wasapi(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    AUDCLNT_SHAREMODE share_mode;
+    DWORD flags;
+    REFERENCE_TIME buffer_duration;
+    REFERENCE_TIME periodicity;
+    WAVEFORMATEXTENSIBLE wave_format = {0};
+    wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+    wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+    if (isw->is_raw) {
+        wave_format.Format.nSamplesPerSec = instream->sample_rate;
+        flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+        share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
+        periodicity = to_reference_time(dw->period_duration);
+        buffer_duration = periodicity;
+    } else {
+        WAVEFORMATEXTENSIBLE *mix_format;
+        if (FAILED(hr = IAudioClient_GetMixFormat(isw->audio_client, (WAVEFORMATEX **)&mix_format))) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+        wave_format.Format.nSamplesPerSec = mix_format->Format.nSamplesPerSec;
+        CoTaskMemFree(mix_format);
+        mix_format = nullptr;
+        if (wave_format.Format.nSamplesPerSec != (DWORD)instream->sample_rate) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorIncompatibleDevice;
+        }
+        flags = 0;
+        share_mode = AUDCLNT_SHAREMODE_SHARED;
+        periodicity = 0;
+        buffer_duration = to_reference_time(4.0);
+    }
+    to_wave_format_layout(&instream->layout, &wave_format);
+    to_wave_format_format(instream->format, &wave_format);
+    complete_wave_format_data(&wave_format);
+
+    if (FAILED(hr = IAudioClient_Initialize(isw->audio_client, share_mode, flags,
+            buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, nullptr)))
+    {
+        if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
+            if (FAILED(hr = IAudioClient_GetBufferSize(isw->audio_client, &isw->buffer_frame_count))) {
+                instream_destroy_wasapi(si, is);
+                return SoundIoErrorOpeningDevice;
+            }
+            IUnknown_Release(isw->audio_client);
+            isw->audio_client = nullptr;
+            if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAudioClient,
+                            CLSCTX_ALL, nullptr, (void**)&isw->audio_client)))
+            {
+                instream_destroy_wasapi(si, is);
+                return SoundIoErrorOpeningDevice;
+            }
+            if (!isw->is_raw) {
+                WAVEFORMATEXTENSIBLE *mix_format;
+                if (FAILED(hr = IAudioClient_GetMixFormat(isw->audio_client, (WAVEFORMATEX **)&mix_format))) {
+                    instream_destroy_wasapi(si, is);
+                    return SoundIoErrorOpeningDevice;
+                }
+                wave_format.Format.nSamplesPerSec = mix_format->Format.nSamplesPerSec;
+                CoTaskMemFree(mix_format);
+                mix_format = nullptr;
+                flags = 0;
+                to_wave_format_layout(&instream->layout, &wave_format);
+                to_wave_format_format(instream->format, &wave_format);
+                complete_wave_format_data(&wave_format);
+            }
+
+            buffer_duration = to_reference_time(isw->buffer_frame_count / (double)instream->sample_rate);
+            if (isw->is_raw)
+                periodicity = buffer_duration;
+            if (FAILED(hr = IAudioClient_Initialize(isw->audio_client, share_mode, flags,
+                    buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, nullptr)))
+            {
+                if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT) {
+                    instream_destroy_wasapi(si, is);
+                    return SoundIoErrorIncompatibleDevice;
+                } else if (hr == E_OUTOFMEMORY) {
+                    instream_destroy_wasapi(si, is);
+                    return SoundIoErrorNoMem;
+                } else {
+                    instream_destroy_wasapi(si, is);
+                    return SoundIoErrorOpeningDevice;
+                }
+            }
+        } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorIncompatibleDevice;
+        } else if (hr == E_OUTOFMEMORY) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorNoMem;
+        } else {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+    if (FAILED(hr = IAudioClient_GetBufferSize(isw->audio_client, &isw->buffer_frame_count))) {
+        instream_destroy_wasapi(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+    if (isw->is_raw)
+        instream->software_latency = isw->buffer_frame_count / (double)instream->sample_rate;
+
+    if (isw->is_raw) {
+        isw->h_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (!isw->h_event) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+        if (FAILED(hr = IAudioClient_SetEventHandle(isw->audio_client, isw->h_event))) {
+            instream_destroy_wasapi(si, is);
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+
+    if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAudioCaptureClient,
+                    (void **)&isw->audio_capture_client)))
+    {
+        instream_destroy_wasapi(si, is);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    return 0;
 }
 
 static int instream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    HRESULT hr;
+    if (pause && !isw->is_paused) {
+        if (FAILED(hr = IAudioClient_Stop(isw->audio_client)))
+            return SoundIoErrorStreaming;
+        isw->is_paused = true;
+    } else if (!pause && isw->is_paused) {
+        if (FAILED(hr = IAudioClient_Start(isw->audio_client)))
+            return SoundIoErrorStreaming;
+        isw->is_paused = false;
+    }
+    return 0;
+}
+
+static void instream_raw_run(void *arg) {
+    soundio_panic("TODO instream_raw_run");
+}
+
+static void instream_shared_run(void *arg) {
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *) arg;
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    SoundIoInStream *instream = &is->pub;
+
+    HRESULT hr;
+
+    if (FAILED(hr = IAudioClient_Start(isw->audio_client))) {
+        instream->error_callback(instream, SoundIoErrorStreaming);
+        return;
+    }
+
+    for (;;) {
+        soundio_os_mutex_lock(isw->mutex);
+        soundio_os_cond_timed_wait(isw->cond, isw->mutex, instream->software_latency / 2.0);
+        if (!isw->thread_exit_flag.test_and_set()) {
+            soundio_os_mutex_unlock(isw->mutex);
+            return;
+        }
+        soundio_os_mutex_unlock(isw->mutex);
+
+        UINT32 frames_available;
+        if (FAILED(hr = IAudioClient_GetCurrentPadding(isw->audio_client, &frames_available))) {
+            instream->error_callback(instream, SoundIoErrorStreaming);
+            return;
+        }
+
+        isw->readable_frame_count = frames_available;
+        if (isw->readable_frame_count > 0)
+            instream->read_callback(instream, 0, isw->readable_frame_count);
+    }
 }
 
 static int instream_start_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    int err;
+
+    assert(!isw->thread);
+    isw->thread_exit_flag.test_and_set();
+
+    if (isw->is_raw) {
+        if ((err = soundio_os_thread_create(instream_raw_run, is, true, &isw->thread)))
+            return err;
+    } else {
+        if ((err = soundio_os_thread_create(instream_shared_run, is, true, &isw->thread)))
+            return err;
+    }
+
+    return 0;
 }
 
 static int instream_begin_read_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         SoundIoChannelArea **out_areas, int *frame_count)
 {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    SoundIoInStream *instream = &is->pub;
+    HRESULT hr;
+
+    if (isw->read_buf_frames_left <= 0) {
+        UINT32 frames_to_read;
+        DWORD flags;
+        if (FAILED(hr = IAudioCaptureClient_GetBuffer(isw->audio_capture_client,
+                        (BYTE**)&isw->read_buf, &frames_to_read, &flags, nullptr, nullptr)))
+        {
+            return SoundIoErrorStreaming;
+        }
+        isw->read_buf_frames_left = frames_to_read;
+        if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
+            isw->read_buf = nullptr;
+    }
+
+    isw->read_frame_count = min(*frame_count, isw->read_buf_frames_left);
+    *frame_count = isw->read_frame_count;
+
+    if (isw->read_buf) {
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            isw->areas[ch].ptr = isw->read_buf + ch * instream->bytes_per_sample;
+            isw->areas[ch].step = instream->bytes_per_frame;
+        }
+
+        *out_areas = isw->areas;
+    } else {
+        *out_areas = nullptr;
+    }
+
+    return 0;
 }
 
 static int instream_end_read_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+    HRESULT hr;
+    if (FAILED(hr = IAudioCaptureClient_ReleaseBuffer(isw->audio_capture_client, isw->read_frame_count))) {
+        return SoundIoErrorStreaming;
+    }
+    isw->read_buf_frames_left -= isw->read_frame_count;
+    return 0;
 }
 
 

@@ -63,10 +63,26 @@ struct SoundIoOutStreamWasapi {
     UINT32 buffer_frame_count;
     int write_frame_count;
     HANDLE h_event;
+    bool is_paused;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamWasapi {
+    IAudioClient *audio_client;
+    IAudioCaptureClient *audio_capture_client;
+    SoundIoOsThread *thread;
+    SoundIoOsMutex *mutex;
+    SoundIoOsCond *cond;
+    atomic_flag thread_exit_flag;
+    bool is_raw;
+    int readable_frame_count;
+    UINT32 buffer_frame_count;
+    int read_frame_count;
+    HANDLE h_event;
+    bool is_paused;
+    char *read_buf;
+    int read_buf_frames_left;
+    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

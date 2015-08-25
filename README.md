@@ -277,9 +277,11 @@ view `coverage/index.html` in a browser.
 ## Roadmap
 
  0. implement WASAPI (Windows) backend, get examples working
-    - sine wave (raw device)
-    - microphone
     - set display name of output stream
+    - move the bulk of the `outstream_open_wasapi` code to the thread and
+      have them communicate back and forth. because the thread has to do
+      weird thread-local com stuff, and all that com stuff really needs to be
+      called from the same thread.
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin
@@ -289,6 +291,8 @@ view `coverage/index.html` in a browser.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
  0. Create a test for pausing and resuming input and output streams.
+    - Should pause/resume be callable from outside the callbacks?
+    - Ensure double pausing / double resuming works fine.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
       listening the events should line up exactly with a beat or visual
@@ -299,16 +303,11 @@ view `coverage/index.html` in a browser.
  0. Create a test for input stream overflow handling.
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
- 0. Should pause/resume be callable from outside the callbacks?
- 0. clean up API and improve documentation
-    - make sure every function which can return an error documents which errors
-      it can return
  0. use a documentation generator and host the docs somewhere
  0. add len arguments to APIs that have char *
     - replace strdup with `soundio_str_dupe`
  0. Support PulseAudio proplist properties for main context and streams
  0. Expose JACK options in `jack_client_open`
- 0. custom allocator support
  0. mlock memory which is accessed in the real time path
  0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state
@@ -317,10 +316,14 @@ view `coverage/index.html` in a browser.
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
  0. Add [sndio](http://www.sndio.org/) backend to support OpenBSD.
+ 0. Custom allocator support
  0. Support for stream icon.
     - PulseAudio: XDG icon name
     - WASAPI: path to .exe, .dll, or .ico
     - CoreAudio: CFURLRef image file
+ 0. clean up API and improve documentation
+    - make sure every function which can return an error documents which errors
+      it can return
 
 ## Planned Uses for libsoundio
 
