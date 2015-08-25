@@ -82,6 +82,7 @@ struct SoundIoInStreamWasapi {
     SoundIoOsThread *thread;
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
+    SoundIoOsCond *start_cond;
     atomic_flag thread_exit_flag;
     bool is_raw;
     int readable_frame_count;
@@ -89,6 +90,9 @@ struct SoundIoInStreamWasapi {
     int read_frame_count;
     HANDLE h_event;
     bool is_paused;
+    bool open_complete;
+    int open_err;
+    bool started;
     char *read_buf;
     int read_buf_frames_left;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
