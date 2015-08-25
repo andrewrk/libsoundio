@@ -728,6 +728,8 @@ SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream
 // After you call this function, `software_latency` is set to the correct
 // value.
 // The next thing to do is call `soundio_instream_start`.
+// If this function returns an error, the outstream is in an invalid state and
+// you must call `soundio_outstream_destroy` on it.
 SOUNDIO_EXPORT int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
 // After you call this function, `write_callback` will be called.
@@ -784,6 +786,8 @@ SOUNDIO_EXPORT void soundio_instream_destroy(struct SoundIoInStream *instream);
 // After you call this function, `software_latency` is set to the correct
 // value.
 // The next thing to do is call `soundio_instream_start`.
+// If this function returns an error, the instream is in an invalid state and
+// you must call `soundio_instream_destroy` on it.
 SOUNDIO_EXPORT int soundio_instream_open(struct SoundIoInStream *instream);
 
 // After you call this function, `read_callback` will be called.
