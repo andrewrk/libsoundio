@@ -664,12 +664,15 @@ SOUNDIO_EXPORT const char *soundio_get_channel_name(enum SoundIoChannelId id);
 /// SoundIoChannelId. Returns SoundIoChannelIdInvalid for no match.
 SOUNDIO_EXPORT enum SoundIoChannelId soundio_parse_channel_id(const char *str, int str_len);
 
+/// Returns the number of builtin channel layouts.
 SOUNDIO_EXPORT int soundio_channel_layout_builtin_count(void);
+/// Returns a builtin channel layout. 0 <= `index` < ::soundio_channel_layout_builtin_count
 SOUNDIO_EXPORT const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);
 
 /// Get the default builtin channel layout for the given number of channels.
 SOUNDIO_EXPORT const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channel_count);
 
+/// Return the index of `channel` in `layout`, or `-1` if not found.
 SOUNDIO_EXPORT int soundio_channel_layout_find_channel(
         const struct SoundIoChannelLayout *layout, enum SoundIoChannelId channel);
 
@@ -693,6 +696,7 @@ SOUNDIO_EXPORT void soundio_sort_channel_layouts(struct SoundIoChannelLayout *la
 /// Returns -1 on invalid format.
 SOUNDIO_EXPORT int soundio_get_bytes_per_sample(enum SoundIoFormat format);
 
+/// A frame is one sample per channel.
 static inline int soundio_get_bytes_per_frame(enum SoundIoFormat format, int channel_count) {
     return soundio_get_bytes_per_sample(format) * channel_count;
 }
@@ -704,6 +708,7 @@ static inline int soundio_get_bytes_per_second(enum SoundIoFormat format,
     return soundio_get_bytes_per_frame(format, channel_count) * sample_rate;
 }
 
+/// Returns string representation of `format`.
 SOUNDIO_EXPORT const char * soundio_format_string(enum SoundIoFormat format);
 
 
@@ -746,9 +751,14 @@ SOUNDIO_EXPORT int soundio_default_input_device_index(struct SoundIo *soundio);
 /// ::soundio_flush_events.
 SOUNDIO_EXPORT int soundio_default_output_device_index(struct SoundIo *soundio);
 
+/// Add 1 to the reference count of `device`.
 SOUNDIO_EXPORT void soundio_device_ref(struct SoundIoDevice *device);
+/// Remove 1 to the reference count of `device`. Clean up if it was the last
+/// reference.
 SOUNDIO_EXPORT void soundio_device_unref(struct SoundIoDevice *device);
 
+/// Return `true` if and only if the devices have the same SoundIoDevice::id,
+/// SoundIoDevice::is_raw, and SoundIoDevice::aim are the same.
 SOUNDIO_EXPORT bool soundio_device_equal(
         const struct SoundIoDevice *a,
         const struct SoundIoDevice *b);
@@ -895,8 +905,12 @@ SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool
 // Ring Buffer
 struct SoundIoRingBuffer;
 /// `requested_capacity` in bytes.
+/// See also ::soundio_ring_buffer_destroy
 SOUNDIO_EXPORT struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity);
 SOUNDIO_EXPORT void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *ring_buffer);
+
+/// When you create a ring buffer, capacity might be more than the requested
+/// capacity for alignment purposes. This function returns the actual capacity.
 SOUNDIO_EXPORT int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *ring_buffer);
 
 /// don't write more than capacity

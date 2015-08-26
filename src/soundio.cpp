@@ -730,3 +730,10 @@ int soundio_device_nearest_sample_rate(struct SoundIoDevice *device, int sample_
     }
     return best_rate;
 }
+
+bool soundio_device_equal(
+        const struct SoundIoDevice *a,
+        const struct SoundIoDevice *b)
+{
+    return a->is_raw == b->is_raw && a->aim == b->aim && strcmp(a->id, b->id) == 0;
+}
