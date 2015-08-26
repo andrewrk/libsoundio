@@ -8,8 +8,6 @@ This library is an abstraction; however in the delicate balance between
 performance and power, and API convenience, the scale is tipped closer to
 the former. Features that only exist in some sound backends are exposed.
 
-[API Documentation](http://libsound.io/doc)
-
 **This project is a work-in-progress.**
 
 ## Features and Limitations
@@ -295,22 +293,13 @@ Then look at `html/index.html` in a browser.
  0. Create a test for input stream overflow handling.
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
- 0. add len arguments to APIs that have char *
-    - replace strdup with `soundio_str_dupe`
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
- 0. Consider testing on FreeBSD
- 0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
- 0. Custom allocator support
-    - default allocator mlock memory
  0. Support for stream icon.
     - PulseAudio: XDG icon name
     - WASAPI: path to .exe, .dll, or .ico
     - CoreAudio: CFURLRef image file
- 0. clean up API and improve documentation
-    - make sure every function which can return an error documents which errors
-      it can return
 
 ## Planned Uses for libsoundio
 

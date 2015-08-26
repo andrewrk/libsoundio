@@ -207,7 +207,8 @@ static int outstream_begin_write_dummy(SoundIoPrivate *si,
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
 
-    assert(*frame_count <= osd->frames_left);
+    if (*frame_count > osd->frames_left)
+        return SoundIoErrorInvalid;
 
     char *write_ptr = soundio_ring_buffer_write_ptr(&osd->ring_buffer);
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {

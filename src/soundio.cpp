@@ -245,7 +245,6 @@ void soundio_disconnect(struct SoundIo *soundio) {
     soundio->current_backend = SoundIoBackendNone;
 
     soundio_destroy_devices_info(si->safe_devices_info);
-
     si->safe_devices_info = nullptr;
 
     si->destroy = nullptr;
@@ -424,7 +423,8 @@ int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    assert(*frame_count > 0);
+    if (*frame_count <= 0)
+        return SoundIoErrorInvalid;
     return si->outstream_begin_write(si, os, areas, frame_count);
 }
 
@@ -467,6 +467,9 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
 
     if (device->probe_error)
         return device->probe_error;
+
+    if (outstream->layout.channel_count > SOUNDIO_MAX_CHANNELS)
+        return SoundIoErrorInvalid;
 
     if (outstream->format == SoundIoFormatInvalid) {
         outstream->format = soundio_device_supports_format(device, SoundIoFormatFloat32NE) ?
@@ -522,6 +525,13 @@ int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause) {
     return si->outstream_pause(si, os, pause);
 }
 
+int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream) {
+    SoundIo *soundio = outstream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
+    return si->outstream_clear_buffer(si, os);
+}
+
 static void default_instream_error_callback(struct SoundIoInStream *is, int err) {
     soundio_panic("libsoundio: %s", soundio_strerror(err));
 }
@@ -549,6 +559,9 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
         return SoundIoErrorInvalid;
 
     if (instream->format <= SoundIoFormatInvalid)
+        return SoundIoErrorInvalid;
+
+    if (instream->layout.channel_count > SOUNDIO_MAX_CHANNELS)
         return SoundIoErrorInvalid;
 
     if (device->probe_error)
