@@ -272,17 +272,11 @@ Then look at `html/index.html` in a browser.
 
 ## Roadmap
 
- 0. Make sure PulseAudio can handle refresh devices crashing before
-    block_until_have_devices
- 0. Integrate into libgroove and test with Groove Basin
- 0. clear buffer maybe could take an argument to say how many frames to not clear
- 0. Verify that JACK xrun callback context is the same as process callback.
-    If not, might need to hav xrun callback set a flag and have process callback
-    call the underflow callback.
- 0. Create a test for pausing and resuming input and output streams.
-    - Should pause/resume be callable from outside the callbacks?
-    - Ensure double pausing / double resuming works fine.
-    - test clearing the buffer
+ 0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
+ 0. Ability to "activate" a buffer-flexible outstream by jumping the gun and
+    causing `write_callback` to be called early.
+    - Use the same mechanism when destroying the outstream
+ 0. Create a test for input stream overflow handling.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
       listening the events should line up exactly with a beat or visual
@@ -290,18 +284,12 @@ Then look at `html/index.html` in a browser.
     - Play the audio file, have the user press an input right at the beat. Find
       out what the frame index it thinks the user pressed it at and make sure
       that is correct.
- 0. Create a test for input stream overflow handling.
- 0. Allow calling functions from outside the callbacks as long as they first
-    call lock and then unlock when done.
- 0. write detailed docs on buffer underflows explaining when they occur, what state
-    changes are related to them, and how to recover from them.
- 0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
- 0. Support for stream icon.
-    - PulseAudio: XDG icon name
-    - WASAPI: path to .exe, .dll, or .ico
-    - CoreAudio: CFURLRef image file
+ 0. Create a test for pausing and resuming input and output streams.
+    - Should pause/resume be callable from outside the callbacks?
+    - Ensure double pausing / double resuming works fine.
+    - test clearing the buffer
 
-## Planned Uses for libsoundio
+## Projects Using libsoundio
 
  * [Genesis](https://github.com/andrewrk/genesis)
- * [libgroove](https://github.com/andrewrk/libgroove) ([Groove Basin](https://github.com/andrewrk/groovebasin))
+ * [Groove Basin](https://github.com/andrewrk/groovebasin) (via [libgroove](https://github.com/andrewrk/libgroove))

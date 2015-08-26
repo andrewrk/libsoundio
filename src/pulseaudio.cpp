@@ -223,7 +223,9 @@ static void finish_device_query(SoundIoPrivate *si) {
     }
 
     if (sipa->device_query_err) {
-        sipa->device_scan_queued.store(true);
+        pa_threaded_mainloop_signal(sipa->main_loop, 0);
+        soundio->on_events_signal(soundio);
+        soundio->on_backend_disconnect(soundio, sipa->device_query_err);
         return;
     }
 
@@ -463,7 +465,7 @@ static void block_until_have_devices(SoundIoPrivate *si) {
     if (sipa->have_devices_flag)
         return;
     pa_threaded_mainloop_lock(sipa->main_loop);
-    while (!sipa->have_devices_flag) {
+    while (!sipa->have_devices_flag && !sipa->device_query_err) {
         pa_threaded_mainloop_wait(sipa->main_loop);
     }
     pa_threaded_mainloop_unlock(sipa->main_loop);

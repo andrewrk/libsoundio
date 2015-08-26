@@ -322,7 +322,16 @@ struct SoundIo {
     /// SoundIoErrorBackendDisconnected. This callback is only called during a
     /// call to ::soundio_flush_events or ::soundio_wait_events.
     /// If you do not supply a callback, the default will crash your program
-    /// with an error message.
+    /// with an error message. This callback is also called when the thread
+    /// that retrieves device information runs into an unrecoverable condition
+    /// such as running out of memory.
+    ///
+    /// Possible errors:
+    /// * #SoundIoErrorBackendDisconnected
+    /// * #SoundIoErrorNoMem
+    /// * #SoundIoErrorSystemResources
+    /// * #SoundIoErrorOpeningDevice - unexpected problem accessing device
+    ///   information
     void (*on_backend_disconnect)(struct SoundIo *, int err);
     /// Optional callback. Called from an unknown thread that you should not use
     /// to call any soundio functions. You may use this to signal a condition
