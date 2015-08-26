@@ -261,19 +261,20 @@ For each backend, do the following:
     back correctly. If possible use the `--in-device` and `--out-device`
     parameters to test a USB microphone in raw mode.
 
-### Building The Documentation
+### Building the Documentation
 
 Ensure that [doxygen](http://www.stack.nl/~dimitri/doxygen/) is installed,
 then:
 
 ```
-make docs
+make doc
 ```
 
 Then look at `html/index.html` in a browser.
 
 ## Roadmap
 
+ 0. test sio_sine with ALSA raw device
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin
