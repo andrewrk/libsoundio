@@ -15,7 +15,6 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include <stdio.h>
 #include <math.h>
 
 #if defined(_WIN32)
@@ -180,18 +179,10 @@ static void *run_pthread(void *userdata) {
 }
 #endif
 
-static atomic_flag rtprio_seen = ATOMIC_FLAG_INIT;
-static void emit_rtprio_warning(void) {
-    if (!rtprio_seen.test_and_set()) {
-        fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
-        fprintf(stderr, "See https://github.com/andrewrk/genesis/wiki/"
-                "warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
-    }
-}
-
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
-        bool high_priority, struct SoundIoOsThread ** out_thread)
+        void (*emit_rtprio_warning)(void),
+        struct SoundIoOsThread ** out_thread)
 {
     *out_thread = NULL;
 
@@ -210,7 +201,7 @@ int soundio_os_thread_create(
         soundio_os_thread_destroy(thread);
         return SoundIoErrorSystemResources;
     }
-    if (high_priority) {
+    if (emit_rtprio_warning) {
         if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
             emit_rtprio_warning();
         }
@@ -223,7 +214,7 @@ int soundio_os_thread_create(
     }
     thread->attr_init = true;
     
-    if (high_priority) {
+    if (emit_rtprio_warning) {
         int max_priority = sched_get_priority_max(SCHED_FIFO);
         if (max_priority == -1) {
             soundio_os_thread_destroy(thread);

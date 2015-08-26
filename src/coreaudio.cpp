@@ -1360,7 +1360,7 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
         return SoundIoErrorSystemResources;
     }
 
-    if ((err = soundio_os_thread_create(device_thread_run, si, false, &sica->thread))) {
+    if ((err = soundio_os_thread_create(device_thread_run, si, nullptr, &sica->thread))) {
         destroy_ca(si);
         return err;
     }

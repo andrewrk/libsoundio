@@ -314,11 +314,22 @@ struct SoundIo {
     /// variable to wake up. Called when ::soundio_wait_events would be woken up.
     void (*on_events_signal)(struct SoundIo *);
 
+    /// Read-only. After calling ::soundio_connect or ::soundio_connect_backend,
+    /// this field tells which backend is currently connected.
+    enum SoundIoBackend current_backend;
+
     /// Optional: Application name.
     /// PulseAudio uses this for "application name".
     /// JACK uses this for `client_name`.
     /// Must not contain a colon (":").
     const char *app_name;
+
+    /// Optional: Real time priority warning.
+    /// This callback is fired when making thread real-time priority failed. By
+    /// default, it will print to stderr only the first time it is called
+    /// a message instructing the user how to configure their system to allow
+    /// real-time priority threads.
+    void (*emit_rtprio_warning)(void);
 
     /// Optional: JACK info callback.
     /// By default, libsoundio sets this to an empty function in order to
@@ -330,10 +341,6 @@ struct SoundIo {
     /// Optional: JACK error callback.
     /// See SoundIo::jack_info_callback
     void (*jack_error_callback)(const char *msg);
-
-    /// Read-only. After calling ::soundio_connect or ::soundio_connect_backend,
-    /// this field tells which backend is currently connected.
-    enum SoundIoBackend current_backend;
 };
 
 /// The size of this struct is not part of the API or ABI.

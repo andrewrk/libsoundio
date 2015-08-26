@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 static const SoundIoBackend available_backends[] = {
 #ifdef SOUNDIO_HAVE_JACK
@@ -168,6 +169,15 @@ static void default_backend_disconnect_cb(struct SoundIo *, int err) {
     soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
 }
 
+static atomic_flag rtprio_seen = ATOMIC_FLAG_INIT;
+static void default_emit_rtprio_warning(void) {
+    if (!rtprio_seen.test_and_set()) {
+        fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
+        fprintf(stderr, "See "
+            "https://github.com/andrewrk/genesis/wiki/warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");
+    }
+}
+
 struct SoundIo *soundio_create(void) {
     int err;
     if ((err = soundio_os_init()))
@@ -180,6 +190,7 @@ struct SoundIo *soundio_create(void) {
     soundio->on_backend_disconnect = default_backend_disconnect_cb;
     soundio->on_events_signal = do_nothing_cb;
     soundio->app_name = "SoundIo";
+    soundio->emit_rtprio_warning = default_emit_rtprio_warning;
     soundio->jack_info_callback = default_msg_callback;
     soundio->jack_error_callback = default_msg_callback;
     return soundio;

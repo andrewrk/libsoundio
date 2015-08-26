@@ -1267,12 +1267,13 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
 
 static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
+    SoundIo *soundio = &si->pub;
 
     assert(!osa->thread);
 
     int err;
     osa->thread_exit_flag.test_and_set();
-    if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osa->thread)))
+    if ((err = soundio_os_thread_create(outstream_thread_run, os, soundio->emit_rtprio_warning, &osa->thread)))
         return err;
 
     return 0;
@@ -1538,12 +1539,13 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
 static int instream_start_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
+    SoundIo *soundio = &si->pub;
 
     assert(!isa->thread);
 
     isa->thread_exit_flag.test_and_set();
     int err;
-    if ((err = soundio_os_thread_create(instream_thread_run, is, true, &isa->thread))) {
+    if ((err = soundio_os_thread_create(instream_thread_run, is, soundio->emit_rtprio_warning, &isa->thread))) {
         instream_destroy_alsa(si, is);
         return err;
     }
@@ -1706,7 +1708,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
 
     wakeup_device_poll(sia);
 
-    if ((err = soundio_os_thread_create(device_thread_run, si, false, &sia->thread))) {
+    if ((err = soundio_os_thread_create(device_thread_run, si, nullptr, &sia->thread))) {
         destroy_alsa(si);
         return err;
     }

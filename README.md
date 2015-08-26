@@ -278,13 +278,13 @@ Then look at `html/index.html` in a browser.
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin
  0. clear buffer maybe could take an argument to say how many frames to not clear
- 0. create a test for clear buffer; ensure pause/play semantics work
  0. Verify that JACK xrun callback context is the same as process callback.
     If not, might need to hav xrun callback set a flag and have process callback
     call the underflow callback.
  0. Create a test for pausing and resuming input and output streams.
     - Should pause/resume be callable from outside the callbacks?
     - Ensure double pausing / double resuming works fine.
+    - test clearing the buffer
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
       listening the events should line up exactly with a beat or visual
@@ -297,17 +297,13 @@ Then look at `html/index.html` in a browser.
     call lock and then unlock when done.
  0. add len arguments to APIs that have char *
     - replace strdup with `soundio_str_dupe`
- 0. Support PulseAudio proplist properties for main context and streams
- 0. Expose JACK options in `jack_client_open`
- 0. mlock memory which is accessed in the real time path
- 0. make rtprio warning a callback and have existing behavior be the default callback
  0. write detailed docs on buffer underflows explaining when they occur, what state
     changes are related to them, and how to recover from them.
  0. Consider testing on FreeBSD
  0. In ALSA do we need to wake up the poll when destroying the in or out stream?
  0. Detect PulseAudio server going offline and emit `on_backend_disconnect`.
- 0. Add [sndio](http://www.sndio.org/) backend to support OpenBSD.
  0. Custom allocator support
+    - default allocator mlock memory
  0. Support for stream icon.
     - PulseAudio: XDG icon name
     - WASAPI: path to .exe, .dll, or .ico

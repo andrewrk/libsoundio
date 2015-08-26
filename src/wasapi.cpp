@@ -1333,6 +1333,7 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
     SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
+    SoundIo *soundio = &si->pub;
 
     // All the COM functions are supposed to be called from the same thread. libsoundio API does not
     // restrict the calling thread context in this way. Furthermore, the user might have called
@@ -1368,7 +1369,9 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
 
     osw->thread_exit_flag.test_and_set();
     int err;
-    if ((err = soundio_os_thread_create(outstream_thread_run, os, true, &osw->thread))) {
+    if ((err = soundio_os_thread_create(outstream_thread_run, os,
+                    soundio->emit_rtprio_warning, &osw->thread)))
+    {
         outstream_destroy_wasapi(si, os);
         return err;
     }
@@ -1726,6 +1729,7 @@ static int instream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoInStrea
     SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
     SoundIoInStream *instream = &is->pub;
     SoundIoDevice *device = instream->device;
+    SoundIo *soundio = &si->pub;
 
     // All the COM functions are supposed to be called from the same thread. libsoundio API does not
     // restrict the calling thread context in this way. Furthermore, the user might have called
@@ -1761,7 +1765,9 @@ static int instream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoInStrea
 
     isw->thread_exit_flag.test_and_set();
     int err;
-    if ((err = soundio_os_thread_create(instream_thread_run, is, true, &isw->thread))) {
+    if ((err = soundio_os_thread_create(instream_thread_run, is,
+                    soundio->emit_rtprio_warning, &isw->thread)))
+    {
         instream_destroy_wasapi(si, is);
         return err;
     }
@@ -1982,7 +1988,7 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
     siw->device_events.lpVtbl = &soundio_MMNotificationClient;
     siw->device_events_refs = 1;
 
-    if ((err = soundio_os_thread_create(device_thread_run, si, false, &siw->thread))) {
+    if ((err = soundio_os_thread_create(device_thread_run, si, nullptr, &siw->thread))) {
         destroy_wasapi(si);
         return err;
     }

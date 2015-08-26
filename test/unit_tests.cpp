@@ -145,10 +145,10 @@ static void test_ring_buffer_threaded(void) {
     rb_done = false;
 
     SoundIoOsThread *reader_thread;
-    ok_or_panic(soundio_os_thread_create(reader_thread_run, nullptr, false, &reader_thread));
+    ok_or_panic(soundio_os_thread_create(reader_thread_run, nullptr, nullptr, &reader_thread));
 
     SoundIoOsThread *writer_thread;
-    ok_or_panic(soundio_os_thread_create(writer_thread_run, nullptr, false, &writer_thread));
+    ok_or_panic(soundio_os_thread_create(writer_thread_run, nullptr, nullptr, &writer_thread));
 
     while (rb_read_it < 100000 || rb_write_it < 100000) {}
     rb_done = true;

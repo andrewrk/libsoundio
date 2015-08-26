@@ -21,7 +21,8 @@ double soundio_os_get_time(void);
 struct SoundIoOsThread;
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
-        bool high_priority, struct SoundIoOsThread ** out_thread);
+        void (*emit_rtprio_warning)(void),
+        struct SoundIoOsThread ** out_thread);
 
 void soundio_os_thread_destroy(struct SoundIoOsThread *thread);
 

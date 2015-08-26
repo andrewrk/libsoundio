@@ -175,6 +175,7 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
 
 static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
+    SoundIo *soundio = &si->pub;
     if (pause) {
         if (osd->thread) {
             osd->abort_flag.clear();
@@ -186,7 +187,9 @@ static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStr
         if (!osd->thread) {
             osd->abort_flag.test_and_set();
             int err;
-            if ((err = soundio_os_thread_create(playback_thread_run, os, true, &osd->thread))) {
+            if ((err = soundio_os_thread_create(playback_thread_run, os,
+                            soundio->emit_rtprio_warning, &osd->thread)))
+            {
                 return err;
             }
         }
@@ -281,6 +284,7 @@ static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
 static int instream_pause_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
     SoundIoInStreamDummy *isd = &is->backend_data.dummy;
+    SoundIo *soundio = &si->pub;
     if (pause) {
         if (isd->thread) {
             isd->abort_flag.clear();
@@ -292,7 +296,9 @@ static int instream_pause_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is, 
         if (!isd->thread) {
             isd->abort_flag.test_and_set();
             int err;
-            if ((err = soundio_os_thread_create(capture_thread_run, is, true, &isd->thread))) {
+            if ((err = soundio_os_thread_create(capture_thread_run, is,
+                            soundio->emit_rtprio_warning, &isd->thread)))
+            {
                 return err;
             }
         }
