@@ -186,9 +186,14 @@ else()
     set(SOUNDIO_OS_BIG_ENDIAN false)
     set(SOUNDIO_OS_LITTLE_ENDIAN true)
 endif()
-configure_file (
+configure_file(
     "${CMAKE_SOURCE_DIR}/src/config.h.in"
     ${CONFIGURE_OUT_FILE}
+)
+set(DOXYGEN_CONF_FILE "${CMAKE_BINARY_DIR}/doxygen.conf")
+configure_file(
+    "${CMAKE_SOURCE_DIR}/doc/doxygen.conf.in"
+    ${DOXYGEN_CONF_FILE}
 )
 
 add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
@@ -295,6 +300,11 @@ add_custom_target(coverage
     COMMAND lcov --remove coverage.info '/usr/*' --output-file coverage.info.cleaned --rc lcov_branch_coverage=1
     COMMAND genhtml -o coverage coverage.info.cleaned --rc lcov_branch_coverage=1
     COMMAND rm coverage.info coverage.info.cleaned
+)
+
+add_custom_target(doc
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMAND doxygen ${DOXYGEN_CONF_FILE}
 )
 
 

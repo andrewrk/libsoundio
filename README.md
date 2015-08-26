@@ -8,12 +8,7 @@ This library is an abstraction; however in the delicate balance between
 performance and power, and API convenience, the scale is tipped closer to
 the former. Features that only exist in some sound backends are exposed.
 
-The goal of this library is to be the only resource needed to implement top
-quality audio playback and capture on desktop and laptop systems. This
-includes detailed documentation explaining how audio works on each supported
-backend, how they are abstracted to provide the libsoundio API, and what
-assumptions you can and cannot make in order to guarantee consistent, reliable
-behavior on every platform.
+[API Documentation](http://libsound.io/doc)
 
 **This project is a work-in-progress.**
 
@@ -184,7 +179,7 @@ If you don't like this order, you can use `soundio_connect_backend` to
 explicitly choose a backend to connect to. You can use `soundio_backend_count`
 and `soundio_get_backend` to get the list of available backends.
 
-For complete API documentation, see `src/soundio.h`.
+[API Documentation](http://libsound.io/doc)
 
 ## Contributing
 
@@ -266,6 +261,17 @@ For each backend, do the following:
     back correctly. If possible use the `--in-device` and `--out-device`
     parameters to test a USB microphone in raw mode.
 
+### Building The Documentation
+
+Ensure that [doxygen](http://www.stack.nl/~dimitri/doxygen/) is installed,
+then:
+
+```
+make docs
+```
+
+Then look at `html/index.html` in a browser.
+
 ## Roadmap
 
  0. Make sure PulseAudio can handle refresh devices crashing before
@@ -289,7 +295,6 @@ For each backend, do the following:
  0. Create a test for input stream overflow handling.
  0. Allow calling functions from outside the callbacks as long as they first
     call lock and then unlock when done.
- 0. use a documentation generator and host the docs somewhere
  0. add len arguments to APIs that have char *
     - replace strdup with `soundio_str_dupe`
  0. Support PulseAudio proplist properties for main context and streams
