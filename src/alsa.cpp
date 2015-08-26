@@ -970,6 +970,17 @@ void outstream_thread_run(void *arg) {
             }
             case SND_PCM_STATE_PREPARED:
             {
+                snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
+                if (avail < 0) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+
+                if ((snd_pcm_uframes_t)avail == osa->buffer_size_frames) {
+                    outstream->write_callback(outstream, 0, avail);
+                    continue;
+                }
+
                 if ((err = snd_pcm_start(osa->handle)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
@@ -1155,6 +1166,13 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
+    osa->buffer_size_frames = ceil(outstream->software_latency * (double)outstream->sample_rate);
+
+    if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &osa->buffer_size_frames)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+    outstream->software_latency = ((double)osa->buffer_size_frames) / (double)outstream->sample_rate;
 
     if (device->is_raw) {
         unsigned int microseconds;
@@ -1171,17 +1189,6 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
             return SoundIoErrorOpeningDevice;
         }
     }
-
-
-    snd_pcm_uframes_t buffer_size_frames = ceil(outstream->software_latency * (double)outstream->sample_rate);
-
-    if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &buffer_size_frames)) < 0) {
-        outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
-    }
-    outstream->software_latency = ((double)buffer_size_frames) / (double)outstream->sample_rate;
-
-
 
     snd_pcm_uframes_t period_size;
     if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, nullptr)) < 0) {

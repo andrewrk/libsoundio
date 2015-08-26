@@ -274,7 +274,6 @@ Then look at `html/index.html` in a browser.
 
 ## Roadmap
 
- 0. test sio_sine with ALSA raw device
  0. Make sure PulseAudio can handle refresh devices crashing before
     block_until_have_devices
  0. Integrate into libgroove and test with Groove Basin

@@ -42,6 +42,7 @@ struct SoundIoOutStreamAlsa {
     int chmap_size;
     snd_pcm_uframes_t offset;
     snd_pcm_access_t access;
+    snd_pcm_uframes_t buffer_size_frames;
     int sample_buffer_size;
     char *sample_buffer;
     int poll_fd_count;

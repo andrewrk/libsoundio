@@ -188,6 +188,11 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Output device: %s\n", device->name);
 
+    if (device->probe_error) {
+        fprintf(stderr, "Cannot probe device: %s\n", soundio_strerror(device->probe_error));
+        return 1;
+    }
+
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
