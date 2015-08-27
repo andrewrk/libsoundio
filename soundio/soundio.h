@@ -55,6 +55,10 @@
  * Supports specifying device and backend to use.
  */
 
+/** \example backend_disconnect_recover.c
+ * Demonstrates recovering from a backend disconnecting.
+ */
+
 /// See also ::soundio_strerror
 enum SoundIoError {
     SoundIoErrorNone,

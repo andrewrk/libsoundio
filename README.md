@@ -258,6 +258,8 @@ For each backend, do the following:
  0. Run `./sio_microphone` and ensure that it is both recording and playing
     back correctly. If possible use the `--in-device` and `--out-device`
     parameters to test a USB microphone in raw mode.
+ 0. Run `./backend_disconnect_recover` and read the testing instructions that
+    it prints.
 
 ### Building the Documentation
 
@@ -275,7 +277,6 @@ Then look at `html/index.html` in a browser.
  0. Ability to "activate" a buffer-flexible outstream by jumping the gun and
     causing `write_callback` to be called early.
     - Use the same mechanism when destroying the outstream
- 0. Create a test for recovering from backend disconnecting that reconnects
  0. Create a test for input stream overflow handling.
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when

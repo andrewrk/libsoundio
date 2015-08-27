@@ -171,7 +171,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Werror -pedantic")
 
 
 set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -Wno-c99-extensions")
-set(EXAMPLE_CFLAGS "-std=c99 -Wall")
+set(EXAMPLE_CFLAGS "-std=c11 -Wall")
 set(EXAMPLE_INCLUDES "${CMAKE_SOURCE_DIR}/src")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
 set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
@@ -288,6 +288,14 @@ set_target_properties(underflow PROPERTIES
 include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(underflow libsoundio_shared)
 add_test(Underflow underflow)
+
+add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
+set_target_properties(backend_disconnect_recover PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+include_directories(${EXAMPLE_INCLUDES})
+target_link_libraries(backend_disconnect_recover libsoundio_shared)
+add_test(backend_disconnect_recover backend_disconnect_recover)
 
 
 
