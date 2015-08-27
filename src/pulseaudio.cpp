@@ -36,6 +36,7 @@ static int subscribe_to_events(SoundIoPrivate *si) {
 static void context_state_callback(pa_context *context, void *userdata) {
     SoundIoPrivate *si = (SoundIoPrivate *)userdata;
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    SoundIo *soundio = &si->pub;
 
     switch (pa_context_get_state(context)) {
     case PA_CONTEXT_UNCONNECTED: // The context hasn't been connected yet.
@@ -55,7 +56,9 @@ static void context_state_callback(pa_context *context, void *userdata) {
         return;
     case PA_CONTEXT_FAILED: // The connection failed or was disconnected.
         sipa->connection_err = SoundIoErrorInitAudioBackend;
-        sipa->ready_flag = true;
+        if (sipa->ready_flag.exchange(true)) {
+            soundio->on_backend_disconnect(soundio, SoundIoErrorBackendDisconnected);
+        }
         pa_threaded_mainloop_signal(sipa->main_loop, 0);
         return;
     }
