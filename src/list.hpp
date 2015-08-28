@@ -83,6 +83,17 @@ struct SoundIoList {
         return 0;
     }
 
+    T swap_remove(int index) {
+        assert(index >= 0);
+        assert(index < length);
+        T last = pop();
+        if (index == length)
+            return last;
+        T item = items[index];
+        items[index] = last;
+        return item;
+    }
+
     T * items;
     int length;
     int capacity;

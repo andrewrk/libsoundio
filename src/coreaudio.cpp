@@ -754,7 +754,6 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     soundio_os_mutex_lock(sica->mutex);
     soundio_destroy_devices_info(sica->ready_devices_info);
     sica->ready_devices_info = rd.devices_info;
-    soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sica->mutex);
 
     rd.devices_info = nullptr;
@@ -769,21 +768,20 @@ static void shutdown_backend(SoundIoPrivate *si, int err) {
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     soundio_os_mutex_lock(sica->mutex);
     sica->shutdown_err = err;
-    soundio->on_events_signal(soundio);
+    sica->have_devices_flag.store(true);
     soundio_os_mutex_unlock(sica->mutex);
-}
-
-static void block_until_have_devices(SoundIoCoreAudio *sica) {
-    if (sica->have_devices_flag.load())
-        return;
-    while (!sica->have_devices_flag.load())
-        soundio_os_cond_wait(sica->have_devices_cond, nullptr);
+    soundio_os_cond_signal(sica->cond, nullptr);
+    soundio_os_cond_signal(sica->have_devices_cond, nullptr);
+    soundio->on_events_signal(soundio);
 }
 
 static void flush_events_ca(struct SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
-    block_until_have_devices(sica);
+
+    // block until have devices
+    while (!sica->have_devices_flag.load())
+        soundio_os_cond_wait(sica->have_devices_cond, nullptr);
 
     bool change = false;
     bool cb_shutdown = false;
@@ -837,15 +835,14 @@ static void device_thread_run(void *arg) {
         }
         if (sica->device_scan_queued.exchange(false)) {
             err = refresh_devices(si);
-            if (err)
+            if (err) {
                 shutdown_backend(si, err);
-            if (!sica->have_devices_flag.exchange(true)) {
-                soundio_os_cond_signal(sica->have_devices_cond, nullptr);
-                soundio->on_events_signal(soundio);
-            }
-            if (err)
                 return;
+            }
+            if (!sica->have_devices_flag.exchange(true))
+                soundio_os_cond_signal(sica->have_devices_cond, nullptr);
             soundio_os_cond_signal(sica->cond, nullptr);
+            soundio->on_events_signal(soundio);
         }
         soundio_os_cond_wait(sica->scan_devices_cond, nullptr);
     }
@@ -1053,10 +1050,9 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
 static OSStatus on_instream_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
     const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
 {
-    //SoundIoInStreamPrivate *os = (SoundIoInStreamPrivate *)in_client_data;
-    //SoundIoInStream *instream = &os->pub;
-    fprintf(stderr, "TODO overflow\n");
-    //instream->underflow_callback(instream);
+    SoundIoInStreamPrivate *os = (SoundIoInStreamPrivate *)in_client_data;
+    SoundIoInStream *instream = &os->pub;
+    instream->overflow_callback(instream);
     return noErr;
 }
 

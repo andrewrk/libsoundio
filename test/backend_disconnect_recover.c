@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdatomic.h>
 #include <unistd.h>
 
 __attribute__ ((cold))
@@ -28,18 +27,20 @@ static void panic(const char *format, ...) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n", exe);
+    fprintf(stderr, "Usage: %s [options]\n"
+            "Options:\n"
+            "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
+            "  [--timeout seconds]\n", exe);
     return 1;
 }
 
 static enum SoundIoBackend backend = SoundIoBackendNone;
 
-static atomic_bool severed = ATOMIC_VAR_INIT(false);
+static bool severed = false;
 
 static void on_backend_disconnect(struct SoundIo *soundio, int err) {
     fprintf(stderr, "OK backend disconnected with '%s'.\n", soundio_strerror(err));
-    atomic_store(&severed, true);
-    soundio_wakeup(soundio);
+    severed = true;
 }
 
 int main(int argc, char **argv) {
@@ -93,7 +94,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "OK connected to %s. Now cause the backend to disconnect.\n",
             soundio_backend_name(soundio->current_backend));
 
-    while (!atomic_load(&severed))
+    while (!severed)
         soundio_wait_events(soundio);
 
     soundio_disconnect(soundio);

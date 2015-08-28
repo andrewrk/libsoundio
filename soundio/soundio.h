@@ -505,13 +505,22 @@ struct SoundIoOutStream {
     /// you will call ::soundio_outstream_clear_buffer when you want to reduce
     /// the latency to 0. On systems that do not support clearing the buffer,
     /// this defaults to a reasonable lower latency value.
+    ///
+    /// On backends with high latencies (such as 2 seconds), `frame_count_min`
+    /// will be 0, meaning you don't have to fill the entire buffer. In this
+    /// case, the large buffer is there if you want it; you only have to fill
+    /// as much as you want. On backends like JACK, `frame_count_min` will be
+    /// equal to `frame_count_max` and if you don't fill that many frames, you
+    /// will get glitches.
+    ///
     /// If the device has unknown software latency min and max values, you may
     /// still set this, but you might not get the value you requested.
     /// For PulseAudio, if you set this value to non-default, it sets
     /// `PA_STREAM_ADJUST_LATENCY` and is the value used for `maxlength` and
     /// `tlength`.
+    ///
     /// For JACK, this value is always equal to
-    /// SoundIoDevice::software_latency_current` of the device.
+    /// SoundIoDevice::software_latency_current of the device.
     double software_latency;
 
     /// Defaults to NULL. Put whatever you want here.
@@ -589,8 +598,8 @@ struct SoundIoInStream {
     /// still set this, but you might not get the value you requested.
     /// For PulseAudio, if you set this value to non-default, it sets
     /// `PA_STREAM_ADJUST_LATENCY` and is the value used for `fragsize`.
-    /// For JACK, this value is always equal to `software_latency_current` of
-    /// the device.
+    /// For JACK, this value is always equal to
+    /// SoundIoDevice::software_latency_current
     double software_latency;
 
     /// Defaults to NULL. Put whatever you want here.
@@ -602,6 +611,11 @@ struct SoundIoInStream {
     /// `frame_count_min`, the frames will be dropped. `frame_count_max` is how
     /// many frames are available to read.
     void (*read_callback)(struct SoundIoInStream *, int frame_count_min, int frame_count_max);
+    /// This optional callback happens when the sound device buffer is full,
+    /// yet there is more captured audio to put in it.
+    /// This is never fired for PulseAudio.
+    /// This is called from the SoundIoInStream::read_callback thread context.
+    void (*overflow_callback)(struct SoundIoInStream *);
     /// Optional callback. `err` is always SoundIoErrorStreaming.
     /// SoundIoErrorStreaming is an unrecoverable error. The stream is in an
     /// invalid state and must be destroyed.
@@ -680,9 +694,15 @@ SOUNDIO_EXPORT enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, 
 /// Returns whether libsoundio was compiled with backend.
 SOUNDIO_EXPORT bool soundio_have_backend(enum SoundIoBackend backend);
 
+/// Atomically update information for all connected devices. Note that calling
+/// this function merely flips a pointer; the actual work of collecting device
+/// information is done elsewhere. It is performant to call this function many
+/// times per second.
+///
 /// When you call this, the SoundIo::on_devices_change and
 /// SoundIo::on_events_signal callbacks
 /// might be called. This is the only time those callbacks will be called.
+///
 /// This must be called from the same thread as the thread in which you call
 /// these functions:
 /// * ::soundio_input_device_count
@@ -691,6 +711,10 @@ SOUNDIO_EXPORT bool soundio_have_backend(enum SoundIoBackend backend);
 /// * ::soundio_get_output_device
 /// * ::soundio_default_input_device_index
 /// * ::soundio_default_output_device_index
+///
+/// Note that if you do not care about learning about updated devices, you
+/// might call this function only once ever and never call
+/// ::soundio_wait_events.
 SOUNDIO_EXPORT void soundio_flush_events(struct SoundIo *soundio);
 
 /// This function calls ::soundio_flush_events then blocks until another event
@@ -719,6 +743,9 @@ SOUNDIO_EXPORT enum SoundIoChannelId soundio_parse_channel_id(const char *str, i
 /// Returns the number of builtin channel layouts.
 SOUNDIO_EXPORT int soundio_channel_layout_builtin_count(void);
 /// Returns a builtin channel layout. 0 <= `index` < ::soundio_channel_layout_builtin_count
+///
+/// Although `index` is of type `int`, it should be a valid
+/// #SoundIoChannelLayoutId enum value.
 SOUNDIO_EXPORT const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index);
 
 /// Get the default builtin channel layout for the given number of channels.
@@ -1044,8 +1071,10 @@ SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool
 // Ring Buffer
 struct SoundIoRingBuffer;
 /// `requested_capacity` in bytes.
-/// See also ::soundio_ring_buffer_destroy
 /// Returns `NULL` if and only if memory could not be allocated.
+/// Use ::soundio_ring_buffer_capacity to get the actual capacity, which might
+/// be greater for alignment purposes.
+/// See also ::soundio_ring_buffer_destroy
 SOUNDIO_EXPORT struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity);
 SOUNDIO_EXPORT void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *ring_buffer);
 

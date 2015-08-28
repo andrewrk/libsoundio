@@ -18,10 +18,12 @@ int soundio_pulseaudio_init(struct SoundIoPrivate *si);
 struct SoundIoDevicePulseAudio { };
 
 struct SoundIoPulseAudio {
+    int device_query_err;
     int connection_err;
+    bool emitted_shutdown_cb;
 
     pa_context *pulse_context;
-    atomic_bool device_scan_queued;
+    bool device_scan_queued;
 
     // the one that we're working on building
     struct SoundIoDevicesInfo *current_devices_info;
@@ -31,13 +33,7 @@ struct SoundIoPulseAudio {
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
 
-    int device_query_err;
-    bool have_sink_list;
-    bool have_source_list;
-    bool have_default_sink;
-
-    atomic_bool ready_flag;
-    atomic_bool have_devices_flag;
+    bool ready_flag;
 
     pa_threaded_mainloop *main_loop;
     pa_proplist *props;

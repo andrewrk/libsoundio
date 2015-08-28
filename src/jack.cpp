@@ -291,7 +291,7 @@ static int refresh_devices(SoundIoPrivate *si) {
     return err;
 }
 
-static void flush_events_jack(struct SoundIoPrivate *si) {
+static void my_flush_events(struct SoundIoPrivate *si, bool wait) {
     SoundIo *soundio = &si->pub;
     SoundIoJack *sij = &si->backend_data.jack;
     int err;
@@ -299,6 +299,9 @@ static void flush_events_jack(struct SoundIoPrivate *si) {
     bool cb_shutdown = false;
 
     soundio_os_mutex_lock(sij->mutex);
+
+    if (wait)
+        soundio_os_cond_wait(sij->cond, sij->mutex);
 
     if (sij->is_shutdown && !sij->emitted_shutdown_cb) {
         sij->emitted_shutdown_cb = true;
@@ -320,12 +323,13 @@ static void flush_events_jack(struct SoundIoPrivate *si) {
     }
 }
 
+static void flush_events_jack(struct SoundIoPrivate *si) {
+    my_flush_events(si, false);
+}
+
 static void wait_events_jack(struct SoundIoPrivate *si) {
-    SoundIoJack *sij = &si->backend_data.jack;
-    flush_events_jack(si);
-    soundio_os_mutex_lock(sij->mutex);
-    soundio_os_cond_wait(sij->cond, sij->mutex);
-    soundio_os_mutex_unlock(sij->mutex);
+    my_flush_events(si, false);
+    my_flush_events(si, true);
 }
 
 static void wakeup_jack(struct SoundIoPrivate *si) {
@@ -559,9 +563,9 @@ static void instream_destroy_jack(struct SoundIoPrivate *si, struct SoundIoInStr
 }
 
 static int instream_xrun_callback(void *arg) {
-//    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)arg;
-//    SoundIoInStream *instream = &is->pub;
-//  TODO do something with this overflow
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)arg;
+    SoundIoInStream *instream = &is->pub;
+    instream->overflow_callback(instream);
     return 0;
 }
 
@@ -794,6 +798,7 @@ static void shutdown_callback(void *arg) {
     SoundIoJack *sij = &si->backend_data.jack;
     soundio_os_mutex_lock(sij->mutex);
     sij->is_shutdown = true;
+    soundio_os_cond_signal(sij->cond, sij->mutex);
     soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sij->mutex);
 }

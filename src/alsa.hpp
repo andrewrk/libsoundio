@@ -11,12 +11,18 @@
 #include "soundio_private.h"
 #include "os.h"
 #include "atomics.hpp"
+#include "list.hpp"
 
 #include <alsa/asoundlib.h>
 
 int soundio_alsa_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceAlsa { };
+
+#define SOUNDIO_MAX_ALSA_SND_FILE_LEN 16
+struct SoundIoAlsaPendingFile {
+    char name[SOUNDIO_MAX_ALSA_SND_FILE_LEN];
+};
 
 struct SoundIoAlsa {
     SoundIoOsMutex *mutex;
@@ -26,8 +32,9 @@ struct SoundIoAlsa {
     atomic_flag abort_flag;
     int notify_fd;
     int notify_wd;
-    atomic_bool have_devices_flag;
+    bool have_devices_flag;
     int notify_pipe_fd[2];
+    SoundIoList<SoundIoAlsaPendingFile> pending_files;
 
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;

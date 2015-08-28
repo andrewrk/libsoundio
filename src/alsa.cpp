@@ -42,6 +42,8 @@ static void destroy_alsa(SoundIoPrivate *si) {
         soundio_os_thread_destroy(sia->thread);
     }
 
+    sia->pending_files.deinit();
+
     if (sia->cond)
         soundio_os_cond_destroy(sia->cond);
 
@@ -450,6 +452,12 @@ static int refresh_devices(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoAlsa *sia = &si->backend_data.alsa;
 
+    int err;
+    if ((err = snd_config_update_free_global()) < 0)
+        return SoundIoErrorSystemResources;
+    if ((err = snd_config_update()) < 0)
+        return SoundIoErrorSystemResources;
+
     SoundIoDevicesInfo *devices_info = allocate<SoundIoDevicesInfo>(1);
     if (!devices_info)
         return SoundIoErrorNoMem;
@@ -685,7 +693,7 @@ static int refresh_devices(SoundIoPrivate *si) {
     soundio_os_mutex_lock(sia->mutex);
     soundio_destroy_devices_info(sia->ready_devices_info);
     sia->ready_devices_info = devices_info;
-    sia->have_devices_flag.store(true);
+    sia->have_devices_flag = true;
     soundio_os_cond_signal(sia->cond, sia->mutex);
     soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sia->mutex);
@@ -697,13 +705,28 @@ static void shutdown_backend(SoundIoPrivate *si, int err) {
     SoundIoAlsa *sia = &si->backend_data.alsa;
     soundio_os_mutex_lock(sia->mutex);
     sia->shutdown_err = err;
+    soundio_os_cond_signal(sia->cond, sia->mutex);
     soundio->on_events_signal(soundio);
     soundio_os_mutex_unlock(sia->mutex);
 }
 
+static bool copy_str(char *dest, const char *src, int buf_len) {
+    for (;;) {
+        buf_len -= 1;
+        if (buf_len <= 0)
+            return false;
+        *dest = *src;
+        dest += 1;
+        src += 1;
+        if (!*src)
+            break;
+    }
+    *dest = '\0';
+    return true;
+}
+
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
-    SoundIo *soundio = &si->pub;
     SoundIoAlsa *sia = &si->backend_data.alsa;
 
     // Some systems cannot read integer variables if they are not
@@ -749,6 +772,12 @@ static void device_thread_run(void *arg) {
                     assert(errno != EINVAL);
                     assert(errno != EIO);
                     assert(errno != EISDIR);
+                    if (errno == EBADF || errno == EFAULT || errno == EINVAL ||
+                        errno == EIO || errno == EISDIR)
+                    {
+                        shutdown_backend(si, SoundIoErrorSystemResources);
+                        return;
+                    }
                 }
 
                 // catches EINTR and EAGAIN
@@ -759,7 +788,7 @@ static void device_thread_run(void *arg) {
                 for (char *ptr = buf; ptr < buf + len; ptr += sizeof(struct inotify_event) + event->len) {
                     event = (const struct inotify_event *) ptr;
 
-                    if (!((event->mask & IN_CREATE) || (event->mask & IN_DELETE)))
+                    if (!((event->mask & IN_CLOSE_WRITE) || (event->mask & IN_DELETE) || (event->mask & IN_CREATE)))
                         continue;
                     if (event->mask & IN_ISDIR)
                         continue;
@@ -771,8 +800,37 @@ static void device_thread_run(void *arg) {
                     {
                         continue;
                     }
-                    got_rescan_event = true;
-                    break;
+                    if (event->mask & IN_CREATE) {
+                        if ((err = sia->pending_files.add_one())) {
+                            shutdown_backend(si, SoundIoErrorNoMem);
+                            return;
+                        }
+                        SoundIoAlsaPendingFile *pending_file = &sia->pending_files.last();
+                        if (!copy_str(pending_file->name, event->name, SOUNDIO_MAX_ALSA_SND_FILE_LEN)) {
+                            sia->pending_files.pop();
+                        }
+                        continue;
+                    }
+                    if (sia->pending_files.length > 0) {
+                        // At this point ignore IN_DELETE in favor of waiting until the files
+                        // opened with IN_CREATE have their IN_CLOSE_WRITE event.
+                        if (!(event->mask & IN_CLOSE_WRITE))
+                            continue;
+                        for (int i = 0; i < sia->pending_files.length; i += 1) {
+                            SoundIoAlsaPendingFile *pending_file = &sia->pending_files.at(i);
+                            if (strcmp(pending_file->name, event->name) == 0) {
+                                sia->pending_files.swap_remove(i);
+                                if (sia->pending_files.length == 0) {
+                                    got_rescan_event = true;
+                                }
+                                break;
+                            }
+                        }
+                    } else if (event->mask & IN_DELETE) {
+                        // We are not waiting on created files to be closed, so when
+                        // a delete happens we act on it.
+                        got_rescan_event = true;
+                    }
                 }
             }
         }
@@ -786,46 +844,41 @@ static void device_thread_run(void *arg) {
                     assert(errno != EINVAL);
                     assert(errno != EIO);
                     assert(errno != EISDIR);
+                    if (errno == EBADF || errno == EFAULT || errno == EINVAL ||
+                        errno == EIO || errno == EISDIR)
+                    {
+                        shutdown_backend(si, SoundIoErrorSystemResources);
+                        return;
+                    }
                 }
                 if (len <= 0)
                     break;
             }
         }
         if (got_rescan_event) {
-            err = refresh_devices(si);
-            if (err)
+            if ((err = refresh_devices(si))) {
                 shutdown_backend(si, err);
-            if (!sia->have_devices_flag.exchange(true)) {
-                soundio_os_mutex_lock(sia->mutex);
-                soundio_os_cond_signal(sia->cond, sia->mutex);
-                soundio->on_events_signal(soundio);
-                soundio_os_mutex_unlock(sia->mutex);
-            }
-            if (err)
                 return;
+            }
         }
     }
 }
 
-static void block_until_have_devices(SoundIoAlsa *sia) {
-    if (sia->have_devices_flag.load())
-        return;
-    soundio_os_mutex_lock(sia->mutex);
-    while (!sia->have_devices_flag.load())
-        soundio_os_cond_wait(sia->cond, sia->mutex);
-    soundio_os_mutex_unlock(sia->mutex);
-}
-
-static void flush_events(SoundIoPrivate *si) {
+static void my_flush_events(SoundIoPrivate *si, bool wait) {
     SoundIo *soundio = &si->pub;
     SoundIoAlsa *sia = &si->backend_data.alsa;
-    block_until_have_devices(sia);
 
     bool change = false;
     bool cb_shutdown = false;
     SoundIoDevicesInfo *old_devices_info = nullptr;
 
     soundio_os_mutex_lock(sia->mutex);
+
+    // block until have devices
+    while (wait || (!sia->have_devices_flag && !sia->shutdown_err)) {
+        soundio_os_cond_wait(sia->cond, sia->mutex);
+        wait = false;
+    }
 
     if (sia->shutdown_err && !sia->emitted_shutdown_cb) {
         sia->emitted_shutdown_cb = true;
@@ -847,15 +900,16 @@ static void flush_events(SoundIoPrivate *si) {
     soundio_destroy_devices_info(old_devices_info);
 }
 
-static void wait_events(SoundIoPrivate *si) {
-    SoundIoAlsa *sia = &si->backend_data.alsa;
-    flush_events(si);
-    soundio_os_mutex_lock(sia->mutex);
-    soundio_os_cond_wait(sia->cond, sia->mutex);
-    soundio_os_mutex_unlock(sia->mutex);
+static void flush_events_alsa(SoundIoPrivate *si) {
+    my_flush_events(si, false);
 }
 
-static void wakeup(SoundIoPrivate *si) {
+static void wait_events_alsa(SoundIoPrivate *si) {
+    my_flush_events(si, false);
+    my_flush_events(si, true);
+}
+
+static void wakeup_alsa(SoundIoPrivate *si) {
     SoundIoAlsa *sia = &si->backend_data.alsa;
     soundio_os_mutex_lock(sia->mutex);
     soundio_os_cond_signal(sia->cond, sia->mutex);
@@ -899,10 +953,12 @@ static int os_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
 }
 
 static int instream_xrun_recovery(SoundIoInStreamPrivate *is, int err) {
+    SoundIoInStream *instream = &is->pub;
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
-    // TODO do something with this overflow
     if (err == -EPIPE) {
         err = snd_pcm_prepare(isa->handle);
+        if (err >= 0)
+            instream->overflow_callback(instream);
     } else if (err == -ESTRPIPE) {
         while ((err = snd_pcm_resume(isa->handle)) == -EAGAIN) {
             // wait until suspend flag is released
@@ -910,6 +966,8 @@ static int instream_xrun_recovery(SoundIoInStreamPrivate *is, int err) {
         }
         if (err < 0)
             err = snd_pcm_prepare(isa->handle);
+        if (err >= 0)
+            instream->overflow_callback(instream);
     }
     return err;
 }
@@ -1651,7 +1709,6 @@ int soundio_alsa_init(SoundIoPrivate *si) {
 
     sia->notify_fd = -1;
     sia->notify_wd = -1;
-    sia->have_devices_flag.store(false);
     sia->abort_flag.test_and_set();
 
     sia->mutex = soundio_os_mutex_create();
@@ -1681,7 +1738,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
         }
     }
 
-    sia->notify_wd = inotify_add_watch(sia->notify_fd, "/dev/snd", IN_CREATE | IN_DELETE);
+    sia->notify_wd = inotify_add_watch(sia->notify_fd, "/dev/snd", IN_CREATE | IN_CLOSE_WRITE | IN_DELETE);
     if (sia->notify_wd == -1) {
         err = errno;
         assert(err != EACCES);
@@ -1714,9 +1771,9 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     }
 
     si->destroy = destroy_alsa;
-    si->flush_events = flush_events;
-    si->wait_events = wait_events;
-    si->wakeup = wakeup;
+    si->flush_events = flush_events_alsa;
+    si->wait_events = wait_events_alsa;
+    si->wakeup = wakeup_alsa;
 
     si->outstream_open = outstream_open_alsa;
     si->outstream_destroy = outstream_destroy_alsa;

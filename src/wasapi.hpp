@@ -40,7 +40,7 @@ struct SoundIoWasapi {
     atomic_flag abort_flag;
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
-    atomic_bool have_devices_flag;
+    bool have_devices_flag;
     atomic_bool device_scan_queued;
     int shutdown_err;
     bool emitted_shutdown_cb;

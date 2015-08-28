@@ -88,7 +88,7 @@ static void capture_thread_run(void *arg) {
         frames_consumed += write_count;
 
         if (frames_to_kill > free_frames) {
-            // TODO overflow callback
+            instream->overflow_callback(instream);
             frames_consumed = 0;
             start_time = soundio_os_get_time();
         }
@@ -109,7 +109,7 @@ static void destroy_dummy(SoundIoPrivate *si) {
         soundio_os_mutex_destroy(sid->mutex);
 }
 
-static void flush_events(SoundIoPrivate *si) {
+static void flush_events_dummy(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoDummy *sid = &si->backend_data.dummy;
     if (sid->devices_emitted)
@@ -118,13 +118,13 @@ static void flush_events(SoundIoPrivate *si) {
     soundio->on_devices_change(soundio);
 }
 
-static void wait_events(SoundIoPrivate *si) {
+static void wait_events_dummy(SoundIoPrivate *si) {
     SoundIoDummy *sid = &si->backend_data.dummy;
-    flush_events(si);
+    flush_events_dummy(si);
     soundio_os_cond_wait(sid->cond, nullptr);
 }
 
-static void wakeup(SoundIoPrivate *si) {
+static void wakeup_dummy(SoundIoPrivate *si) {
     SoundIoDummy *sid = &si->backend_data.dummy;
     soundio_os_cond_signal(sid->cond, nullptr);
 }
@@ -505,9 +505,9 @@ int soundio_dummy_init(SoundIoPrivate *si) {
 
 
     si->destroy = destroy_dummy;
-    si->flush_events = flush_events;
-    si->wait_events = wait_events;
-    si->wakeup = wakeup;
+    si->flush_events = flush_events_dummy;
+    si->wait_events = wait_events_dummy;
+    si->wakeup = wakeup_dummy;
 
     si->outstream_open = outstream_open_dummy;
     si->outstream_destroy = outstream_destroy_dummy;
