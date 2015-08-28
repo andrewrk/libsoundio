@@ -151,7 +151,8 @@ int main(int argc, char **argv) {
             "Records for 3 seconds, sleeps for 3 seconds, then you should see at least\n"
             "one buffer overflow message, then records for 3 seconds.\n"
             "PulseAudio is not expected to pass this test.\n"
-            "CoreAudio is not expected to pass this test.\n");
+            "CoreAudio is not expected to pass this test.\n"
+            "WASAPI is not expected to pass this test.\n");
 
     if (!(soundio = soundio_create()))
         panic("out of memory");
