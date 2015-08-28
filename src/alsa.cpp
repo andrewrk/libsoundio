@@ -934,7 +934,7 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     free(osa->sample_buffer);
 }
 
-static int os_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
+static int outstream_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     if (err == -EPIPE) {
@@ -974,37 +974,43 @@ static int instream_xrun_recovery(SoundIoInStreamPrivate *is, int err) {
     return err;
 }
 
-static int wait_for_poll(SoundIoOutStreamAlsa *osa) {
+static int outstream_wait_for_poll(SoundIoOutStreamPrivate *os) {
+    SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     int err;
     unsigned short revents;
     for (;;) {
-        if ((err = poll(osa->poll_fds, osa->poll_fd_count, -1)) < 0)
+        if ((err = poll(osa->poll_fds, osa->poll_fd_count, -1)) < 0) {
             return err;
+        }
         if ((err = snd_pcm_poll_descriptors_revents(osa->handle,
                         osa->poll_fds, osa->poll_fd_count, &revents)) < 0)
         {
             return err;
         }
-        if (revents & POLLERR)
-            return -EIO;
+        if (revents & (POLLERR|POLLNVAL|POLLHUP)) {
+            return 0;
+        }
         if (revents & POLLOUT)
             return 0;
     }
 }
 
-static int instream_wait_for_poll(SoundIoInStreamAlsa *isa) {
+static int instream_wait_for_poll(SoundIoInStreamPrivate *is) {
+    SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
     int err;
     unsigned short revents;
     for (;;) {
-        if ((err = poll(isa->poll_fds, isa->poll_fd_count, -1)) < 0)
+        if ((err = poll(isa->poll_fds, isa->poll_fd_count, -1)) < 0) {
             return err;
+        }
         if ((err = snd_pcm_poll_descriptors_revents(isa->handle,
                         isa->poll_fds, isa->poll_fd_count, &revents)) < 0)
         {
             return err;
         }
-        if (revents & POLLERR)
-            return -EIO;
+        if (revents & (POLLERR|POLLNVAL|POLLHUP)) {
+            return 0;
+        }
         if (revents & POLLIN)
             return 0;
     }
@@ -1049,7 +1055,7 @@ void outstream_thread_run(void *arg) {
             }
             case SND_PCM_STATE_RUNNING:
             {
-                if ((err = wait_for_poll(osa)) < 0) {
+                if ((err = outstream_wait_for_poll(os)) < 0) {
                     if (!osa->thread_exit_flag.test_and_set())
                         return;
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1060,7 +1066,7 @@ void outstream_thread_run(void *arg) {
 
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
                 if (avail < 0) {
-                    if ((err = os_xrun_recovery(os, avail)) < 0) {
+                    if ((err = outstream_xrun_recovery(os, avail)) < 0) {
                         outstream->error_callback(outstream, SoundIoErrorStreaming);
                         return;
                     }
@@ -1071,13 +1077,13 @@ void outstream_thread_run(void *arg) {
                 continue;
             }
             case SND_PCM_STATE_XRUN:
-                if ((err = os_xrun_recovery(os, -EPIPE)) < 0) {
+                if ((err = outstream_xrun_recovery(os, -EPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
                 continue;
             case SND_PCM_STATE_SUSPENDED:
-                if ((err = os_xrun_recovery(os, -ESTRPIPE)) < 0) {
+                if ((err = outstream_xrun_recovery(os, -ESTRPIPE)) < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
                 }
@@ -1116,7 +1122,7 @@ static void instream_thread_run(void *arg) {
                 continue;
             case SND_PCM_STATE_RUNNING:
             {
-                if ((err = instream_wait_for_poll(isa)) < 0) {
+                if ((err = instream_wait_for_poll(is)) < 0) {
                     if (!isa->thread_exit_flag.test_and_set())
                         return;
                     instream->error_callback(instream, SoundIoErrorStreaming);
@@ -1126,6 +1132,7 @@ static void instream_thread_run(void *arg) {
                     return;
 
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(isa->handle);
+
                 if (avail < 0) {
                     if ((err = instream_xrun_recovery(is, avail)) < 0) {
                         instream->error_callback(instream, SoundIoErrorStreaming);
@@ -1134,7 +1141,8 @@ static void instream_thread_run(void *arg) {
                     continue;
                 }
 
-                instream->read_callback(instream, 0, avail);
+                if (avail > 0)
+                    instream->read_callback(instream, 0, avail);
                 continue;
             }
             case SND_PCM_STATE_XRUN:
@@ -1235,8 +1243,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     outstream->software_latency = ((double)osa->buffer_size_frames) / (double)outstream->sample_rate;
 
     if (device->is_raw) {
-        unsigned int microseconds;
-        if ((err = snd_pcm_hw_params_set_period_time_first(osa->handle, hwparams, &microseconds, nullptr)) < 0) {
+        unsigned int microseconds = 0.25 * outstream->software_latency * 1000000.0;
+        if ((err = snd_pcm_hw_params_set_period_time_near(osa->handle, hwparams, &microseconds, nullptr)) < 0) {
             outstream_destroy_alsa(si, os);
             return SoundIoErrorOpeningDevice;
         }
@@ -1518,12 +1526,13 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorOpeningDevice;
     }
 
-    snd_pcm_uframes_t period_frames = ceil(instream->software_latency * (double)instream->sample_rate);
+    snd_pcm_uframes_t period_frames = ceil(0.5 * instream->software_latency * (double)instream->sample_rate);
     if ((err = snd_pcm_hw_params_set_period_size_near(isa->handle, hwparams, &period_frames, nullptr)) < 0) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;
     }
     instream->software_latency = ((double)period_frames) / (double)instream->sample_rate;
+    isa->period_size = period_frames;
 
 
     snd_pcm_uframes_t buffer_size_frames;
@@ -1531,13 +1540,6 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;
     }
-
-    snd_pcm_uframes_t period_size;
-    if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, nullptr)) < 0) {
-        instream_destroy_alsa(si, is);
-        return SoundIoErrorOpeningDevice;
-    }
-    isa->period_size = period_size;
 
     // write the hardware parameters to device
     if ((err = snd_pcm_hw_params(isa->handle, hwparams)) < 0) {

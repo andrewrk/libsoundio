@@ -274,7 +274,6 @@ Then look at `html/index.html` in a browser.
 
 ## Roadmap
 
- 0. `sio_microphone` with ALSA backend in raw mode quickly causes unrecoverable streaming failure
  0. Create a test for the latency / synchronization API.
     - Input is an audio file and some events indexed at particular frame - when
       listening the events should line up exactly with a beat or visual

@@ -541,6 +541,8 @@ static void default_instream_error_callback(struct SoundIoInStream *is, int err)
     soundio_panic("libsoundio: %s", soundio_strerror(err));
 }
 
+static void default_overflow_callback(struct SoundIoInStream *instream) { }
+
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     SoundIoInStreamPrivate *is = allocate<SoundIoInStreamPrivate>(1);
     SoundIoInStream *instream = &is->pub;
@@ -554,6 +556,7 @@ struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     soundio_device_ref(device);
 
     instream->error_callback = default_instream_error_callback;
+    instream->overflow_callback = default_overflow_callback;
 
     return instream;
 }
