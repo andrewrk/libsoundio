@@ -100,9 +100,9 @@ enum SoundIoError {
 
 /// Specifies where a channel is physically located.
 enum SoundIoChannelId {
-    // These channel ids are more commonly supported.
     SoundIoChannelIdInvalid,
-    SoundIoChannelIdFrontLeft,
+
+    SoundIoChannelIdFrontLeft, ///< First of the more commonly supported ids.
     SoundIoChannelIdFrontRight,
     SoundIoChannelIdFrontCenter,
     SoundIoChannelIdLfe,
@@ -119,10 +119,9 @@ enum SoundIoChannelId {
     SoundIoChannelIdTopFrontRight,
     SoundIoChannelIdTopBackLeft,
     SoundIoChannelIdTopBackCenter,
-    SoundIoChannelIdTopBackRight,
+    SoundIoChannelIdTopBackRight, ///< Last of the more commonly supported ids.
 
-    // These channel ids are less commonly supported.
-    SoundIoChannelIdBackLeftCenter,
+    SoundIoChannelIdBackLeftCenter, ///< First of the less commonly supported ids.
     SoundIoChannelIdBackRightCenter,
     SoundIoChannelIdFrontLeftWide,
     SoundIoChannelIdFrontRightWide,
@@ -140,29 +139,28 @@ enum SoundIoChannelId {
     SoundIoChannelIdBottomLeftCenter,
     SoundIoChannelIdBottomRightCenter,
 
-    // Mid/side recording
+    /// Mid/side recording
     SoundIoChannelIdMsMid,
     SoundIoChannelIdMsSide,
 
-    // first order ambisonic channels
+    /// first order ambisonic channels
     SoundIoChannelIdAmbisonicW,
     SoundIoChannelIdAmbisonicX,
     SoundIoChannelIdAmbisonicY,
     SoundIoChannelIdAmbisonicZ,
 
-    // X-Y Recording
+    /// X-Y Recording
     SoundIoChannelIdXyX,
     SoundIoChannelIdXyY,
 
-    // Other
-    SoundIoChannelIdHeadphonesLeft,
+    SoundIoChannelIdHeadphonesLeft, ///< First of the "other" channel ids
     SoundIoChannelIdHeadphonesRight,
     SoundIoChannelIdClickTrack,
     SoundIoChannelIdForeignLanguage,
     SoundIoChannelIdHearingImpaired,
     SoundIoChannelIdNarration,
     SoundIoChannelIdHaptic,
-    SoundIoChannelIdDialogCentricMix,
+    SoundIoChannelIdDialogCentricMix, ///< Last of the "other" channel ids
 
     SoundIoChannelIdAux,
     SoundIoChannelIdAux0,
@@ -732,7 +730,7 @@ SOUNDIO_EXPORT void soundio_wakeup(struct SoundIo *soundio);
 
 /// If necessary you can manually trigger a device rescan. Normally you will
 /// not ever have to call this function, as libsoundio listens to system events
-/// for device changes and responds to them by rescanning devices and preparing 
+/// for device changes and responds to them by rescanning devices and preparing
 /// the new device information for you to be atomically replaced when you call
 /// ::soundio_flush_events. However you might run into cases where you want to
 /// force trigger a device rescan, for example if an ALSA device has a
