@@ -491,9 +491,21 @@ static void wait_events_pa(SoundIoPrivate *si) {
     my_flush_events(si, true);
 }
 
-static void wakeup(SoundIoPrivate *si) {
+static void wakeup_pa(SoundIoPrivate *si) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    pa_threaded_mainloop_lock(sipa->main_loop);
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
+    pa_threaded_mainloop_unlock(sipa->main_loop);
+}
+
+static void force_device_scan_pa(SoundIoPrivate *si) {
+    SoundIo *soundio = &si->pub;
+    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    pa_threaded_mainloop_lock(sipa->main_loop);
+    sipa->device_scan_queued = true;
+    pa_threaded_mainloop_signal(sipa->main_loop, 0);
+    soundio->on_events_signal(soundio);
+    pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
 static pa_sample_format_t to_pulseaudio_format(SoundIoFormat format) {
@@ -1062,7 +1074,8 @@ int soundio_pulseaudio_init(SoundIoPrivate *si) {
     si->destroy = destroy_pa;
     si->flush_events = flush_events_pa;
     si->wait_events = wait_events_pa;
-    si->wakeup = wakeup;
+    si->wakeup = wakeup_pa;
+    si->force_device_scan = force_device_scan_pa;
 
     si->outstream_open = outstream_open_pa;
     si->outstream_destroy = outstream_destroy_pa;

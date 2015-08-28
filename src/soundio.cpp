@@ -417,6 +417,11 @@ void soundio_wakeup(struct SoundIo *soundio) {
     si->wakeup(si);
 }
 
+void soundio_force_device_scan(struct SoundIo *soundio) {
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    si->force_device_scan(si);
+}
+
 int soundio_outstream_begin_write(struct SoundIoOutStream *outstream,
         SoundIoChannelArea **areas, int *frame_count)
 {

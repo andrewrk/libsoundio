@@ -1017,6 +1017,12 @@ static void wakeup_wasapi(struct SoundIoPrivate *si) {
     soundio_os_cond_signal(siw->cond, siw->mutex);
 }
 
+static void force_device_scan_wasapi(struct SoundIoPrivate *si) {
+    SoundIoWasapi *siw = &si->backend_data.wasapi;
+    siw->device_scan_queued.store(true);
+    soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
+}
+
 static void outstream_thread_deinit(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
@@ -1903,11 +1909,7 @@ static STDMETHODIMP_(ULONG) soundio_MMNotificationClient_Release(IMMNotification
 
 static HRESULT queue_device_scan(IMMNotificationClient *client) {
     SoundIoPrivate *si = soundio_MMNotificationClient_si(client);
-    SoundIoWasapi *siw = &si->backend_data.wasapi;
-
-    siw->device_scan_queued.store(true);
-    soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
-
+    force_device_scan_wasapi(si);
     return S_OK;
 }
 
@@ -1986,6 +1988,7 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
     si->flush_events = flush_events_wasapi;
     si->wait_events = wait_events_wasapi;
     si->wakeup = wakeup_wasapi;
+    si->force_device_scan = force_device_scan_wasapi;
 
     si->outstream_open = outstream_open_wasapi;
     si->outstream_destroy = outstream_destroy_wasapi;

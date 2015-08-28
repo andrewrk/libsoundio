@@ -14,7 +14,11 @@
 // list or keep a watch on audio devices
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--watch] [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n", exe);
+    fprintf(stderr, "Usage: %s [options]\n"
+            "Options:\n"
+            "  [--watch]\n"
+            "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
+            "  [--short]\n", exe);
     return 1;
 }
 
@@ -29,10 +33,14 @@ static void print_channel_layout(const struct SoundIoChannelLayout *layout) {
     }
 }
 
+static bool short_output = false;
+
 static void print_device(struct SoundIoDevice *device, bool is_default) {
     const char *default_str = is_default ? " (default)" : "";
     const char *raw_str = device->is_raw ? " (raw)" : "";
     fprintf(stderr, "%s%s%s\n", device->name, default_str, raw_str);
+    if (short_output)
+        return;
     fprintf(stderr, "  id: %s\n", device->id);
 
     if (device->probe_error) {
@@ -114,6 +122,8 @@ int main(int argc, char **argv) {
         char *arg = argv[i];
         if (strcmp("--watch", arg) == 0) {
             watch = true;
+        } else if (strcmp("--short", arg) == 0) {
+            short_output = true;
         } else if (arg[0] == '-' && arg[1] == '-') {
             i += 1;
             if (i >= argc) {

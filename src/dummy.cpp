@@ -129,6 +129,10 @@ static void wakeup_dummy(SoundIoPrivate *si) {
     soundio_os_cond_signal(sid->cond, nullptr);
 }
 
+static void force_device_scan_dummy(SoundIoPrivate *si) {
+    // nothing to do; dummy devices never change
+}
+
 static void outstream_destroy_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
 
@@ -508,6 +512,7 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->flush_events = flush_events_dummy;
     si->wait_events = wait_events_dummy;
     si->wakeup = wakeup_dummy;
+    si->force_device_scan = force_device_scan_dummy;
 
     si->outstream_open = outstream_open_dummy;
     si->outstream_destroy = outstream_destroy_dummy;

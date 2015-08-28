@@ -820,6 +820,12 @@ static void wakeup_ca(struct SoundIoPrivate *si) {
     soundio_os_cond_signal(sica->cond, nullptr);
 }
 
+static void force_device_scan_ca(struct SoundIoPrivate *si) {
+    SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
+    sica->device_scan_queued.store(true);
+    soundio_os_cond_signal(sica->scan_devices_cond, nullptr);
+}
+
 static void device_thread_run(void *arg) {
     SoundIoPrivate *si = (SoundIoPrivate *)arg;
     SoundIo *soundio = &si->pub;
@@ -1365,6 +1371,7 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
     si->flush_events = flush_events_ca;
     si->wait_events = wait_events_ca;
     si->wakeup = wakeup_ca;
+    si->force_device_scan = force_device_scan_ca;
 
     si->outstream_open = outstream_open_ca;
     si->outstream_destroy = outstream_destroy_ca;

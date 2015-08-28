@@ -913,6 +913,11 @@ static void wakeup_alsa(SoundIoPrivate *si) {
     soundio_os_mutex_unlock(sia->mutex);
 }
 
+static void force_device_scan_alsa(SoundIoPrivate *si) {
+    SoundIoAlsa *sia = &si->backend_data.alsa;
+    wakeup_device_poll(sia);
+}
+
 static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
 
@@ -1771,6 +1776,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->flush_events = flush_events_alsa;
     si->wait_events = wait_events_alsa;
     si->wakeup = wakeup_alsa;
+    si->force_device_scan = force_device_scan_alsa;
 
     si->outstream_open = outstream_open_alsa;
     si->outstream_destroy = outstream_destroy_alsa;

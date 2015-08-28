@@ -137,6 +137,7 @@ struct SoundIoPrivate {
     void (*flush_events)(struct SoundIoPrivate *);
     void (*wait_events)(struct SoundIoPrivate *);
     void (*wakeup)(struct SoundIoPrivate *);
+    void (*force_device_scan)(struct SoundIoPrivate *);
 
     int (*outstream_open)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     void (*outstream_destroy)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);

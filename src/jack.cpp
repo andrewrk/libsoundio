@@ -339,6 +339,16 @@ static void wakeup_jack(struct SoundIoPrivate *si) {
     soundio_os_mutex_unlock(sij->mutex);
 }
 
+static void force_device_scan_jack(struct SoundIoPrivate *si) {
+    SoundIo *soundio = &si->pub;
+    SoundIoJack *sij = &si->backend_data.jack;
+    sij->refresh_devices_flag.clear();
+    soundio_os_mutex_lock(sij->mutex);
+    soundio_os_cond_signal(sij->cond, sij->mutex);
+    soundio->on_events_signal(soundio);
+    soundio_os_mutex_unlock(sij->mutex);
+}
+
 static int outstream_process_callback(jack_nframes_t nframes, void *arg) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)arg;
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
@@ -892,6 +902,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     si->flush_events = flush_events_jack;
     si->wait_events = wait_events_jack;
     si->wakeup = wakeup_jack;
+    si->force_device_scan = force_device_scan_jack;
 
     si->outstream_open = outstream_open_jack;
     si->outstream_destroy = outstream_destroy_jack;

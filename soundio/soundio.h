@@ -725,6 +725,22 @@ SOUNDIO_EXPORT void soundio_wait_events(struct SoundIo *soundio);
 SOUNDIO_EXPORT void soundio_wakeup(struct SoundIo *soundio);
 
 
+/// If necessary you can manually trigger a device rescan. Normally you will
+/// not ever have to call this function, as libsoundio listens to system events
+/// for device changes and responds to them by rescanning devices and preparing 
+/// the new device information for you to be atomically replaced when you call
+/// ::soundio_flush_events. However you might run into cases where you want to
+/// force trigger a device rescan, for example if an ALSA device has a
+/// SoundIoDevice::probe_error.
+///
+/// After you call this you still have to use ::soundio_flush_events or
+/// ::soundio_wait_events and then wait for the
+/// SoundIo::on_devices_change callback.
+///
+/// This can be called from any thread context except for
+/// SoundIoOutStream::write_callback and SoundIoInStream::read_callback
+SOUNDIO_EXPORT void soundio_force_device_scan(struct SoundIo *soundio);
+
 
 // Channel Layouts
 
