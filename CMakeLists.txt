@@ -259,6 +259,14 @@ include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_microphone libsoundio_shared)
 install(TARGETS sio_microphone DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+add_executable(sio_record example/sio_record.c)
+set_target_properties(sio_record PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+include_directories(${EXAMPLE_INCLUDES})
+target_link_libraries(sio_record libsoundio_shared)
+install(TARGETS sio_record DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 
 
 add_executable(unit_tests ${TEST_SOURCES})

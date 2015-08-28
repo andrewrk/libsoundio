@@ -50,6 +50,11 @@
  * Supports specifying device and backend to use.
  */
 
+/** \example sio_record.c
+ * Record audio to an output file.
+ * Supports specifying device and backend to use.
+ */
+
 /** \example sio_microphone.c
  * Stream the default input device over the default output device.
  * Supports specifying device and backend to use.
