@@ -794,10 +794,7 @@ static void device_thread_run(void *arg) {
                         continue;
                     if (!event->len || event->len < 8)
                         continue;
-                    if (event->name[0] != 'p' ||
-                        event->name[1] != 'c' ||
-                        event->name[2] != 'm')
-                    {
+                    if (strncmp(event->name, "controlC", 8) != 0) {
                         continue;
                     }
                     if (event->mask & IN_CREATE) {
