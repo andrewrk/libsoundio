@@ -272,20 +272,6 @@ make doc
 
 Then look at `html/index.html` in a browser.
 
-## Roadmap
-
- 0. Create a test for the latency / synchronization API.
-    - Input is an audio file and some events indexed at particular frame - when
-      listening the events should line up exactly with a beat or visual
-      indicator, even when the latency is large.
-    - Play the audio file, have the user press an input right at the beat. Find
-      out what the frame index it thinks the user pressed it at and make sure
-      that is correct.
- 0. Create a test for pausing and resuming input and output streams.
-    - Should pause/resume be callable from outside the callbacks?
-    - Ensure double pausing / double resuming works fine.
-    - test clearing the buffer
-
 ## Projects Using libsoundio
 
  * [Genesis](https://github.com/andrewrk/genesis)
