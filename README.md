@@ -252,8 +252,11 @@ For each backend, do the following:
  0. Run `./sio_list_devices --watch` and make sure it detects when you plug and
     unplug a USB microphone.
  0. Run `./sio_sine` and make sure you hear a sine wave. For backends with raw
-    devices, run `./sio_sine --device id` (where 'id' is a device id you got
-    from `sio_list_devices` and make sure you hear a sine wave.
+    devices, run `./sio_sine --device id --raw` (where 'id' is a device id you
+    got from `sio_list_devices` and make sure you hear a sine wave.
+    - Use 'p' to test pausing, 'u' to test unpausing, 'q' to test cleanup.
+    - 'c' for clear buffer. Clear buffer should not pause the stream and it
+      should also not cause an underflow.
  0. Run `./underflow` and read the testing instructions that it prints.
  0. Run `./sio_microphone` and ensure that it is both recording and playing
     back correctly. If possible use the `--in-device` and `--out-device`

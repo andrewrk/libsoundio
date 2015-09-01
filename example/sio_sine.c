@@ -241,6 +241,8 @@ int main(int argc, char **argv) {
         } else if (c == 'c') {
             fprintf(stderr, "clear buffer result: %s\n",
                     soundio_strerror(soundio_outstream_clear_buffer(outstream)));
+        } else if (c == 'q') {
+            break;
         } else if (c == '\r' || c == '\n') {
             // ignore
         } else {

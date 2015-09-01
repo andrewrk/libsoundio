@@ -1064,6 +1064,23 @@ void outstream_thread_run(void *arg) {
                 }
                 if (!osa->thread_exit_flag.test_and_set())
                     return;
+                if (!osa->clear_buffer_flag.test_and_set()) {
+                    if ((err = snd_pcm_drop(osa->handle)) < 0) {
+                        outstream->error_callback(outstream, SoundIoErrorStreaming);
+                        return;
+                    }
+                    if ((err = snd_pcm_reset(osa->handle)) < 0) {
+                        if (err == -EBADFD) {
+                            // If this happens the snd_pcm_drop will have done
+                            // the function of the reset so it's ok that this
+                            // did not work.
+                        } else {
+                            outstream->error_callback(outstream, SoundIoErrorStreaming);
+                            return;
+                        }
+                    }
+                    continue;
+                }
 
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
                 if (avail < 0) {
@@ -1171,6 +1188,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
+
+    osa->clear_buffer_flag.test_and_set();
 
     if (outstream->software_latency == 0.0)
         outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
@@ -1429,9 +1448,7 @@ static int outstream_clear_buffer_alsa(SoundIoPrivate *si,
         SoundIoOutStreamPrivate *os)
 {
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
-    int err;
-    if ((err = snd_pcm_reset(osa->handle)) < 0)
-        return SoundIoErrorStreaming;
+    osa->clear_buffer_flag.clear();
     return 0;
 }
 
@@ -1443,7 +1460,6 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
 
     int err;
     if ((err = snd_pcm_pause(osa->handle, pause)) < 0) {
-        fprintf(stderr, "alsa pause result: %s\n", snd_strerror(err));
         return SoundIoErrorIncompatibleDevice;
     }
 
