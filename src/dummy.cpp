@@ -32,10 +32,20 @@ static void playback_thread_run(void *arg) {
             ceil(time_passed / osd->period_duration) * osd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(osd->cond, nullptr, relative_time);
+        if (!osd->clear_buffer_flag.test_and_set()) {
+            soundio_ring_buffer_clear(&osd->ring_buffer);
+            int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer);
+            int free_frames = free_bytes / outstream->bytes_per_frame;
+            osd->frames_left = free_frames;
+            outstream->write_callback(outstream, 0, free_frames);
+            frames_consumed = 0;
+            start_time = soundio_os_get_time();
+            continue;
+        }
 
         int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
-        int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
         int fill_frames = fill_bytes / outstream->bytes_per_frame;
+        int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
         int free_frames = free_bytes / outstream->bytes_per_frame;
 
         double total_time = soundio_os_get_time() - start_time;
@@ -153,6 +163,8 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
 
+    osd->clear_buffer_flag.test_and_set();
+
     if (outstream->software_latency == 0.0)
         outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
 
@@ -236,7 +248,8 @@ static int outstream_end_write_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate
 
 static int outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
-    soundio_ring_buffer_clear(&osd->ring_buffer);
+    osd->clear_buffer_flag.clear();
+    soundio_os_cond_signal(osd->cond, nullptr);
     return 0;
 }
 
