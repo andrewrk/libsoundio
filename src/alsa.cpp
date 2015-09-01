@@ -1054,6 +1054,7 @@ void outstream_thread_run(void *arg) {
                 continue;
             }
             case SND_PCM_STATE_RUNNING:
+            case SND_PCM_STATE_PAUSED:
             {
                 if ((err = outstream_wait_for_poll(os)) < 0) {
                     if (!osa->thread_exit_flag.test_and_set())
@@ -1090,7 +1091,6 @@ void outstream_thread_run(void *arg) {
                 continue;
             case SND_PCM_STATE_OPEN:
             case SND_PCM_STATE_DRAINING:
-            case SND_PCM_STATE_PAUSED:
             case SND_PCM_STATE_DISCONNECTED:
                 outstream->error_callback(outstream, SoundIoErrorStreaming);
                 return;
@@ -1437,9 +1437,17 @@ static int outstream_clear_buffer_alsa(SoundIoPrivate *si,
 
 static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
+
+    if (osa->is_paused == pause)
+        return 0;
+
     int err;
-    if ((err = snd_pcm_pause(osa->handle, pause)) < 0)
+    if ((err = snd_pcm_pause(osa->handle, pause)) < 0) {
+        fprintf(stderr, "alsa pause result: %s\n", snd_strerror(err));
         return SoundIoErrorIncompatibleDevice;
+    }
+
+    osa->is_paused = pause;
     return 0;
 }
 
@@ -1701,9 +1709,15 @@ static int instream_end_read_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
 
 static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
+
+    if (isa->is_paused == pause)
+        return 0;
+
     int err;
     if ((err = snd_pcm_pause(isa->handle, pause)) < 0)
         return SoundIoErrorIncompatibleDevice;
+
+    isa->is_paused = pause;
     return 0;
 }
 

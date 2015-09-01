@@ -561,7 +561,7 @@ static int outstream_end_write_jack(struct SoundIoPrivate *si, struct SoundIoOut
 }
 
 static int outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    return 0;
+    return SoundIoErrorIncompatibleBackend;
 }
 
 

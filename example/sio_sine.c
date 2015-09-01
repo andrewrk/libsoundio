@@ -229,8 +229,24 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    for (;;)
-        soundio_wait_events(soundio);
+    for (;;) {
+        soundio_flush_events(soundio);
+        int c = getc(stdin);
+        if (c == 'p') {
+            fprintf(stderr, "pausing result: %s\n",
+                    soundio_strerror(soundio_outstream_pause(outstream, true)));
+        } else if (c == 'u') {
+            fprintf(stderr, "unpausing result: %s\n",
+                    soundio_strerror(soundio_outstream_pause(outstream, false)));
+        } else if (c == 'c') {
+            fprintf(stderr, "clear buffer result: %s\n",
+                    soundio_strerror(soundio_outstream_clear_buffer(outstream)));
+        } else if (c == '\r' || c == '\n') {
+            // ignore
+        } else {
+            fprintf(stderr, "Unrecognized command: %c\n", c);
+        }
+    }
 
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);

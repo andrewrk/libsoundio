@@ -972,23 +972,30 @@ SOUNDIO_EXPORT int soundio_outstream_begin_write(struct SoundIoOutStream *outstr
 SOUNDIO_EXPORT int soundio_outstream_end_write(struct SoundIoOutStream *outstream);
 
 /// Clears the output stream buffer.
-/// You must call this function only from the SoundIoOutStream::write_callback thread context.
+/// This function can be called from any thread.
+/// Some backends do not support clearing the buffer. On these backends this
+/// function will return SoundIoErrorIncompatibleBackend.
 /// Possible errors:
 ///
 /// * #SoundIoErrorStreaming
+/// * #SoundIoErrorIncompatibleBackend
 SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
-/// If the underyling device supports pausing, this pauses the stream and
-/// prevents SoundIoOutStream::write_callback from being called. Otherwise this returns
-/// #SoundIoErrorIncompatibleDevice.
-/// You must call this function only from the SoundIoOutStream::write_callback thread context.
+/// If the underlying device supports pausing, this pauses the stream.
+/// SoundIoOutStream::write_callback may be called a few more times if the
+/// buffer is not full.
+/// Pausing might put the hardware into a low power state which is ideal if your
+/// software is silent for some time.
+/// This function may be called any thread.
 /// Pausing when already paused or unpausing when already unpaused has no
 /// effect and always returns SoundIoErrorNone.
 ///
 /// Possible errors:
 /// * #SoundIoErrorBackendDisconnected
 /// * #SoundIoErrorStreaming
-/// * #SoundIoErrorIncompatibleDevice - device does not support pausing/unpausing
+/// * #SoundIoErrorIncompatibleDevice - device does not support
+///   pausing/unpausing. This error code might not be returned even if the
+///   device does not support pausing/unpausing.
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
 

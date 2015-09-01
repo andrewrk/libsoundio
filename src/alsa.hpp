@@ -58,6 +58,7 @@ struct SoundIoOutStreamAlsa {
     atomic_flag thread_exit_flag;
     int period_size;
     int write_frame_count;
+    bool is_paused;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -75,6 +76,7 @@ struct SoundIoInStreamAlsa {
     atomic_flag thread_exit_flag;
     int period_size;
     int read_frame_count;
+    bool is_paused;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 

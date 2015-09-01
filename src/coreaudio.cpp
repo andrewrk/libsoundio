@@ -1049,7 +1049,7 @@ static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutSt
 }
 
 static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    return 0;
+    return SoundIoErrorIncompatibleBackend;
 }
 
 
