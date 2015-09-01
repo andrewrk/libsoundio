@@ -1246,6 +1246,38 @@ void outstream_shared_run(SoundIoOutStreamPrivate *os) {
             return;
         }
         soundio_os_mutex_unlock(osw->mutex);
+        bool reset_buffer = false;
+        if (!osw->clear_buffer_flag.test_and_set()) {
+            if (!osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = true;
+            }
+            if (FAILED(hr = IAudioClient_Reset(osw->audio_client))) {
+                outstream->error_callback(outstream, SoundIoErrorStreaming);
+                return;
+            }
+            osw->pause_resume_flag.clear();
+            reset_buffer = true;
+        }
+        if (!osw->pause_resume_flag.test_and_set()) {
+            bool pause = osw->desired_pause_state.load();
+            if (pause && !osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = true;
+            } else if (!pause && osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = false;
+            }
+        }
 
         if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &frames_used))) {
             outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1253,7 +1285,7 @@ void outstream_shared_run(SoundIoOutStreamPrivate *os) {
         }
         osw->writable_frame_count = osw->buffer_frame_count - frames_used;
         if (osw->writable_frame_count > 0) {
-            if (frames_used == 0)
+            if (frames_used == 0 && !reset_buffer)
                 outstream->underflow_callback(outstream);
             outstream->write_callback(outstream, 0, osw->writable_frame_count);
         }
@@ -1277,6 +1309,22 @@ void outstream_raw_run(SoundIoOutStreamPrivate *os) {
         WaitForSingleObject(osw->h_event, INFINITE);
         if (!osw->thread_exit_flag.test_and_set())
             return;
+        if (!osw->pause_resume_flag.test_and_set()) {
+            bool pause = osw->desired_pause_state.load();
+            if (pause && !osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = true;
+            } else if (!pause && osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = false;
+            }
+        }
 
         outstream->write_callback(outstream, osw->buffer_frame_count, osw->buffer_frame_count);
     }
@@ -1330,6 +1378,10 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
     SoundIoOutStream *outstream = &os->pub;
     SoundIoDevice *device = outstream->device;
     SoundIo *soundio = &si->pub;
+
+    osw->pause_resume_flag.test_and_set();
+    osw->clear_buffer_flag.test_and_set();
+    osw->desired_pause_state.store(false);
 
     // All the COM functions are supposed to be called from the same thread. libsoundio API does not
     // restrict the calling thread context in this way. Furthermore, the user might have called
@@ -1385,19 +1437,19 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
     return 0;
 }
 
-
 static int outstream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
-    HRESULT hr;
-    if (pause && !osw->is_paused) {
-        if (FAILED(hr = IAudioClient_Stop(osw->audio_client)))
-            return SoundIoErrorStreaming;
-        osw->is_paused = true;
-    } else if (!pause && osw->is_paused) {
-        if (FAILED(hr = IAudioClient_Start(osw->audio_client)))
-            return SoundIoErrorStreaming;
-        osw->is_paused = false;
+
+    osw->desired_pause_state.store(pause);
+    osw->pause_resume_flag.clear();
+    if (osw->h_event) {
+        SetEvent(osw->h_event);
+    } else {
+        soundio_os_mutex_lock(osw->mutex);
+        soundio_os_cond_signal(osw->cond, osw->mutex);
+        soundio_os_mutex_unlock(osw->mutex);
     }
+
     return 0;
 }
 
@@ -1450,9 +1502,15 @@ static int outstream_end_write_wasapi(struct SoundIoPrivate *si, struct SoundIoO
 
 static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
-    HRESULT hr;
-    if (FAILED(hr = IAudioClient_Reset(osw->audio_client)))
-        return SoundIoErrorStreaming;
+
+    if (osw->h_event) {
+        return SoundIoErrorIncompatibleDevice;
+    } else {
+        osw->clear_buffer_flag.clear();
+        soundio_os_mutex_lock(osw->mutex);
+        soundio_os_cond_signal(osw->cond, osw->mutex);
+        soundio_os_mutex_unlock(osw->mutex);
+    }
 
     return 0;
 }

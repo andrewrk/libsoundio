@@ -973,12 +973,17 @@ SOUNDIO_EXPORT int soundio_outstream_end_write(struct SoundIoOutStream *outstrea
 
 /// Clears the output stream buffer.
 /// This function can be called from any thread.
+/// This function can be called regardless of whether the outstream is paused
+/// or not.
 /// Some backends do not support clearing the buffer. On these backends this
 /// function will return SoundIoErrorIncompatibleBackend.
+/// Some devices do not support clearing the buffer. On these devices this
+/// function might return SoundIoErrorIncompatibleDevice.
 /// Possible errors:
 ///
 /// * #SoundIoErrorStreaming
 /// * #SoundIoErrorIncompatibleBackend
+/// * #SoundIoErrorIncompatibleDevice
 SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
 /// If the underlying device supports pausing, this pauses the stream.

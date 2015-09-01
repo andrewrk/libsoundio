@@ -67,6 +67,9 @@ struct SoundIoOutStreamWasapi {
     UINT32 buffer_frame_count;
     int write_frame_count;
     HANDLE h_event;
+    atomic_bool desired_pause_state;
+    atomic_flag pause_resume_flag;
+    atomic_flag clear_buffer_flag;
     bool is_paused;
     bool open_complete;
     int open_err;

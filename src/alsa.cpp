@@ -1138,6 +1138,7 @@ static void instream_thread_run(void *arg) {
                 }
                 continue;
             case SND_PCM_STATE_RUNNING:
+            case SND_PCM_STATE_PAUSED:
             {
                 if ((err = instream_wait_for_poll(is)) < 0) {
                     if (!isa->thread_exit_flag.test_and_set())
@@ -1176,7 +1177,6 @@ static void instream_thread_run(void *arg) {
                 continue;
             case SND_PCM_STATE_OPEN:
             case SND_PCM_STATE_DRAINING:
-            case SND_PCM_STATE_PAUSED:
             case SND_PCM_STATE_DISCONNECTED:
                 instream->error_callback(instream, SoundIoErrorStreaming);
                 return;

@@ -186,6 +186,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    fprintf(stderr,
+            "'p\\n' - pause\n"
+            "'u\\n' - unpause\n"
+            "'c\\n' - clear buffer\n"
+            "'q\\n' - quit\n");
     fprintf(stderr, "Output device: %s\n", device->name);
 
     if (device->probe_error) {
