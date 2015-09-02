@@ -216,6 +216,7 @@ int main(int argc, char **argv) {
         soundio_panic("unable to start device: %s", soundio_strerror(err));
 
     bool beep_on = true;
+    int count = 0;
     for (;;) {
         int fill_count = soundio_ring_buffer_fill_count(&pulse_rb);
         if (fill_count >= (int)sizeof(double)) {
@@ -225,11 +226,14 @@ int main(int argc, char **argv) {
                 // Burn the CPU while we wait for our precisely timed event.
             }
             if (beep_on) {
-                fprintf(stderr, "BEEP!\r");
+                fprintf(stderr, "BEEP %d start\n", count);
             } else {
-                fprintf(stderr, "     \r");
+                fprintf(stderr, "BEEP %d end\n", count++);
             }
             fflush(stderr);
+            double off_by = soundio_os_get_time() - audible_time;
+            if (off_by > 0.0001)
+                fprintf(stderr, "off by %f\n", off_by);
             beep_on = !beep_on;
             soundio_ring_buffer_advance_read_ptr(&pulse_rb, sizeof(double));
         }

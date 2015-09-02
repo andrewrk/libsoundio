@@ -646,6 +646,12 @@ static void outstream_destroy_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os
     }
 }
 
+static void timing_update_callback(pa_stream *stream, int success, void *userdata) {
+    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
+    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    pa_threaded_mainloop_signal(sipa->main_loop, 0);
+}
+
 static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     SoundIoOutStream *outstream = &os->pub;
@@ -693,7 +699,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         ospa->buffer_attr.tlength = buffer_length;
     }
 
-    pa_stream_flags_t flags = PA_STREAM_START_CORKED;
+    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_START_CORKED|PA_STREAM_AUTO_TIMING_UPDATE);
     if (outstream->software_latency > 0.0)
         flags = (pa_stream_flags_t) (flags | PA_STREAM_ADJUST_LATENCY);
 
@@ -707,6 +713,12 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     while (!ospa->stream_ready.load())
         pa_threaded_mainloop_wait(sipa->main_loop);
+
+    pa_operation *update_timing_info_op = pa_stream_update_timing_info(ospa->stream, timing_update_callback, si);
+    if ((err = perform_operation(si, update_timing_info_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
 
     size_t writable_size = pa_stream_writable_size(ospa->stream);
     outstream->software_latency = writable_size / bytes_per_second;
@@ -810,7 +822,16 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
 }
 
 static int outstream_get_latency_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, double *out_latency) {
-    soundio_panic("TODO");
+    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+
+    int err;
+    pa_usec_t r_usec;
+    int negative;
+    if ((err = pa_stream_get_latency(ospa->stream, &r_usec, &negative))) {
+        return SoundIoErrorStreaming;
+    }
+    *out_latency = r_usec / 1000000.0;
+    return 0;
 }
 
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
@@ -908,6 +929,13 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         ispa->buffer_attr.fragsize = buffer_length;
     }
 
+    int err;
+    pa_operation *update_timing_info_op = pa_stream_update_timing_info(ispa->stream, timing_update_callback, si);
+    if ((err = perform_operation(si, update_timing_info_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
+
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
@@ -919,7 +947,9 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_stream_flags_t flags = (instream->software_latency > 0.0) ? PA_STREAM_ADJUST_LATENCY : PA_STREAM_NOFLAGS;
+    pa_stream_flags_t flags = PA_STREAM_AUTO_TIMING_UPDATE;
+    if (instream->software_latency > 0.0)
+        flags = (pa_stream_flags_t) (flags|PA_STREAM_ADJUST_LATENCY);
 
     int err = pa_stream_connect_record(ispa->stream,
             instream->device->id,
@@ -1016,7 +1046,16 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
 }
 
 static int instream_get_latency_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, double *out_latency) {
-    soundio_panic("TODO");
+    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+
+    int err;
+    pa_usec_t r_usec;
+    int negative;
+    if ((err = pa_stream_get_latency(ispa->stream, &r_usec, &negative))) {
+        return SoundIoErrorStreaming;
+    }
+    *out_latency = r_usec / 1000000.0;
+    return 0;
 }
 
 int soundio_pulseaudio_init(SoundIoPrivate *si) {
