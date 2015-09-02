@@ -53,14 +53,14 @@ static double seconds_offset = 0.0;
 
 static SoundIoRingBuffer pulse_rb;
 
-static void write_time(SoundIoOutStream *outstream) {
+static void write_time(SoundIoOutStream *outstream, double extra) {
     double latency;
     int err;
     if ((err = soundio_outstream_get_latency(outstream, &latency))) {
         soundio_panic("getting latency: %s", soundio_strerror(err));
     }
     double now = soundio_os_get_time();
-    double audible_time = now + latency;
+    double audible_time = now + latency + extra;
     double *write_ptr = (double *)soundio_ring_buffer_write_ptr(&pulse_rb);
     *write_ptr = audible_time;
     soundio_ring_buffer_advance_write_ptr(&pulse_rb, sizeof(double));
@@ -92,7 +92,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
             if (frames_until_pulse <= 0) {
                 if (pulse_frames_left == -1) {
                     pulse_frames_left = 0.25 * float_sample_rate;
-                    write_time(outstream); // announce beep start
+                    write_time(outstream, seconds_per_frame * frame); // announce beep start
                 }
                 if (pulse_frames_left > 0) {
                     pulse_frames_left -= 1;
@@ -101,7 +101,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
                     frames_until_pulse = (0.5 + (rand() / (double)RAND_MAX) * 2.0) * float_sample_rate;
                     pulse_frames_left = -1;
                     sample = 0.0;
-                    write_time(outstream); // announce beep end
+                    write_time(outstream, seconds_per_frame * frame); // announce beep end
                 }
             } else {
                 frames_until_pulse -= 1;

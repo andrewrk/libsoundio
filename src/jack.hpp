@@ -20,6 +20,7 @@ struct SoundIoDeviceJackPort {
     char *full_name;
     int full_name_len;
     SoundIoChannelId channel_id;
+    jack_latency_range_t latency_range;
 };
 
 struct SoundIoDeviceJack {
@@ -49,6 +50,7 @@ struct SoundIoOutStreamJack {
     int period_size;
     int frames_left;
     bool is_paused;
+    double hardware_latency;
     SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
@@ -63,6 +65,7 @@ struct SoundIoInStreamJack {
     jack_client_t *client;
     int period_size;
     int frames_left;
+    double hardware_latency;
     SoundIoInStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
     char *buf_ptrs[SOUNDIO_MAX_CHANNELS];

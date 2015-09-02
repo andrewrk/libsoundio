@@ -1004,9 +1004,12 @@ SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outst
 ///   device does not support pausing/unpausing.
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
-/// Obtain the total number of seconds that the next frame you write to the
-/// outstream will take to become audible. This includes both software and
-/// hardware latency.
+/// Obtain the total number of seconds that the next frame written after the
+/// last frame written with ::soundio_outstream_end_write will take to become
+/// audible. This includes both software and hardware latency. In other words,
+/// if you call this function directly after calling ::soundio_outstream_end_write,
+/// this gives you the number of seconds that the next frame written will take
+/// to become audible.
 ///
 /// This function must be called only from within SoundIoOutStream::write_callback.
 SOUNDIO_EXPORT int soundio_outstream_get_latency(struct SoundIoOutStream *outstream,

@@ -214,6 +214,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
             djp->full_name = soundio_str_dupe(port->full_name, port->full_name_len);
             djp->full_name_len = port->full_name_len;
             djp->channel_id = port->channel_id;
+            djp->latency_range = port->latency_range;
 
             if (!djp->full_name) {
                 jack_free(port_names);
@@ -469,6 +470,8 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     jack_on_shutdown(osj->client, outstream_shutdown_callback, os);
 
 
+    jack_nframes_t max_port_latency = 0;
+
     // register ports and map channels
     int connected_count = 0;
     for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
@@ -490,11 +493,13 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
             osjp->dest_port_name = djp->full_name;
             osjp->dest_port_name_len = djp->full_name_len;
             connected_count += 1;
+            max_port_latency = max(max_port_latency, djp->latency_range.max);
         }
     }
     // If nothing got connected, channel layouts aren't working. Just send the
     // data in the order of the ports.
     if (connected_count == 0) {
+        max_port_latency = 0;
         outstream->layout_error = SoundIoErrorIncompatibleDevice;
 
         int ch_count = min(outstream->layout.channel_count, dj->port_count);
@@ -503,8 +508,11 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
             SoundIoDeviceJackPort *djp = &dj->ports[ch];
             osjp->dest_port_name = djp->full_name;
             osjp->dest_port_name_len = djp->full_name_len;
+            max_port_latency = max(max_port_latency, djp->latency_range.max);
         }
     }
+
+    osj->hardware_latency = max_port_latency / (double)outstream->sample_rate;
 
     return 0;
 }
@@ -575,7 +583,9 @@ static int outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIo
 static int outstream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
+    *out_latency = osj->hardware_latency;
+    return 0;
 }
 
 
@@ -684,6 +694,8 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
     }
     jack_on_shutdown(isj->client, instream_shutdown_callback, is);
 
+    jack_nframes_t max_port_latency = 0;
+
     // register ports and map channels
     int connected_count = 0;
     for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
@@ -705,11 +717,13 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
             isjp->source_port_name = djp->full_name;
             isjp->source_port_name_len = djp->full_name_len;
             connected_count += 1;
+            max_port_latency = max(max_port_latency, djp->latency_range.max);
         }
     }
     // If nothing got connected, channel layouts aren't working. Just send the
     // data in the order of the ports.
     if (connected_count == 0) {
+        max_port_latency = 0;
         instream->layout_error = SoundIoErrorIncompatibleDevice;
 
         int ch_count = min(instream->layout.channel_count, dj->port_count);
@@ -718,8 +732,11 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
             SoundIoDeviceJackPort *djp = &dj->ports[ch];
             isjp->source_port_name = djp->full_name;
             isjp->source_port_name_len = djp->full_name_len;
+            max_port_latency = max(max_port_latency, djp->latency_range.max);
         }
     }
+
+    isj->hardware_latency = max_port_latency / (double)instream->sample_rate;
 
     return 0;
 }
@@ -780,7 +797,9 @@ static int instream_end_read_jack(struct SoundIoPrivate *si, struct SoundIoInStr
 static int instream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoInStreamJack *isj = &is->backend_data.jack;
+    *out_latency = isj->hardware_latency;
+    return 0;
 }
 
 static void notify_devices_change(SoundIoPrivate *si) {
