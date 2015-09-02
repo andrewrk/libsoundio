@@ -159,6 +159,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    fprintf(stderr, "Backend: %s\n", soundio_backend_name(soundio->current_backend));
+
     soundio_flush_events(soundio);
 
     int selected_device_index = -1;
@@ -186,12 +188,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    fprintf(stderr, "Output device: %s\n", device->name);
     fprintf(stderr,
             "'p\\n' - pause\n"
             "'u\\n' - unpause\n"
             "'c\\n' - clear buffer\n"
             "'q\\n' - quit\n");
-    fprintf(stderr, "Output device: %s\n", device->name);
 
     if (device->probe_error) {
         fprintf(stderr, "Cannot probe device: %s\n", soundio_strerror(device->probe_error));
