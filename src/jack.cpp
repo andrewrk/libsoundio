@@ -426,6 +426,8 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     SoundIoDeviceJack *dj = &dev->backend_data.jack;
 
+    osj->is_paused = true;
+
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
@@ -516,21 +518,27 @@ static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
 
     int err;
     if (pause) {
-        if ((err = jack_deactivate(osj->client)))
-            return SoundIoErrorStreaming;
-    } else {
-        if ((err = jack_activate(osj->client)))
-            return SoundIoErrorStreaming;
-
-        for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-            SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
-            const char *dest_port_name = osjp->dest_port_name;
-            // allow unconnected ports
-            if (!dest_port_name)
-                continue;
-            const char *source_port_name = jack_port_name(osjp->source_port);
-            if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
+        if (!osj->is_paused) {
+            if ((err = jack_deactivate(osj->client)))
                 return SoundIoErrorStreaming;
+            osj->is_paused = true;
+        }
+    } else {
+        if (osj->is_paused) {
+            if ((err = jack_activate(osj->client)))
+                return SoundIoErrorStreaming;
+
+            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+                const char *dest_port_name = osjp->dest_port_name;
+                // allow unconnected ports
+                if (!dest_port_name)
+                    continue;
+                const char *source_port_name = jack_port_name(osjp->source_port);
+                if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
+                    return SoundIoErrorStreaming;
+            }
+            osj->is_paused = false;
         }
     }
 
