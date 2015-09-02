@@ -949,18 +949,24 @@ static void device_thread_run(void *arg) {
         return;
     }
 
+    soundio_os_mutex_lock(siw->scan_devices_mutex);
     for (;;) {
-        if (!siw->abort_flag.test_and_set())
+        if (siw->abort_flag)
             break;
-        if (siw->device_scan_queued.exchange(false)) {
+        if (siw->device_scan_queued) {
+            siw->device_scan_queued = false;
+            soundio_os_mutex_unlock(siw->scan_devices_mutex);
             err = refresh_devices(si);
             if (err) {
                 shutdown_backend(si, err);
                 return;
             }
+            soundio_os_mutex_lock(siw->scan_devices_mutex);
+            continue;
         }
-        soundio_os_cond_wait(siw->scan_devices_cond, nullptr);
+        soundio_os_cond_wait(siw->scan_devices_cond, siw->scan_devices_mutex);
     }
+    soundio_os_mutex_unlock(siw->scan_devices_mutex);
 
     IMMDeviceEnumerator_UnregisterEndpointNotificationCallback(siw->device_enumerator, &siw->device_events);
     IMMDeviceEnumerator_Release(siw->device_enumerator);
@@ -1019,8 +1025,10 @@ static void wakeup_wasapi(struct SoundIoPrivate *si) {
 
 static void force_device_scan_wasapi(struct SoundIoPrivate *si) {
     SoundIoWasapi *siw = &si->backend_data.wasapi;
-    siw->device_scan_queued.store(true);
-    soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
+    soundio_os_mutex_lock(siw->scan_devices_mutex);
+    siw->device_scan_queued = true;
+    soundio_os_cond_signal(siw->scan_devices_cond, siw->scan_devices_mutex);
+    soundio_os_mutex_unlock(siw->scan_devices_mutex);
 }
 
 static void outstream_thread_deinit(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
@@ -1917,8 +1925,10 @@ static void destroy_wasapi(struct SoundIoPrivate *si) {
     SoundIoWasapi *siw = &si->backend_data.wasapi;
 
     if (siw->thread) {
-        siw->abort_flag.clear();
-        soundio_os_cond_signal(siw->scan_devices_cond, nullptr);
+        soundio_os_mutex_lock(siw->scan_devices_mutex);
+        siw->abort_flag = true;
+        soundio_os_cond_signal(siw->scan_devices_cond, siw->scan_devices_mutex);
+        soundio_os_mutex_unlock(siw->scan_devices_mutex);
         soundio_os_thread_destroy(siw->thread);
     }
 
@@ -1927,6 +1937,9 @@ static void destroy_wasapi(struct SoundIoPrivate *si) {
 
     if (siw->scan_devices_cond)
         soundio_os_cond_destroy(siw->scan_devices_cond);
+
+    if (siw->scan_devices_mutex)
+        soundio_os_mutex_destroy(siw->scan_devices_mutex);
 
     if (siw->mutex)
         soundio_os_mutex_destroy(siw->mutex);
@@ -2013,11 +2026,16 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
     SoundIoWasapi *siw = &si->backend_data.wasapi;
     int err;
 
-    siw->device_scan_queued.store(true);
-    siw->abort_flag.test_and_set();
+    siw->device_scan_queued = true;
 
     siw->mutex = soundio_os_mutex_create();
     if (!siw->mutex) {
+        destroy_wasapi(si);
+        return SoundIoErrorNoMem;
+    }
+
+    siw->scan_devices_mutex = soundio_os_mutex_create();
+    if (!siw->scan_devices_mutex) {
         destroy_wasapi(si);
         return SoundIoErrorNoMem;
     }

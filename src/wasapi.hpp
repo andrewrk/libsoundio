@@ -36,12 +36,13 @@ struct SoundIoWasapi {
     SoundIoOsMutex *mutex;
     SoundIoOsCond *cond;
     SoundIoOsCond *scan_devices_cond;
+    SoundIoOsMutex *scan_devices_mutex;
     struct SoundIoOsThread *thread;
-    atomic_flag abort_flag;
+    bool abort_flag;
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;
     bool have_devices_flag;
-    atomic_bool device_scan_queued;
+    bool device_scan_queued;
     int shutdown_err;
     bool emitted_shutdown_cb;
 
