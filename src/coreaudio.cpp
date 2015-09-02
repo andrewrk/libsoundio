@@ -1052,7 +1052,9 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
     return SoundIoErrorIncompatibleBackend;
 }
 
-static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+        double *out_latency)
+{
     soundio_panic("TODO");
 }
 
@@ -1308,7 +1310,9 @@ static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
     return 0;
 }
 
-static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+        double *out_latency)
+{
     soundio_panic("TODO");
 }
 

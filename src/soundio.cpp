@@ -537,11 +537,11 @@ int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream) {
     return si->outstream_clear_buffer(si, os);
 }
 
-int soundio_outstream_get_latency(struct SoundIoOutStream *outstream) {
+int soundio_outstream_get_latency(struct SoundIoOutStream *outstream, double *out_latency) {
     SoundIo *soundio = outstream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
-    return si->outstream_get_latency(si, os);
+    return si->outstream_get_latency(si, os, out_latency);
 }
 
 static void default_instream_error_callback(struct SoundIoInStream *is, int err) {
@@ -653,7 +653,7 @@ int soundio_instream_get_latency(struct SoundIoInStream *instream, double *out_l
     SoundIo *soundio = instream->device->soundio;
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
-    return si->instream_get_latency(si, is);
+    return si->instream_get_latency(si, is, out_latency);
 }
 
 void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {

@@ -253,8 +253,13 @@ static int outstream_clear_buffer_dummy(SoundIoPrivate *si, SoundIoOutStreamPriv
     return 0;
 }
 
-static int outstream_get_latency_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    soundio_panic("TODO");
+static int outstream_get_latency_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, double *out_latency) {
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
+    int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
+
+    *out_latency = (fill_bytes / outstream->bytes_per_frame) / (double)outstream->sample_rate;
+    return 0;
 }
 
 static void instream_destroy_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
@@ -361,8 +366,13 @@ static int instream_end_read_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *i
     return 0;
 }
 
-static int instream_get_latency_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    soundio_panic("TODO");
+static int instream_get_latency_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is, double *out_latency) {
+    SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamDummy *osd = &is->backend_data.dummy;
+    int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
+
+    *out_latency = (fill_bytes / instream->bytes_per_frame) / (double)instream->sample_rate;
+    return 0;
 }
 
 static int set_all_device_formats(SoundIoDevice *device) {

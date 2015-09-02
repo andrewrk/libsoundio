@@ -47,11 +47,24 @@ static void write_sample_float64ne(char *ptr, double sample) {
 static void (*write_sample)(char *ptr, double sample);
 
 static int frames_until_pulse = 0;
-static int pulse_frames_left = 0;
+static int pulse_frames_left = -1;
 static const double PI = 3.14159265358979323846264338328;
 static double seconds_offset = 0.0;
 
 static SoundIoRingBuffer pulse_rb;
+
+static void write_time(SoundIoOutStream *outstream) {
+    double latency;
+    int err;
+    if ((err = soundio_outstream_get_latency(outstream, &latency))) {
+        soundio_panic("getting latency: %s", soundio_strerror(err));
+    }
+    double now = soundio_os_get_time();
+    double audible_time = now + latency;
+    double *write_ptr = (double *)soundio_ring_buffer_write_ptr(&pulse_rb);
+    *write_ptr = audible_time;
+    soundio_ring_buffer_advance_write_ptr(&pulse_rb, sizeof(double));
+}
 
 static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     double float_sample_rate = outstream->sample_rate;
@@ -77,13 +90,18 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         for (int frame = 0; frame < frame_count; frame += 1) {
             double sample;
             if (frames_until_pulse <= 0) {
-                if (pulse_frames_left <= 0) {
-                    frames_until_pulse = (1.0 + (rand() / (double)RAND_MAX) * 3.0) * float_sample_rate;
-                    pulse_frames_left = 0.05 * float_sample_rate;
-                    sample = 0.0;
-                } else {
+                if (pulse_frames_left == -1) {
+                    pulse_frames_left = 0.25 * float_sample_rate;
+                    write_time(outstream); // announce beep start
+                }
+                if (pulse_frames_left > 0) {
                     pulse_frames_left -= 1;
                     sample = sinf((seconds_offset + frame * seconds_per_frame) * radians_per_second);
+                } else {
+                    frames_until_pulse = (0.5 + (rand() / (double)RAND_MAX) * 2.0) * float_sample_rate;
+                    pulse_frames_left = -1;
+                    sample = 0.0;
+                    write_time(outstream); // announce beep end
                 }
             } else {
                 frames_until_pulse -= 1;
@@ -105,8 +123,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
 }
 
 static void underflow_callback(struct SoundIoOutStream *outstream) {
-    static int count = 0;
-    fprintf(stderr, "underflow %d\n", count++);
+    soundio_panic("underflow\n");
 }
 
 int main(int argc, char **argv) {
@@ -186,6 +203,9 @@ int main(int argc, char **argv) {
         soundio_panic("No suitable device format available.\n");
     }
 
+    if ((err = soundio_ring_buffer_init(&pulse_rb, 1024)))
+        soundio_panic("ring buffer init: %s", soundio_strerror(err));
+
     if ((err = soundio_outstream_open(outstream)))
         soundio_panic("unable to open device: %s", soundio_strerror(err));
 
@@ -195,8 +215,25 @@ int main(int argc, char **argv) {
     if ((err = soundio_outstream_start(outstream)))
         soundio_panic("unable to start device: %s", soundio_strerror(err));
 
-    for (;;)
-        soundio_wait_events(soundio);
+    bool beep_on = true;
+    for (;;) {
+        int fill_count = soundio_ring_buffer_fill_count(&pulse_rb);
+        if (fill_count >= (int)sizeof(double)) {
+            double *read_ptr = (double *)soundio_ring_buffer_read_ptr(&pulse_rb);
+            double audible_time = *read_ptr;
+            while (audible_time > soundio_os_get_time()) {
+                // Burn the CPU while we wait for our precisely timed event.
+            }
+            if (beep_on) {
+                fprintf(stderr, "BEEP!\r");
+            } else {
+                fprintf(stderr, "     \r");
+            }
+            fflush(stderr);
+            beep_on = !beep_on;
+            soundio_ring_buffer_advance_read_ptr(&pulse_rb, sizeof(double));
+        }
+    }
 
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);

@@ -1468,7 +1468,9 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
-static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+        double *out_latency)
+{
     soundio_panic("TODO");
 }
 
@@ -1742,7 +1744,9 @@ static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
     return 0;
 }
 
-static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+        double *out_latency)
+{
     soundio_panic("TODO");
 }
 

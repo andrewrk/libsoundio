@@ -147,7 +147,7 @@ struct SoundIoPrivate {
     int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     int (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
-    int (*outstream_get_latency)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    int (*outstream_get_latency)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, double *out_latency);
 
 
     int (*instream_open)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
@@ -157,7 +157,7 @@ struct SoundIoPrivate {
             SoundIoChannelArea **out_areas, int *out_frame_count);
     int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
-    int (*instream_get_latency)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    int (*instream_get_latency)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, double *out_latency);
 
     SoundIoBackendData backend_data;
 };

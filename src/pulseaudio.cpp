@@ -809,7 +809,7 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
     return 0;
 }
 
-static int outstream_get_latency_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
+static int outstream_get_latency_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, double *out_latency) {
     soundio_panic("TODO");
 }
 
@@ -1015,7 +1015,7 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
     return 0;
 }
 
-static int instream_get_latency_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
+static int instream_get_latency_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, double *out_latency) {
     soundio_panic("TODO");
 }
 
