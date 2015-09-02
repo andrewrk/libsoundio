@@ -1468,6 +1468,10 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
+static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    soundio_panic("TODO");
+}
+
 static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
 
@@ -1738,6 +1742,10 @@ static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
     return 0;
 }
 
+static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    soundio_panic("TODO");
+}
+
 int soundio_alsa_init(SoundIoPrivate *si) {
     SoundIoAlsa *sia = &si->backend_data.alsa;
     int err;
@@ -1818,6 +1826,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->outstream_end_write = outstream_end_write_alsa;
     si->outstream_clear_buffer = outstream_clear_buffer_alsa;
     si->outstream_pause = outstream_pause_alsa;
+    si->outstream_get_latency = outstream_get_latency_alsa;
 
     si->instream_open = instream_open_alsa;
     si->instream_destroy = instream_destroy_alsa;
@@ -1825,6 +1834,7 @@ int soundio_alsa_init(SoundIoPrivate *si) {
     si->instream_begin_read = instream_begin_read_alsa;
     si->instream_end_read = instream_end_read_alsa;
     si->instream_pause = instream_pause_alsa;
+    si->instream_get_latency = instream_get_latency_alsa;
 
     return 0;
 }

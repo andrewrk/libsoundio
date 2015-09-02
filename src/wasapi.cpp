@@ -1523,6 +1523,10 @@ static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct Sound
     return 0;
 }
 
+static int outstream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    soundio_panic("TODO");
+}
+
 static void instream_thread_deinit(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
 
@@ -1920,6 +1924,10 @@ static int instream_end_read_wasapi(struct SoundIoPrivate *si, struct SoundIoInS
     return 0;
 }
 
+static int instream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    soundio_panic("TODO");
+}
+
 
 static void destroy_wasapi(struct SoundIoPrivate *si) {
     SoundIoWasapi *siw = &si->backend_data.wasapi;
@@ -2073,6 +2081,7 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
     si->outstream_end_write = outstream_end_write_wasapi;
     si->outstream_clear_buffer = outstream_clear_buffer_wasapi;
     si->outstream_pause = outstream_pause_wasapi;
+    si->outstream_get_latency = outstream_get_latency_wasapi;
 
     si->instream_open = instream_open_wasapi;
     si->instream_destroy = instream_destroy_wasapi;
@@ -2080,6 +2089,7 @@ int soundio_wasapi_init(SoundIoPrivate *si) {
     si->instream_begin_read = instream_begin_read_wasapi;
     si->instream_end_read = instream_end_read_wasapi;
     si->instream_pause = instream_pause_wasapi;
+    si->instream_get_latency = instream_get_latency_wasapi;
 
     return 0;
 }

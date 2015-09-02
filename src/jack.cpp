@@ -572,6 +572,9 @@ static int outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIo
     return SoundIoErrorIncompatibleBackend;
 }
 
+static int outstream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    soundio_panic("TODO");
+}
 
 
 static void instream_destroy_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
@@ -772,6 +775,10 @@ static int instream_end_read_jack(struct SoundIoPrivate *si, struct SoundIoInStr
     return 0;
 }
 
+static int instream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    soundio_panic("TODO");
+}
+
 static void notify_devices_change(SoundIoPrivate *si) {
     SoundIo *soundio = &si->pub;
     SoundIoJack *sij = &si->backend_data.jack;
@@ -919,6 +926,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     si->outstream_end_write = outstream_end_write_jack;
     si->outstream_clear_buffer = outstream_clear_buffer_jack;
     si->outstream_pause = outstream_pause_jack;
+    si->outstream_get_latency = outstream_get_latency_jack;
 
     si->instream_open = instream_open_jack;
     si->instream_destroy = instream_destroy_jack;
@@ -926,6 +934,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     si->instream_begin_read = instream_begin_read_jack;
     si->instream_end_read = instream_end_read_jack;
     si->instream_pause = instream_pause_jack;
+    si->instream_get_latency = instream_get_latency_jack;
 
     return 0;
 }

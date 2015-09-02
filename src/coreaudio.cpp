@@ -1052,6 +1052,9 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
     return SoundIoErrorIncompatibleBackend;
 }
 
+static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    soundio_panic("TODO");
+}
 
 static OSStatus on_instream_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
     const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
@@ -1305,10 +1308,11 @@ static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
     return 0;
 }
 
+static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    soundio_panic("TODO");
+}
 
 
-// Possible errors:
-// * SoundIoErrorNoMem
 int soundio_coreaudio_init(SoundIoPrivate *si) {
     SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     int err;
@@ -1380,6 +1384,7 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
     si->outstream_end_write = outstream_end_write_ca;
     si->outstream_clear_buffer = outstream_clear_buffer_ca;
     si->outstream_pause = outstream_pause_ca;
+    si->outstream_get_latency = outstream_get_latency_ca;
 
     si->instream_open = instream_open_ca;
     si->instream_destroy = instream_destroy_ca;
@@ -1387,6 +1392,7 @@ int soundio_coreaudio_init(SoundIoPrivate *si) {
     si->instream_begin_read = instream_begin_read_ca;
     si->instream_end_read = instream_end_read_ca;
     si->instream_pause = instream_pause_ca;
+    si->instream_get_latency = instream_get_latency_ca;
 
     return 0;
 }

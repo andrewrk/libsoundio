@@ -1004,6 +1004,13 @@ SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outst
 ///   device does not support pausing/unpausing.
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
+/// Obtain the total number of seconds that the next frame you write to the
+/// outstream will take to become audible. This includes both software and
+/// hardware latency.
+///
+/// This function must be called only from within SoundIoOutStream::write_callback.
+SOUNDIO_EXPORT int soundio_outstream_get_latency(struct SoundIoOutStream *outstream,
+        double *out_latency);
 
 
 
@@ -1098,6 +1105,14 @@ SOUNDIO_EXPORT int soundio_instream_end_read(struct SoundIoInStream *instream);
 /// * #SoundIoErrorStreaming
 /// * #SoundIoErrorIncompatibleDevice - device does not support pausing/unpausing
 SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool pause);
+
+/// Obtain the number of seconds that the next frame of sound being
+/// captured will take to arrive in the buffer, plus the amount of time that is
+/// represented in the buffer. This includes both software and hardware latency.
+///
+/// This function must be called only from within SoundIoInStream::read_callback.
+SOUNDIO_EXPORT int soundio_instream_get_latency(struct SoundIoInStream *instream,
+        double *out_latency);
 
 
 // Ring Buffer

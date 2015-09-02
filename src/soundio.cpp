@@ -537,6 +537,13 @@ int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream) {
     return si->outstream_clear_buffer(si, os);
 }
 
+int soundio_outstream_get_latency(struct SoundIoOutStream *outstream) {
+    SoundIo *soundio = outstream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)outstream;
+    return si->outstream_get_latency(si, os);
+}
+
 static void default_instream_error_callback(struct SoundIoInStream *is, int err) {
     soundio_panic("libsoundio: %s", soundio_strerror(err));
 }
@@ -640,6 +647,13 @@ int soundio_instream_end_read(struct SoundIoInStream *instream) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
     SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
     return si->instream_end_read(si, is);
+}
+
+int soundio_instream_get_latency(struct SoundIoInStream *instream, double *out_latency) {
+    SoundIo *soundio = instream->device->soundio;
+    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate *)instream;
+    return si->instream_get_latency(si, is);
 }
 
 void soundio_destroy_devices_info(SoundIoDevicesInfo *devices_info) {
