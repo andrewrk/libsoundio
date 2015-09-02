@@ -147,21 +147,8 @@ set(LIBSOUNDIO_HEADERS
     ${CONFIGURE_OUT_FILE}
 )
 
-set(TEST_SOURCES
-    "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp"
-    "${CMAKE_SOURCE_DIR}/src/util.cpp"
-    "${CMAKE_SOURCE_DIR}/src/os.cpp"
-    "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
-    "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
-    "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
-    "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
-)
-
 if(SOUNDIO_HAVE_JACK)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/jack.cpp"
-    )
-    set(TEST_SOURCES ${TEST_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/jack.cpp"
     )
 endif()
@@ -169,15 +156,9 @@ if(SOUNDIO_HAVE_PULSEAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
     )
-    set(TEST_SOURCES ${TEST_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
-    )
 endif()
 if(SOUNDIO_HAVE_ALSA)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
-    )
-    set(TEST_SOURCES ${TEST_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
     )
 endif()
@@ -185,18 +166,31 @@ if(SOUNDIO_HAVE_COREAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
     )
-    set(TEST_SOURCES ${TEST_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
-    )
 endif()
 if(SOUNDIO_HAVE_WASAPI)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
         "${CMAKE_SOURCE_DIR}/src/wasapi.cpp"
     )
-    set(TEST_SOURCES ${TEST_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/wasapi.cpp"
-    )
 endif()
+
+include_directories(
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}
+    "${CMAKE_SOURCE_DIR}/test"
+    "${CMAKE_SOURCE_DIR}/src"
+)
+
+set(LIBSOUNDIO_LIBS
+    ${JACK_LIBRARY}
+    ${PULSEAUDIO_LIBRARY}
+    ${ALSA_LIBRARIES}
+    ${COREAUDIO_LIBRARY}
+    ${COREFOUNDATION_LIBRARY}
+    ${AUDIOUNIT_LIBRARY}
+    m
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+
 
 
 # GTFO, -lstdc++ !!
@@ -209,10 +203,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Werror -pedantic")
 
 set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -Wno-c99-extensions")
 set(EXAMPLE_CFLAGS "-std=c99 -Wall")
-set(EXAMPLE_INCLUDES "${CMAKE_SOURCE_DIR}/src")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
 set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
-set(TEST_INCLUDES "${CMAKE_SOURCE_DIR}/test")
 
 include(TestBigEndian)
 test_big_endian(IS_BIG_ENDIAN)
@@ -241,20 +233,7 @@ set_target_properties(libsoundio_shared PROPERTIES
     COMPILE_FLAGS ${LIB_CFLAGS}
     LINKER_LANGUAGE C
 )
-include_directories(
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_BINARY_DIR}
-)
-target_link_libraries(libsoundio_shared LINK_PUBLIC
-    ${JACK_LIBRARY}
-    ${PULSEAUDIO_LIBRARY}
-    ${ALSA_LIBRARIES}
-    ${COREAUDIO_LIBRARY}
-    ${COREFOUNDATION_LIBRARY}
-    ${AUDIOUNIT_LIBRARY}
-    m
-    ${CMAKE_THREAD_LIBS_INIT}
-)
+target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
 install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 
@@ -276,7 +255,6 @@ add_executable(sio_sine example/sio_sine.c)
 set_target_properties(sio_sine PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_sine libsoundio_shared)
 install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
@@ -284,7 +262,6 @@ add_executable(sio_list_devices example/sio_list_devices.c)
 set_target_properties(sio_list_devices PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_list_devices libsoundio_shared)
 install(TARGETS sio_list_devices DESTINATION ${CMAKE_INSTALL_BINDIR})
 
@@ -292,7 +269,6 @@ add_executable(sio_microphone example/sio_microphone.c)
 set_target_properties(sio_microphone PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_microphone libsoundio_shared)
 install(TARGETS sio_microphone DESTINATION ${CMAKE_INSTALL_BINDIR})
 
@@ -300,49 +276,41 @@ add_executable(sio_record example/sio_record.c)
 set_target_properties(sio_record PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(sio_record libsoundio_shared)
 install(TARGETS sio_record DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
-
-add_executable(unit_tests ${TEST_SOURCES})
-target_link_libraries(unit_tests LINK_PUBLIC
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${JACK_LIBRARY}
-    ${PULSEAUDIO_LIBRARY}
-    ${ALSA_LIBRARIES}
-    ${COREAUDIO_LIBRARY}
-    ${COREFOUNDATION_LIBRARY}
-    ${AUDIOUNIT_LIBRARY}
-    m
-)
+add_executable(unit_tests "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp" ${LIBSOUNDIO_SOURCES})
+target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
 set_target_properties(unit_tests PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${TEST_CFLAGS}
     LINK_FLAGS ${TEST_LDFLAGS}
 )
-include_directories(${TEST_INCLUDES})
+
+add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.cpp" ${LIBSOUNDIO_SOURCES})
+target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS})
+set_target_properties(latency PROPERTIES
+    LINKER_LANGUAGE C
+    COMPILE_FLAGS ${LIB_CFLAGS}
+)
 
 add_executable(underflow test/underflow.c)
 set_target_properties(underflow PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(underflow libsoundio_shared)
 
 add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
 set_target_properties(backend_disconnect_recover PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(backend_disconnect_recover libsoundio_shared)
 
 add_executable(overflow test/overflow.c)
 set_target_properties(overflow PROPERTIES
     LINKER_LANGUAGE C
     COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-include_directories(${EXAMPLE_INCLUDES})
 target_link_libraries(overflow libsoundio_shared)
 
 

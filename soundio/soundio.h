@@ -1115,7 +1115,10 @@ SOUNDIO_EXPORT int soundio_instream_get_latency(struct SoundIoInStream *instream
         double *out_latency);
 
 
-// Ring Buffer
+/// A ring buffer is a single-reader single-writer lock-free fixed-size queue.
+/// libsoundio ring buffers use memory mapping techniques to enable a
+/// contiguous buffer when reading or writing across the boundary of the ring
+/// buffer's capacity.
 struct SoundIoRingBuffer;
 /// `requested_capacity` in bytes.
 /// Returns `NULL` if and only if memory could not be allocated.
@@ -1129,12 +1132,12 @@ SOUNDIO_EXPORT void soundio_ring_buffer_destroy(struct SoundIoRingBuffer *ring_b
 /// capacity for alignment purposes. This function returns the actual capacity.
 SOUNDIO_EXPORT int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *ring_buffer);
 
-/// don't write more than capacity
+/// Do not write more than capacity.
 SOUNDIO_EXPORT char *soundio_ring_buffer_write_ptr(struct SoundIoRingBuffer *ring_buffer);
 /// `count` in bytes.
 SOUNDIO_EXPORT void soundio_ring_buffer_advance_write_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
 
-/// don't read more than capacity
+/// Do not read more than capacity.
 SOUNDIO_EXPORT char *soundio_ring_buffer_read_ptr(struct SoundIoRingBuffer *ring_buffer);
 /// `count` in bytes.
 SOUNDIO_EXPORT void soundio_ring_buffer_advance_read_ptr(struct SoundIoRingBuffer *ring_buffer, int count);
