@@ -62,7 +62,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
     for (;;) {
         int frame_count = frames_left;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
-            fprintf(stderr, "%s\n", soundio_strerror(err));
+            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
             exit(1);
         }
 
@@ -85,7 +85,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
-            fprintf(stderr, "%s\n", soundio_strerror(err));
+            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
             exit(1);
         }
 

@@ -1091,7 +1091,8 @@ void outstream_thread_run(void *arg) {
                     continue;
                 }
 
-                outstream->write_callback(outstream, 0, avail);
+                if (avail > 0)
+                    outstream->write_callback(outstream, 0, avail);
                 continue;
             }
             case SND_PCM_STATE_XRUN:
