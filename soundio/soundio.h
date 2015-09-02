@@ -702,9 +702,8 @@ SOUNDIO_EXPORT bool soundio_have_backend(enum SoundIoBackend backend);
 /// information is done elsewhere. It is performant to call this function many
 /// times per second.
 ///
-/// When you call this, the SoundIo::on_devices_change and
-/// SoundIo::on_events_signal callbacks
-/// might be called. This is the only time those callbacks will be called.
+/// When you call this, the SoundIo::on_devices_change might be called. This
+/// is the only time can be called.
 ///
 /// This must be called from the same thread as the thread in which you call
 /// these functions:
