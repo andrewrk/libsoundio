@@ -1036,7 +1036,7 @@ void outstream_thread_run(void *arg) {
             }
             case SND_PCM_STATE_PREPARED:
             {
-                snd_pcm_sframes_t avail = snd_pcm_avail_update(osa->handle);
+                snd_pcm_sframes_t avail = snd_pcm_avail(osa->handle);
                 if (avail < 0) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
                     return;
@@ -1471,7 +1471,18 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
 static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
+    int err;
+
+    snd_pcm_sframes_t delay;
+    if ((err = snd_pcm_delay(osa->handle, &delay)) < 0) {
+        fprintf(stderr, "snd_pcm_delay: %s\n", snd_strerror(err));
+        return SoundIoErrorStreaming;
+    }
+
+    *out_latency = delay / (double)outstream->sample_rate;
+    return 0;
 }
 
 static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
@@ -1747,7 +1758,17 @@ static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
 static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
+    int err;
+
+    snd_pcm_sframes_t delay;
+    if ((err = snd_pcm_delay(isa->handle, &delay)) < 0) {
+        return SoundIoErrorStreaming;
+    }
+
+    *out_latency = delay / (double)instream->sample_rate;
+    return 0;
 }
 
 int soundio_alsa_init(SoundIoPrivate *si) {
