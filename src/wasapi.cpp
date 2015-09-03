@@ -1167,6 +1167,14 @@ static int outstream_do_open(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
             return SoundIoErrorOpeningDevice;
         }
     }
+    REFERENCE_TIME max_latency_ref_time;
+    if (FAILED(hr = IAudioClient_GetStreamLatency(osw->audio_client, &max_latency_ref_time))) {
+        return SoundIoErrorOpeningDevice;
+    }
+    double max_latency_sec = from_reference_time(max_latency_ref_time);
+    osw->min_padding_frames = (max_latency_sec * outstream->sample_rate) + 0.5;
+
+
     if (FAILED(hr = IAudioClient_GetBufferSize(osw->audio_client, &osw->buffer_frame_count))) {
         return SoundIoErrorOpeningDevice;
     }
@@ -1232,7 +1240,8 @@ void outstream_shared_run(SoundIoOutStreamPrivate *os) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
         return;
     }
-    outstream->write_callback(outstream, 0, osw->writable_frame_count);
+    int frame_count_min = max(0, (int)osw->min_padding_frames - (int)frames_used);
+    outstream->write_callback(outstream, frame_count_min, osw->writable_frame_count);
 
     if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1295,7 +1304,8 @@ void outstream_shared_run(SoundIoOutStreamPrivate *os) {
         if (osw->writable_frame_count > 0) {
             if (frames_used == 0 && !reset_buffer)
                 outstream->underflow_callback(outstream);
-            outstream->write_callback(outstream, 0, osw->writable_frame_count);
+            int frame_count_min = max(0, (int)osw->min_padding_frames - (int)frames_used);
+            outstream->write_callback(outstream, frame_count_min, osw->writable_frame_count);
         }
     }
 }
@@ -1526,7 +1536,17 @@ static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct Sound
 static int outstream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
+
+    HRESULT hr;
+    UINT32 frames_used;
+    if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &frames_used))) {
+        return SoundIoErrorStreaming;
+    }
+
+    *out_latency = frames_used / (double)outstream->sample_rate;
+    return 0;
 }
 
 static void instream_thread_deinit(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
@@ -1929,7 +1949,17 @@ static int instream_end_read_wasapi(struct SoundIoPrivate *si, struct SoundIoInS
 static int instream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoInStream *instream = &is->pub;
+    SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
+
+    HRESULT hr;
+    UINT32 frames_used;
+    if (FAILED(hr = IAudioClient_GetCurrentPadding(isw->audio_client, &frames_used))) {
+        return SoundIoErrorStreaming;
+    }
+
+    *out_latency = frames_used / (double)instream->sample_rate;
+    return 0;
 }
 
 

@@ -75,6 +75,7 @@ struct SoundIoOutStreamWasapi {
     bool open_complete;
     int open_err;
     bool started;
+    UINT32 min_padding_frames;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
