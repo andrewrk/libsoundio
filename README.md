@@ -8,8 +8,6 @@ This library is an abstraction; however in the delicate balance between
 performance and power, and API convenience, the scale is tipped closer to
 the former. Features that only exist in some sound backends are exposed.
 
-**This project is a work-in-progress.**
-
 ## Features and Limitations
 
  * Supported backends:
@@ -263,6 +261,8 @@ For each backend, do the following:
     parameters to test a USB microphone in raw mode.
  0. Run `./backend_disconnect_recover` and read the testing instructions that
     it prints.
+ 0. Run `./latency` and make sure the printed beeps line up with the beeps that
+    you hear.
 
 ### Building the Documentation
 

@@ -1012,6 +1012,9 @@ SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, b
 /// to become audible.
 ///
 /// This function must be called only from within SoundIoOutStream::write_callback.
+///
+/// Possible errors:
+/// * #SoundIoErrorStreaming
 SOUNDIO_EXPORT int soundio_outstream_get_latency(struct SoundIoOutStream *outstream,
         double *out_latency);
 
@@ -1114,6 +1117,9 @@ SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool
 /// represented in the buffer. This includes both software and hardware latency.
 ///
 /// This function must be called only from within SoundIoInStream::read_callback.
+///
+/// Possible errors:
+/// * #SoundIoErrorStreaming
 SOUNDIO_EXPORT int soundio_instream_get_latency(struct SoundIoInStream *instream,
         double *out_latency);
 
