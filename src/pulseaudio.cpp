@@ -929,13 +929,6 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         ispa->buffer_attr.fragsize = buffer_length;
     }
 
-    int err;
-    pa_operation *update_timing_info_op = pa_stream_update_timing_info(ispa->stream, timing_update_callback, si);
-    if ((err = perform_operation(si, update_timing_info_op))) {
-        pa_threaded_mainloop_unlock(sipa->main_loop);
-        return err;
-    }
-
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
     return 0;
@@ -961,6 +954,13 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
     while (!ispa->stream_ready)
         pa_threaded_mainloop_wait(sipa->main_loop);
+
+    pa_operation *update_timing_info_op = pa_stream_update_timing_info(ispa->stream, timing_update_callback, si);
+    if ((err = perform_operation(si, update_timing_info_op))) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        return err;
+    }
+
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
     return 0;
