@@ -1016,7 +1016,7 @@ static int instream_wait_for_poll(SoundIoInStreamPrivate *is) {
     }
 }
 
-void outstream_thread_run(void *arg) {
+static void outstream_thread_run(void *arg) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *) arg;
     SoundIoOutStream *outstream = &os->pub;
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
@@ -1367,7 +1367,7 @@ static int outstream_start_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     return 0;
 }
 
-int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
+static int outstream_begin_write_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     *out_areas = nullptr;
