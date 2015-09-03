@@ -730,6 +730,16 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.device->software_latency_min = avr.mMinimum / use_sample_rate;
             rd.device->software_latency_max = avr.mMaximum / use_sample_rate;
 
+            prop_address.mSelector = kAudioDevicePropertyLatency;
+            prop_address.mScope = aim_to_scope(aim);
+            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            io_size = sizeof(UInt32);
+            if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, nullptr,
+                &io_size, &dca->latency_frames)))
+            {
+                deinit_refresh_devices(&rd);
+                return SoundIoErrorOpeningDevice;
+            }
 
             SoundIoList<SoundIoDevice *> *device_list;
             if (rd.device->aim == SoundIoDeviceAimOutput) {
@@ -992,6 +1002,8 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
+    osca->hardware_latency = dca->latency_frames / (double)outstream->sample_rate;
+
     return 0;
 }
 
@@ -1055,7 +1067,9 @@ static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOu
 static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    *out_latency = osca->hardware_latency;
+    return 0;
 }
 
 static OSStatus on_instream_device_overload(AudioObjectID in_object_id, UInt32 in_number_addresses,
@@ -1268,6 +1282,8 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
         return SoundIoErrorOpeningDevice;
     }
 
+    isca->hardware_latency = dca->latency_frames / (double)instream->sample_rate;
+
     return 0;
 }
 
@@ -1313,7 +1329,9 @@ static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
 static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
-    soundio_panic("TODO");
+    SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
+    *out_latency = isca->hardware_latency;
+    return 0;
 }
 
 

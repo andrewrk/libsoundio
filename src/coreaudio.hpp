@@ -20,6 +20,7 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceCoreAudio {
     AudioDeviceID device_id;
+    UInt32 latency_frames;
 };
 
 struct SoundIoCoreAudio {
@@ -47,6 +48,7 @@ struct SoundIoOutStreamCoreAudio {
     int buffer_index;
     int frames_left;
     int write_frame_count;
+    double hardware_latency;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -54,6 +56,7 @@ struct SoundIoInStreamCoreAudio {
     AudioComponentInstance instance;
     AudioBufferList *buffer_list;
     int frames_left;
+    double hardware_latency;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
