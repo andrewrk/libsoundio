@@ -1814,13 +1814,14 @@ int soundio_alsa_init(SoundIoPrivate *si) {
         assert(err != EFAULT);
         assert(err != EINVAL);
         assert(err != ENAMETOOLONG);
-        assert(err != ENOENT);
         destroy_alsa(si);
         if (err == ENOSPC) {
             return SoundIoErrorSystemResources;
-        } else {
-            assert(err == ENOMEM);
+        } else if (err == ENOMEM) {
             return SoundIoErrorNoMem;
+        } else {
+            // Kernel must not have ALSA support.
+            return SoundIoErrorInitAudioBackend;
         }
     }
 
