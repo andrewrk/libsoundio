@@ -753,7 +753,6 @@ static void device_thread_run(void *arg) {
             if (errno == EINTR)
                 continue;
             assert(errno != EFAULT);
-            assert(errno != EFAULT);
             assert(errno != EINVAL);
             assert(errno == ENOMEM);
             // Kernel ran out of polling memory.
