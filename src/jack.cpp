@@ -117,6 +117,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         const char *port_type = jack_port_type(jport);
         if (strcmp(port_type, JACK_DEFAULT_AUDIO_TYPE) != 0) {
             // we don't know how to support such a port
+            port_name_ptr += 1;
             continue;
         }
 
@@ -132,6 +133,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
                 &client_name, &client_name_len, &port_name, &port_name_len);
         if (!client_name || !port_name) {
             // device does not have colon, skip it
+            port_name_ptr += 1;
             continue;
         }
         SoundIoJackClient *client = find_or_create_client(&clients, aim, is_physical,
@@ -143,7 +145,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         }
         if (client->port_count >= SOUNDIO_MAX_CHANNELS) {
             // we hit the channel limit, skip the leftovers
-            continue;
+            break;
         }
         SoundIoJackPort *port = &client->ports[client->port_count++];
         port->full_name = client_and_port_name;
