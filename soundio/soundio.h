@@ -535,8 +535,15 @@ struct SoundIoOutStream {
     /// should write as many frames as you can; `frame_count_min` might be 0 and
     /// you can still get a buffer underflow if you always write
     /// `frame_count_min` frames.
+    ///
     /// For Dummy, ALSA, and PulseAudio, `frame_count_min` will be 0. For JACK
     /// and CoreAudio `frame_count_min` will be equal to `frame_count_max`.
+    ///
+    /// The code in the supplied function must be suitable for real-time
+    /// execution. That means that it cannot call functions that might block
+    /// for a long time. This includes all I/O functions (disk, TTY, network),
+    /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select,
+    /// pthread_join, pthread_cond_wait, etc.
     void (*write_callback)(struct SoundIoOutStream *,
             int frame_count_min, int frame_count_max);
     /// This optional callback happens when the sound device runs out of buffered
@@ -613,6 +620,12 @@ struct SoundIoInStream {
     /// frames. If you return from read_callback without having read
     /// `frame_count_min`, the frames will be dropped. `frame_count_max` is how
     /// many frames are available to read.
+    ///
+    /// The code in the supplied function must be suitable for real-time
+    /// execution. That means that it cannot call functions that might block
+    /// for a long time. This includes all I/O functions (disk, TTY, network),
+    /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select,
+    /// pthread_join, pthread_cond_wait, etc.
     void (*read_callback)(struct SoundIoInStream *, int frame_count_min, int frame_count_max);
     /// This optional callback happens when the sound device buffer is full,
     /// yet there is more captured audio to put in it.
