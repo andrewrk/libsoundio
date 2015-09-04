@@ -101,7 +101,7 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
 
     SoundIoList<SoundIoJackClient> clients = {0};
     const char **port_name_ptr = port_names;
-    while (*port_name_ptr) {
+    for (; *port_name_ptr; port_name_ptr += 1) {
         const char *client_and_port_name = *port_name_ptr;
         int client_and_port_name_len = strlen(client_and_port_name);
         jack_port_t *jport = jack_port_by_name(sij->client, client_and_port_name);
@@ -155,8 +155,6 @@ static int refresh_devices_bare(SoundIoPrivate *si) {
         jack_latency_callback_mode_t latency_mode = (aim == SoundIoDeviceAimOutput) ?
             JackPlaybackLatency : JackCaptureLatency;
         jack_port_get_latency_range(jport, latency_mode, &port->latency_range);
-
-        port_name_ptr += 1;
     }
 
     for (int i = 0; i < clients.length; i += 1) {
