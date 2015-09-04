@@ -24,6 +24,7 @@ set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
+option(BUILD_STATIC_LIBS "Build static libraries" ON)
 option(ENABLE_JACK "Enable JACK backend" ON)
 option(ENABLE_PULSEAUDIO "Enable PulseAudio backend" ON)
 option(ENABLE_ALSA "Enable ALSA backend" ON)
@@ -237,13 +238,15 @@ target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
 install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 
-add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
-set_target_properties(libsoundio_static PROPERTIES
-    OUTPUT_NAME soundio
-    COMPILE_FLAGS ${LIB_CFLAGS}
-    LINKER_LANGUAGE C
-)
-install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
+if(BUILD_STATIC_LIBS)
+    add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
+    set_target_properties(libsoundio_static PROPERTIES
+        OUTPUT_NAME soundio
+        COMPILE_FLAGS ${LIB_CFLAGS}
+        LINKER_LANGUAGE C
+    )
+    install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
 
 install(FILES
     ${LIBSOUNDIO_HEADERS}
@@ -338,6 +341,7 @@ message("\n"
     "--------------------\n"
     "* Install Directory            : ${CMAKE_INSTALL_PREFIX}\n"
     "* Build Type                   : ${CMAKE_BUILD_TYPE}\n"
+    "* Build static libs            : ${BUILD_STATIC_LIBS}\n"
 )
 
 message(
