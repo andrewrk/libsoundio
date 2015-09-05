@@ -268,6 +268,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Note: in this example, if you send SIGINT (by pressing Ctrl+C for example)
+    // you will lose up to 1 second of recorded audio data. In non-example code,
+    // consider a better shutdown strategy.
     for (;;) {
         soundio_flush_events(soundio);
         sleep(1);
