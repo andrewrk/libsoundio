@@ -12,6 +12,11 @@
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#include <unistd.h>
+
+struct RecordContext {
+    struct SoundIoRingBuffer *ring_buffer;
+};
 
 static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatFloat32NE,
@@ -43,13 +48,26 @@ static int prioritized_sample_rates[] = {
     0,
 };
 
-static FILE *out_f = NULL;
+static int min_int(int a, int b) {
+    return (a < b) ? a : b;
+}
 
 static void read_callback(struct SoundIoInStream *instream, int frame_count_min, int frame_count_max) {
+    struct RecordContext *rc = instream->userdata;
     struct SoundIoChannelArea *areas;
     int err;
 
-    int frames_left = frame_count_max;
+    char *write_ptr = soundio_ring_buffer_write_ptr(rc->ring_buffer);
+    int free_bytes = soundio_ring_buffer_free_count(rc->ring_buffer);
+    int free_count = free_bytes / instream->bytes_per_frame;
+
+    if (free_count < frame_count_min) {
+        fprintf(stderr, "ring buffer overflow\n");
+        exit(1);
+    }
+
+    int write_frames = min_int(free_count, frame_count_max);
+    int frames_left = write_frames;
 
     for (;;) {
         int frame_count = frames_left;
@@ -63,13 +81,15 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
             break;
 
         if (!areas) {
-            fprintf(stderr, "hole\n");
-            exit(1);
+            // Due to an overflow there is a hole. Fill the ring buffer with
+            // silence for the size of the hole.
+            memset(write_ptr, 0, frame_count * instream->bytes_per_frame);
         } else {
             for (int frame = 0; frame < frame_count; frame += 1) {
                 for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-                    fwrite(areas[ch].ptr, 1, instream->bytes_per_sample, out_f);
+                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
                     areas[ch].ptr += areas[ch].step;
+                    write_ptr += instream->bytes_per_sample;
                 }
             }
         }
@@ -83,6 +103,9 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
         if (frames_left <= 0)
             break;
     }
+
+    int advance_bytes = write_frames * instream->bytes_per_frame;
+    soundio_ring_buffer_advance_write_ptr(rc->ring_buffer, advance_bytes);
 }
 
 static void overflow_callback(struct SoundIoInStream *instream) {
@@ -145,6 +168,8 @@ int main(int argc, char **argv) {
     if (!outfile)
         return usage(exe);
 
+    struct RecordContext rc;
+
     struct SoundIo *soundio = soundio_create();
     if (!soundio) {
         fprintf(stderr, "out of memory\n");
@@ -183,7 +208,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Device: %s\n", selected_device->name);
 
     soundio_device_sort_channel_layouts(selected_device);
-    struct SoundIoChannelLayout *layout = &selected_device->layouts[0];
 
     int sample_rate = 0;
     int *sample_rate_ptr;
@@ -207,14 +231,11 @@ int main(int argc, char **argv) {
     if (fmt == SoundIoFormatInvalid)
         fmt = selected_device->formats[0];
 
-    fprintf(stderr, "%s %dHz %s interleaved\n", layout->name, sample_rate, soundio_format_string(fmt));
-
-    out_f = fopen(outfile, "wb");
+    FILE *out_f = fopen(outfile, "wb");
     if (!out_f) {
         fprintf(stderr, "unable to open %s: %s\n", outfile, strerror(errno));
         return 1;
     }
-
     struct SoundIoInStream *instream = soundio_instream_create(selected_device);
     if (!instream) {
         fprintf(stderr, "out of memory\n");
@@ -222,12 +243,23 @@ int main(int argc, char **argv) {
     }
     instream->format = fmt;
     instream->sample_rate = sample_rate;
-    instream->layout = *layout;
     instream->read_callback = read_callback;
     instream->overflow_callback = overflow_callback;
+    instream->userdata = &rc;
 
     if ((err = soundio_instream_open(instream))) {
         fprintf(stderr, "unable to open input stream: %s", soundio_strerror(err));
+        return 1;
+    }
+
+    fprintf(stderr, "%s %dHz %s interleaved\n",
+            instream->layout.name, sample_rate, soundio_format_string(fmt));
+
+    const int ring_buffer_duration_seconds = 30;
+    int capacity = ring_buffer_duration_seconds * instream->sample_rate * instream->bytes_per_frame;
+    rc.ring_buffer = soundio_ring_buffer_create(soundio, capacity);
+    if (!rc.ring_buffer) {
+        fprintf(stderr, "out of memory\n");
         return 1;
     }
 
@@ -236,8 +268,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    for (;;)
-        soundio_wait_events(soundio);
+    for (;;) {
+        soundio_flush_events(soundio);
+        sleep(1);
+        int fill_bytes = soundio_ring_buffer_fill_count(rc.ring_buffer);
+        char *read_buf = soundio_ring_buffer_read_ptr(rc.ring_buffer);
+        size_t amt = fwrite(read_buf, 1, fill_bytes, out_f);
+        if ((int)amt != fill_bytes) {
+            fprintf(stderr, "write error: %s\n", strerror(errno));
+            return 1;
+        }
+        soundio_ring_buffer_advance_read_ptr(rc.ring_buffer, fill_bytes);
+    }
 
     soundio_instream_destroy(instream);
     soundio_device_unref(selected_device);
