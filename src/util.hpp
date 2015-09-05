@@ -50,6 +50,17 @@ static inline bool soundio_streql(const char *str1, int str1_len, const char *st
     return memcmp(str1, str2, str1_len) == 0;
 }
 
+static inline int ceil_dbl_to_int(double x) {
+    const double truncation = (int)x;
+    return truncation + (truncation < x);
+}
+
+static inline double ceil_dbl(double x) {
+    const double truncation = (long long) x;
+    const double ceiling = truncation + (truncation < x);
+    return ceiling;
+}
+
 
 template <typename T, long n>
 static constexpr long array_length(const T (&)[n]) {

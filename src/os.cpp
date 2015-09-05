@@ -604,8 +604,13 @@ int soundio_os_page_size(void) {
     return page_size;
 }
 
+static inline size_t ceil_dbl_to_size_t(double x) {
+    const double truncation = (size_t)x;
+    return truncation + (truncation < x);
+}
+
 int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t requested_capacity) {
-    size_t actual_capacity = ceil(requested_capacity / (double)page_size) * page_size;
+    size_t actual_capacity = ceil_dbl_to_size_t(requested_capacity / (double)page_size) * page_size;
 
 #if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;

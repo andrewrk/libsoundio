@@ -59,6 +59,11 @@ static void destroy_alsa(SoundIoPrivate *si) {
     close(sia->notify_fd);
 }
 
+static inline snd_pcm_uframes_t ceil_dbl_to_uframes(double x) {
+    const double truncation = (snd_pcm_uframes_t)x;
+    return truncation + (truncation < x);
+}
+
 static char * str_partition_on_char(char *str, char c) {
     while (*str) {
         if (*str == c) {
@@ -1253,7 +1258,7 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    osa->buffer_size_frames = ceil(outstream->software_latency * (double)outstream->sample_rate);
+    osa->buffer_size_frames = ceil_dbl_to_int(outstream->software_latency * (double)outstream->sample_rate);
 
     if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &osa->buffer_size_frames)) < 0) {
         outstream_destroy_alsa(si, os);
@@ -1269,7 +1274,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         }
     } else {
         double period_duration = outstream->software_latency / 2.0;
-        snd_pcm_uframes_t period_frames = ceil(period_duration * (double)outstream->sample_rate);
+        snd_pcm_uframes_t period_frames =
+            ceil_dbl_to_uframes(period_duration * (double)outstream->sample_rate);
 
         if ((err = snd_pcm_hw_params_set_period_size_near(osa->handle, hwparams, &period_frames, nullptr)) < 0) {
             outstream_destroy_alsa(si, os);
@@ -1567,7 +1573,7 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorOpeningDevice;
     }
 
-    snd_pcm_uframes_t period_frames = ceil(0.5 * instream->software_latency * (double)instream->sample_rate);
+    snd_pcm_uframes_t period_frames = ceil_dbl_to_uframes(0.5 * instream->software_latency * (double)instream->sample_rate);
     if ((err = snd_pcm_hw_params_set_period_size_near(isa->handle, hwparams, &period_frames, nullptr)) < 0) {
         instream_destroy_alsa(si, is);
         return SoundIoErrorOpeningDevice;

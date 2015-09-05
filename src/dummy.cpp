@@ -29,7 +29,7 @@ static void playback_thread_run(void *arg) {
         double now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
-            ceil(time_passed / osd->period_duration) * osd->period_duration;
+            ceil_dbl(time_passed / osd->period_duration) * osd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(osd->cond, nullptr, relative_time);
         if (!osd->clear_buffer_flag.test_and_set()) {
@@ -80,7 +80,7 @@ static void capture_thread_run(void *arg) {
         double now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
-            ceil(time_passed / isd->period_duration) * isd->period_duration;
+            ceil_dbl(time_passed / isd->period_duration) * isd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(isd->cond, nullptr, relative_time);
 

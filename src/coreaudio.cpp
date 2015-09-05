@@ -683,8 +683,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 if (avr_array_len == 1) {
                     rd.device->sample_rate_count = 1;
                     rd.device->sample_rates = &dev->prealloc_sample_rate_range;
-                    rd.device->sample_rates[0].min = ceil(rd.avr_array[0].mMinimum);
-                    rd.device->sample_rates[0].max = floor(rd.avr_array[0].mMaximum);
+                    rd.device->sample_rates[0].min = ceil_dbl_to_int(rd.avr_array[0].mMinimum);
+                    rd.device->sample_rates[0].max = (int)(rd.avr_array[0].mMaximum);
                 } else {
                     rd.device->sample_rate_count = avr_array_len;
                     rd.device->sample_rates = allocate<SoundIoSampleRateRange>(avr_array_len);
@@ -694,8 +694,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                     }
                     for (int i = 0; i < avr_array_len; i += 1) {
                         AudioValueRange *avr = &rd.avr_array[i];
-                        int min_val = ceil(avr->mMinimum);
-                        int max_val = floor(avr->mMaximum);
+                        int min_val = ceil_dbl_to_int(avr->mMinimum);
+                        int max_val = (int)(avr->mMaximum);
                         rd.device->sample_rates[i].min = min_val;
                         rd.device->sample_rates[i].max = max_val;
                     }

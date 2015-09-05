@@ -190,7 +190,6 @@ set(LIBSOUNDIO_LIBS
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
-    m
     ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -261,7 +260,7 @@ if(BUILD_EXAMPLE_PROGRAMS)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_sine libsoundio_shared)
+    target_link_libraries(sio_sine libsoundio_shared m)
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_list_devices example/sio_list_devices.c)
@@ -296,7 +295,7 @@ if(BUILD_TESTS)
     )
 
     add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.cpp" ${LIBSOUNDIO_SOURCES})
-    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS})
+    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} m)
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${LIB_CFLAGS}
@@ -306,7 +305,7 @@ if(BUILD_TESTS)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(underflow libsoundio_shared)
+    target_link_libraries(underflow libsoundio_shared m)
 
     add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
     set_target_properties(backend_disconnect_recover PROPERTIES

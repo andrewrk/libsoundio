@@ -693,7 +693,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     int bytes_per_second = outstream->bytes_per_frame * outstream->sample_rate;
     if (outstream->software_latency > 0.0) {
         int buffer_length = outstream->bytes_per_frame *
-            ceil(outstream->software_latency * bytes_per_second / (double)outstream->bytes_per_frame);
+            ceil_dbl_to_int(outstream->software_latency * bytes_per_second / (double)outstream->bytes_per_frame);
 
         ospa->buffer_attr.maxlength = buffer_length;
         ospa->buffer_attr.tlength = buffer_length;
@@ -925,7 +925,7 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     if (instream->software_latency > 0.0) {
         int bytes_per_second = instream->bytes_per_frame * instream->sample_rate;
         int buffer_length = instream->bytes_per_frame *
-            ceil(instream->software_latency * bytes_per_second / (double)instream->bytes_per_frame);
+            ceil_dbl_to_int(instream->software_latency * bytes_per_second / (double)instream->bytes_per_frame);
         ispa->buffer_attr.fragsize = buffer_length;
     }
 
