@@ -287,10 +287,6 @@ if(BUILD_EXAMPLE_PROGRAMS)
 endif()
 
 if(BUILD_TESTS)
-    include_directories(
-        "${CMAKE_SOURCE_DIR}/test"
-    )
-
     add_executable(unit_tests "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
     set_target_properties(unit_tests PROPERTIES
