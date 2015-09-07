@@ -664,6 +664,7 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     ospa->stream_ready.store(false);
+    ospa->clear_buffer_flag.test_and_set();
 
     assert(sipa->pulse_context);
 
@@ -779,8 +780,11 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
 static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
-    if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, nullptr, 0, PA_SEEK_RELATIVE))
+
+    pa_seek_mode_t seek_mode = ospa->clear_buffer_flag.test_and_set() ? PA_SEEK_RELATIVE : PA_SEEK_RELATIVE_ON_READ;
+    if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, nullptr, 0, seek_mode))
         return SoundIoErrorStreaming;
+
     return 0;
 }
 
@@ -788,16 +792,7 @@ static int outstream_clear_buffer_pa(SoundIoPrivate *si,
         SoundIoOutStreamPrivate *os)
 {
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    pa_stream *stream = ospa->stream;
-    pa_threaded_mainloop_lock(sipa->main_loop);
-    pa_operation *op = pa_stream_flush(stream, NULL, NULL);
-    if (!op) {
-        pa_threaded_mainloop_unlock(sipa->main_loop);
-        return SoundIoErrorStreaming;
-    }
-    pa_operation_unref(op);
-    pa_threaded_mainloop_unlock(sipa->main_loop);
+    ospa->clear_buffer_flag.clear();
     return 0;
 }
 

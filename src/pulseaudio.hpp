@@ -45,6 +45,7 @@ struct SoundIoOutStreamPulseAudio {
     pa_buffer_attr buffer_attr;
     char *write_ptr;
     size_t write_byte_count;
+    atomic_flag clear_buffer_flag;
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
