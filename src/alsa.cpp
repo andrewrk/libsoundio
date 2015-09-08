@@ -1482,7 +1482,6 @@ static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoO
 
     snd_pcm_sframes_t delay;
     if ((err = snd_pcm_delay(osa->handle, &delay)) < 0) {
-        fprintf(stderr, "snd_pcm_delay: %s\n", snd_strerror(err));
         return SoundIoErrorStreaming;
     }
 
