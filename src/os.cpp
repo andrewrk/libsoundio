@@ -121,12 +121,12 @@ struct SoundIoOsCond {
 #endif
 
 #if defined(SOUNDIO_OS_WINDOWS)
-INIT_ONCE win32_init_once = INIT_ONCE_STATIC_INIT;
+static INIT_ONCE win32_init_once = INIT_ONCE_STATIC_INIT;
 static double win32_time_resolution;
-SYSTEM_INFO win32_system_info;
+static SYSTEM_INFO win32_system_info;
 #else
-atomic_bool initialized = ATOMIC_VAR_INIT(false);
-pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+static atomic_bool initialized = ATOMIC_VAR_INIT(false);
+static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 static int page_size;
