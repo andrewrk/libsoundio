@@ -13,8 +13,6 @@
 #include <string.h>
 #include <math.h>
 
-static const double microphone_latency = 0.2; // seconds
-
 struct SoundIoRingBuffer *ring_buffer = NULL;
 
 static enum SoundIoFormat prioritized_formats[] = {
@@ -182,6 +180,7 @@ static int usage(char *exe) {
             "  [--in-raw]\n"
             "  [--out-device id]\n"
             "  [--out-raw]\n"
+            "  [--latency seconds]\n"
             , exe);
     return 1;
 }
@@ -193,6 +192,9 @@ int main(int argc, char **argv) {
     char *out_device_id = NULL;
     bool in_raw = false;
     bool out_raw = false;
+
+    double microphone_latency = 0.2; // seconds
+
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (arg[0] == '-' && arg[1] == '-') {
@@ -223,6 +225,8 @@ int main(int argc, char **argv) {
                 in_device_id = argv[i];
             } else if (strcmp(arg, "--out-device") == 0) {
                 out_device_id = argv[i];
+            } else if (strcmp(arg, "--latency") == 0) {
+                microphone_latency = atof(argv[i]);
             } else {
                 return usage(exe);
             }
