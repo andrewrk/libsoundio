@@ -21,7 +21,8 @@ static void playback_thread_run(void *arg) {
     int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
     int free_frames = free_bytes / outstream->bytes_per_frame;
     osd->frames_left = free_frames;
-    outstream->write_callback(outstream, 0, free_frames);
+    if (free_frames > 0)
+        outstream->write_callback(outstream, 0, free_frames);
     double start_time = soundio_os_get_time();
     long frames_consumed = 0;
 
@@ -37,7 +38,8 @@ static void playback_thread_run(void *arg) {
             int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer);
             int free_frames = free_bytes / outstream->bytes_per_frame;
             osd->frames_left = free_frames;
-            outstream->write_callback(outstream, 0, free_frames);
+            if (free_frames > 0)
+                outstream->write_callback(outstream, 0, free_frames);
             frames_consumed = 0;
             start_time = soundio_os_get_time();
             continue;
@@ -59,7 +61,8 @@ static void playback_thread_run(void *arg) {
         if (frames_to_kill > fill_frames) {
             outstream->underflow_callback(outstream);
             osd->frames_left = free_frames;
-            outstream->write_callback(outstream, 0, free_frames);
+            if (free_frames > 0)
+                outstream->write_callback(outstream, 0, free_frames);
             frames_consumed = 0;
             start_time = soundio_os_get_time();
         } else if (free_frames > 0) {
