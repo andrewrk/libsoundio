@@ -379,7 +379,7 @@ void soundio_os_cond_destroy(struct SoundIoOsCond *cond) {
 #if defined(SOUNDIO_OS_WINDOWS)
     DeleteCriticalSection(&cond->default_cs_id);
 #elif defined(SOUNDIO_OS_KQUEUE)
-    // nothing to do
+    close(cond->kq_id);
 #else
     if (cond->id_init) {
         assert_no_err(pthread_cond_destroy(&cond->id));
