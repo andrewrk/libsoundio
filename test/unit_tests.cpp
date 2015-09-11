@@ -15,6 +15,7 @@ static inline void ok_or_panic(int err) {
 }
 
 static void test_os_get_time(void) {
+    soundio_os_init();
     double prev_time = soundio_os_get_time();
     for (int i = 0; i < 1000; i += 1) {
         double time = soundio_os_get_time();

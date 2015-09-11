@@ -127,6 +127,9 @@ static SYSTEM_INFO win32_system_info;
 #else
 static atomic_bool initialized = ATOMIC_VAR_INIT(false);
 static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+#if defined(__MACH__)
+static clock_serv_t cclock;
+#endif
 #endif
 
 static int page_size;
@@ -137,13 +140,10 @@ double soundio_os_get_time(void) {
     QueryPerformanceCounter((LARGE_INTEGER*) &time);
     return time * win32_time_resolution;
 #elif defined(__MACH__)
-    clock_serv_t cclock;
     mach_timespec_t mts;
 
-    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
     kern_return_t err = clock_get_time(cclock, &mts);
     assert(!err);
-    mach_port_deallocate(mach_task_self(), cclock);
 
     double seconds = (double)mts.tv_sec;
     seconds += ((double)mts.tv_nsec) / 1000000000.0;
@@ -561,6 +561,9 @@ static int internal_init(void) {
     page_size = win32_system_info.dwAllocationGranularity;
 #else
     page_size = getpagesize();
+#if defined(__MACH__)
+    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+#endif
 #endif
     return 0;
 }
