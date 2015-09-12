@@ -251,6 +251,7 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->flush_events = nullptr;
     si->wait_events = nullptr;
     si->wakeup = nullptr;
+    si->force_device_scan = nullptr;
 
     si->outstream_open = nullptr;
     si->outstream_destroy = nullptr;
@@ -258,12 +259,16 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->outstream_begin_write = nullptr;
     si->outstream_end_write = nullptr;
     si->outstream_clear_buffer = nullptr;
+    si->outstream_pause = nullptr;
+    si->outstream_get_latency = nullptr;
 
     si->instream_open = nullptr;
     si->instream_destroy = nullptr;
     si->instream_start = nullptr;
     si->instream_begin_read = nullptr;
     si->instream_end_read = nullptr;
+    si->instream_pause = nullptr;
+    si->instream_get_latency = nullptr;
 }
 
 void soundio_flush_events(struct SoundIo *soundio) {
