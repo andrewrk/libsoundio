@@ -1015,6 +1015,7 @@ SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outst
 /// * #SoundIoErrorIncompatibleDevice - device does not support
 ///   pausing/unpausing. This error code might not be returned even if the
 ///   device does not support pausing/unpausing.
+/// * #SoundIoErrorInvalid - outstream not opened and started
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
 /// Obtain the total number of seconds that the next frame written after the

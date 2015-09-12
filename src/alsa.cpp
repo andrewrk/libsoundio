@@ -1459,7 +1459,13 @@ static int outstream_clear_buffer_alsa(SoundIoPrivate *si,
 }
 
 static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    if (!si)
+        return SoundIoErrorInvalid;
+
     SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
+
+    if (!osa->handle)
+        return SoundIoErrorInvalid;
 
     if (osa->is_paused == pause)
         return 0;
