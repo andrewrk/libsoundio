@@ -154,8 +154,6 @@ const char *soundio_backend_name(enum SoundIoBackend backend) {
 
 void soundio_destroy(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    if (!si)
-        return;
 
     soundio_disconnect(soundio);
 
@@ -237,6 +235,9 @@ int soundio_connect_backend(SoundIo *soundio, SoundIoBackend backend) {
 
 void soundio_disconnect(struct SoundIo *soundio) {
     SoundIoPrivate *si = (SoundIoPrivate *)soundio;
+
+    if (!si)
+        return;
 
     if (si->destroy)
         si->destroy(si);

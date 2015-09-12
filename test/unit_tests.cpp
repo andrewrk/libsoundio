@@ -49,6 +49,8 @@ static void test_create_outstream(void) {
     soundio_outstream_destroy(outstream);
     soundio_device_unref(device);
     soundio_destroy(soundio);
+    soundio = NULL;
+    soundio_destroy(soundio);
 }
 
 
