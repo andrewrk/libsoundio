@@ -15,7 +15,7 @@ static inline void ok_or_panic(int err) {
 }
 
 static void test_os_get_time(void) {
-    soundio_os_init();
+    ok_or_panic(soundio_os_init());
     double prev_time = soundio_os_get_time();
     for (int i = 0; i < 1000; i += 1) {
         double time = soundio_os_get_time();
@@ -165,6 +165,24 @@ static void test_ring_buffer_threaded(void) {
     soundio_destroy(soundio);
 }
 
+static void test_mirrored_memory(void) {
+    struct SoundIoOsMirroredMemory mem;
+    ok_or_panic(soundio_os_init());
+
+    static const int requested_bytes = 1024;
+    ok_or_panic(soundio_os_init_mirrored_memory(&mem, requested_bytes));
+    const int size_bytes = mem.capacity;
+
+    for (int i = 0; i < size_bytes; i += 1) {
+        mem.address[i] = rand() % CHAR_MAX;
+    }
+    for (int i = 0; i < size_bytes; i += 1) {
+        assert(mem.address[i] == mem.address[size_bytes+i]);
+    }
+
+    soundio_os_deinit_mirrored_memory(&mem);
+}
+
 struct Test {
     const char *name;
     void (*fn)(void);
@@ -175,6 +193,7 @@ static struct Test tests[] = {
     {"create output stream", test_create_outstream},
     {"ring buffer basic", test_ring_buffer_basic},
     {"ring buffer threaded", test_ring_buffer_threaded},
+    {"mirrored memory", test_mirrored_memory},
     {NULL, NULL},
 };
 

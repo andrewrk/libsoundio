@@ -668,26 +668,56 @@ int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t 
         break;
     }
 #else
+    char shm_path[] = "/dev/shm/soundio-XXXXXX";
+    char tmp_path[] = "/tmp/soundio-XXXXXX";
+    char *chosen_path;
+
+    int fd = mkstemp(shm_path);
+    if (fd < 0) {
+        fd = mkstemp(tmp_path);
+        if (fd < 0) {
+            return SoundIoErrorSystemResources;
+        } else {
+            chosen_path = tmp_path;
+        }
+    } else {
+        chosen_path = shm_path;
+    }
+
+    if (unlink(chosen_path)) {
+        close(fd);
+        return SoundIoErrorSystemResources;
+    }
+
+    if (ftruncate(fd, actual_capacity)) {
+        close(fd);
+        return SoundIoErrorSystemResources;
+    }
+
     char *address = (char*)mmap(NULL, actual_capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (address == MAP_FAILED)
         return SoundIoErrorNoMem;
 
     char *other_address = (char*)mmap(address, actual_capacity, PROT_READ|PROT_WRITE,
-            MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
+            MAP_FIXED|MAP_SHARED, fd, 0);
     if (other_address != address) {
         munmap(address, 2 * actual_capacity);
+        close(fd);
         return SoundIoErrorNoMem;
     }
 
     other_address = (char*)mmap(address + actual_capacity, actual_capacity,
-            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_FIXED|MAP_SHARED, -1, 0);
+            PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED, fd, 0);
     if (other_address != address + actual_capacity) {
         munmap(address, 2 * actual_capacity);
+        close(fd);
         return SoundIoErrorNoMem;
     }
 
     mem->address = address;
 
+    if (close(fd))
+        return SoundIoErrorSystemResources;
 #endif
 
     mem->capacity = actual_capacity;
