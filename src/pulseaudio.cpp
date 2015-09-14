@@ -800,7 +800,9 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
     SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
-    pa_threaded_mainloop_lock(sipa->main_loop);
+    if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
+        pa_threaded_mainloop_lock(sipa->main_loop);
+    }
 
     if (pause != pa_stream_is_corked(ospa->stream)) {
         pa_operation *op = pa_stream_cork(ospa->stream, pause, NULL, NULL);
@@ -811,7 +813,9 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
         pa_operation_unref(op);
     }
 
-    pa_threaded_mainloop_unlock(sipa->main_loop);
+    if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+    }
 
     return 0;
 }
@@ -1026,7 +1030,9 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
     SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
-    pa_threaded_mainloop_lock(sipa->main_loop);
+    if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
+        pa_threaded_mainloop_lock(sipa->main_loop);
+    }
 
     if (pause != pa_stream_is_corked(ispa->stream)) {
         pa_operation *op = pa_stream_cork(ispa->stream, pause, NULL, NULL);
@@ -1035,7 +1041,9 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
         pa_operation_unref(op);
     }
 
-    pa_threaded_mainloop_unlock(sipa->main_loop);
+    if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+    }
 
     return 0;
 }
