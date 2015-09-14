@@ -274,8 +274,3 @@ make doc
 ```
 
 Then look at `html/index.html` in a browser.
-
-## Projects Using libsoundio
-
- * [Genesis](https://github.com/andrewrk/genesis)
- * [Groove Basin](https://github.com/andrewrk/groovebasin) (via [libgroove](https://github.com/andrewrk/libgroove))
