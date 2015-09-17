@@ -9,7 +9,6 @@
 #include "soundio.hpp"
 
 #include <sys/inotify.h>
-#include <math.h>
 
 static snd_pcm_stream_t stream_types[] = {SND_PCM_STREAM_PLAYBACK, SND_PCM_STREAM_CAPTURE};
 

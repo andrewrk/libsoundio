@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 
 static void playback_thread_run(void *arg) {
     SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)arg;

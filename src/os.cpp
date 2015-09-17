@@ -8,14 +8,12 @@
 #include "os.h"
 #include "soundio_private.h"
 #include "util.hpp"
-#include "atomics.hpp"
 
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include <math.h>
 
 #if defined(_WIN32)
 #define SOUNDIO_OS_WINDOWS
@@ -125,7 +123,7 @@ static INIT_ONCE win32_init_once = INIT_ONCE_STATIC_INIT;
 static double win32_time_resolution;
 static SYSTEM_INFO win32_system_info;
 #else
-static atomic_bool initialized = ATOMIC_VAR_INIT(false);
+static bool initialized = false;
 static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 #if defined(__MACH__)
 static clock_serv_t cclock;
@@ -586,15 +584,12 @@ int soundio_os_init(void) {
     if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, nullptr))
         return SoundIoErrorSystemResources;
 #else
-    if (initialized.load())
-        return 0;
-
     assert_no_err(pthread_mutex_lock(&init_mutex));
-    if (initialized.load()) {
+    if (initialized) {
         assert_no_err(pthread_mutex_unlock(&init_mutex));
         return 0;
     }
-    initialized.store(true);
+    initialized = true;
     if ((err = internal_init()))
         return err;
     assert_no_err(pthread_mutex_unlock(&init_mutex));
