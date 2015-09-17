@@ -359,7 +359,8 @@ struct SoundIo {
     /// This callback is fired when making thread real-time priority failed. By
     /// default, it will print to stderr only the first time it is called
     /// a message instructing the user how to configure their system to allow
-    /// real-time priority threads.
+    /// real-time priority threads. This must be set to a function not NULL.
+    /// To silence the warning, assign this to a function that does nothing.
     void (*emit_rtprio_warning)(void);
 
     /// Optional: JACK info callback.

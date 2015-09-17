@@ -234,7 +234,7 @@ int soundio_os_thread_create(
     }
 
     if ((err = pthread_create(&thread->id, &thread->attr, run_pthread, thread))) {
-        if (err == EPERM) {
+        if (err == EPERM && emit_rtprio_warning) {
             emit_rtprio_warning();
             err = pthread_create(&thread->id, NULL, run_pthread, thread);
         }
