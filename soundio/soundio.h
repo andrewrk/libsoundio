@@ -423,10 +423,10 @@ struct SoundIoDevice {
     /// whatever format is most convenient
     /// for you which is supported by the device, because when you are the only
     /// application left, the mixer might decide to switch
-    /// current_format to yours. You can learn the supported formats via formats and
-    /// SoundIoDevice::format_count. If this information is missing due to a
-    /// probe error, formats will be `NULL`. If current_format
-    /// is unavailable, it will be set to #SoundIoFormatInvalid.
+    /// current_format to yours. You can learn the supported formats via
+    /// formats and SoundIoDevice::format_count. If this information is missing
+    /// due to a probe error, formats will be `NULL`. If current_format is
+    /// unavailable, it will be set to #SoundIoFormatInvalid.
     /// Devices are guaranteed to have at least 1 format available.
     enum SoundIoFormat current_format;
 
@@ -490,14 +490,16 @@ struct SoundIoOutStream {
     /// Populated automatically when you call ::soundio_outstream_create.
     struct SoundIoDevice *device;
 
-    /// Defaults to #SoundIoFormatFloat32NE, followed by the first one supported.
+    /// Defaults to #SoundIoFormatFloat32NE, followed by the first one
+    /// supported.
     enum SoundIoFormat format;
 
     /// Sample rate is the number of frames per second.
     /// Defaults to 48000 (and then clamped into range).
     int sample_rate;
 
-    /// Defaults to Stereo, if available, followed by the first layout supported.
+    /// Defaults to Stereo, if available, followed by the first layout
+    /// supported.
     struct SoundIoChannelLayout layout;
 
     /// Ignoring hardware latency, this is the number of seconds it takes for
@@ -547,9 +549,9 @@ struct SoundIoOutStream {
     /// pthread_join, pthread_cond_wait, etc.
     void (*write_callback)(struct SoundIoOutStream *,
             int frame_count_min, int frame_count_max);
-    /// This optional callback happens when the sound device runs out of buffered
-    /// audio data to play. After this occurs, the outstream waits until the
-    /// buffer is full to resume playback.
+    /// This optional callback happens when the sound device runs out of
+    /// buffered audio data to play. After this occurs, the outstream waits
+    /// until the buffer is full to resume playback.
     /// This is called from the SoundIoOutStream::write_callback thread context.
     void (*underflow_callback)(struct SoundIoOutStream *);
     /// Optional callback. `err` is always SoundIoErrorStreaming.
@@ -580,7 +582,8 @@ struct SoundIoOutStream {
     int bytes_per_sample;
 
     /// If setting the channel layout fails for some reason, this field is set
-    /// to an error code. Possible error codes are: #SoundIoErrorIncompatibleDevice
+    /// to an error code. Possible error codes are:
+    /// * #SoundIoErrorIncompatibleDevice
     int layout_error;
 };
 
@@ -589,14 +592,16 @@ struct SoundIoInStream {
     /// Populated automatically when you call ::soundio_outstream_create.
     struct SoundIoDevice *device;
 
-    /// Defaults to SoundIoFormatFloat32NE, followed by the first one supported.
+    /// Defaults to #SoundIoFormatFloat32NE, followed by the first one
+    /// supported.
     enum SoundIoFormat format;
 
     /// Sample rate is the number of frames per second.
     /// Defaults to max(sample_rate_min, min(sample_rate_max, 48000))
     int sample_rate;
 
-    /// Defaults to Stereo, if available, followed by the first layout supported.
+    /// Defaults to Stereo, if available, followed by the first layout
+    /// supported.
     struct SoundIoChannelLayout layout;
 
     /// Ignoring hardware latency, this is the number of seconds it takes for a
