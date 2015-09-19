@@ -183,6 +183,33 @@ static void test_mirrored_memory(void) {
     soundio_os_deinit_mirrored_memory(&mem);
 }
 
+static void test_nearest_sample_rate(void) {
+    struct SoundIoDevice device;
+    struct SoundIoSampleRateRange sample_rates[2] = {
+        {
+            44100,
+            48000
+        },
+        {
+            96000,
+            96000,
+        },
+    };
+
+    device.sample_rate_count = 2;
+    device.sample_rates = sample_rates;
+
+    assert(soundio_device_nearest_sample_rate(&device, 100) == 44100);
+    assert(soundio_device_nearest_sample_rate(&device, 44099) == 44100);
+    assert(soundio_device_nearest_sample_rate(&device, 44100) == 44100);
+    assert(soundio_device_nearest_sample_rate(&device, 45000) == 45000);
+    assert(soundio_device_nearest_sample_rate(&device, 48000) == 48000);
+    assert(soundio_device_nearest_sample_rate(&device, 48001) == 96000);
+    assert(soundio_device_nearest_sample_rate(&device, 90000) == 96000);
+    assert(soundio_device_nearest_sample_rate(&device, 96001) == 96000);
+    assert(soundio_device_nearest_sample_rate(&device, 9999999) == 96000);
+}
+
 struct Test {
     const char *name;
     void (*fn)(void);
@@ -194,6 +221,7 @@ static struct Test tests[] = {
     {"ring buffer basic", test_ring_buffer_basic},
     {"ring buffer threaded", test_ring_buffer_threaded},
     {"mirrored memory", test_mirrored_memory},
+    {"soundio_device_nearest_sample_rate", test_nearest_sample_rate},
     {NULL, NULL},
 };
 

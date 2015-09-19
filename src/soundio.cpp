@@ -763,21 +763,29 @@ bool soundio_device_supports_sample_rate(struct SoundIoDevice *device, int sampl
     return false;
 }
 
+static int abs_diff_int(int a, int b) {
+    int x = a - b;
+    return (x >= 0) ? x : -x;
+}
+
 int soundio_device_nearest_sample_rate(struct SoundIoDevice *device, int sample_rate) {
     int best_rate = -1;
     int best_delta = -1;
     for (int i = 0; i < device->sample_rate_count; i += 1) {
         SoundIoSampleRateRange *range = &device->sample_rates[i];
-        if (sample_rate < range->min) {
-            int delta = range->min - sample_rate;
-            if (best_delta == -1 || delta < best_delta) {
-                best_delta = delta;
-                best_rate = range->min;
-            }
-        } else if (best_rate == -1 && sample_rate > range->max) {
-            best_rate = range->max;
-        } else {
-            return sample_rate;
+        int candidate_rate = clamp(range->min, sample_rate, range->max);
+        if (candidate_rate == sample_rate)
+            return candidate_rate;
+
+        int delta = abs_diff_int(candidate_rate, sample_rate);
+        bool best_rate_too_small = best_rate < sample_rate;
+        bool candidate_rate_too_small = candidate_rate < sample_rate;
+        if (best_rate == -1 ||
+            (best_rate_too_small && !candidate_rate_too_small) ||
+            ((best_rate_too_small || !candidate_rate_too_small) && delta < best_delta))
+        {
+            best_rate = candidate_rate;
+            best_delta = delta;
         }
     }
     return best_rate;
