@@ -652,7 +652,6 @@ struct SoundIoInStream {
     /// Optional: Hint that this input stream is nonterminal. This is used by
     /// JACK and it means that the data received by the stream will be
     /// passed on or made available to another stream. Defaults to `false`.
-    /// stream. Defaults to `false`.
     bool non_terminal_hint;
 
     /// computed automatically when you call ::soundio_instream_open
