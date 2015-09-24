@@ -45,30 +45,23 @@ struct SoundIoOutStreamJackPort {
     int dest_port_name_len;
 };
 
-struct SoundIoOutStreamJack {
-    jack_client_t *client;
-    int period_size;
-    int frames_left;
-    bool is_paused;
-    double hardware_latency;
-    SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-};
-
 struct SoundIoInStreamJackPort {
     jack_port_t *dest_port;
     const char *source_port_name;
     int source_port_name_len;
 };
 
-struct SoundIoInStreamJack {
+struct SoundIoStreamJack {
     jack_client_t *client;
     int period_size;
     int frames_left;
+    bool is_paused;
     double hardware_latency;
-    SoundIoInStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-    char *buf_ptrs[SOUNDIO_MAX_CHANNELS];
+    SoundIoOutStreamJackPort out_ports[SOUNDIO_MAX_CHANNELS];
+    SoundIoOutStreamJackPort in_ports[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea in_areas[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea out_areas[SOUNDIO_MAX_CHANNELS];
+    char *in_buf_ptrs[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

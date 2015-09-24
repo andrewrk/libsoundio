@@ -140,7 +140,6 @@ set(LIBSOUNDIO_SOURCES
     "${CMAKE_SOURCE_DIR}/src/os.cpp"
     "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
     "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
-    "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
 )
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")

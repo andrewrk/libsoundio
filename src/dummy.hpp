@@ -11,7 +11,6 @@
 #include "soundio_private.h"
 #include "os.h"
 #include "atomics.hpp"
-#include "ring_buffer.hpp"
 
 int soundio_dummy_init(struct SoundIoPrivate *si);
 
@@ -23,30 +22,28 @@ struct SoundIoDummy {
 
 struct SoundIoDeviceDummy { };
 
-struct SoundIoOutStreamDummy {
+struct SoundIoStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
     atomic_flag abort_flag;
     double period_duration;
+
     int buffer_frame_count;
-    int frames_left;
+
+    int out_frames_left;
     int write_frame_count;
-    struct SoundIoRingBuffer ring_buffer;
+    atomic_long out_buffer_write_offset;
+    atomic_long out_buffer_read_offset;
+
+    int in_frames_left;
+    int read_frame_count;
+    atomic_long in_buffer_write_offset;
+    atomic_long in_buffer_read_offset;
+
     double playback_start_time;
     atomic_flag clear_buffer_flag;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-};
-
-struct SoundIoInStreamDummy {
-    struct SoundIoOsThread *thread;
-    struct SoundIoOsCond *cond;
-    atomic_flag abort_flag;
-    double period_duration;
-    int frames_left;
-    int read_frame_count;
-    int buffer_frame_count;
-    struct SoundIoRingBuffer ring_buffer;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea in_areas[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea out_areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

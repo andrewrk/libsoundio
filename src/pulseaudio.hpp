@@ -39,26 +39,24 @@ struct SoundIoPulseAudio {
     pa_proplist *props;
 };
 
-struct SoundIoOutStreamPulseAudio {
+struct SoundIoStreamPulseAudio {
     pa_stream *stream;
-    atomic_bool stream_ready;
-    pa_buffer_attr buffer_attr;
+    atomic_bool out_stream_ready;
+    pa_buffer_attr out_buffer_attr;
     char *write_ptr;
     size_t write_byte_count;
     atomic_flag clear_buffer_flag;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-};
 
-struct SoundIoInStreamPulseAudio {
-    pa_stream *stream;
-    atomic_bool stream_ready;
-    pa_buffer_attr buffer_attr;
+    atomic_bool in_stream_ready;
+    pa_buffer_attr in_buffer_attr;
     char *peek_buf;
     size_t peek_buf_index;
     size_t peek_buf_size;
     int peek_buf_frames_left;
     int read_frame_count;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+
+    SoundIoChannelArea in_areas[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea out_areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

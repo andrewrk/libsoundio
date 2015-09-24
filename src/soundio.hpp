@@ -71,42 +71,23 @@ union SoundIoDeviceBackendData {
     SoundIoDeviceDummy dummy;
 };
 
-union SoundIoOutStreamBackendData {
+union SoundIoStreamBackendData {
 #ifdef SOUNDIO_HAVE_JACK
-    SoundIoOutStreamJack jack;
+    SoundIoStreamJack jack;
 #endif
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
-    SoundIoOutStreamPulseAudio pulseaudio;
+    SoundIoStreamPulseAudio pulseaudio;
 #endif
 #ifdef SOUNDIO_HAVE_ALSA
-    SoundIoOutStreamAlsa alsa;
+    SoundIoStreamAlsa alsa;
 #endif
 #ifdef SOUNDIO_HAVE_COREAUDIO
-    SoundIoOutStreamCoreAudio coreaudio;
+    SoundIoStreamCoreAudio coreaudio;
 #endif
 #ifdef SOUNDIO_HAVE_WASAPI
-    SoundIoOutStreamWasapi wasapi;
+    SoundIoStreamWasapi wasapi;
 #endif
-    SoundIoOutStreamDummy dummy;
-};
-
-union SoundIoInStreamBackendData {
-#ifdef SOUNDIO_HAVE_JACK
-    SoundIoInStreamJack jack;
-#endif
-#ifdef SOUNDIO_HAVE_PULSEAUDIO
-    SoundIoInStreamPulseAudio pulseaudio;
-#endif
-#ifdef SOUNDIO_HAVE_ALSA
-    SoundIoInStreamAlsa alsa;
-#endif
-#ifdef SOUNDIO_HAVE_COREAUDIO
-    SoundIoInStreamCoreAudio coreaudio;
-#endif
-#ifdef SOUNDIO_HAVE_WASAPI
-    SoundIoInStreamWasapi wasapi;
-#endif
-    SoundIoInStreamDummy dummy;
+    SoundIoStreamDummy dummy;
 };
 
 struct SoundIoDevicesInfo {
@@ -117,14 +98,9 @@ struct SoundIoDevicesInfo {
     int default_input_index;
 };
 
-struct SoundIoOutStreamPrivate {
-    SoundIoOutStream pub;
-    SoundIoOutStreamBackendData backend_data;
-};
-
-struct SoundIoInStreamPrivate {
-    SoundIoInStream pub;
-    SoundIoInStreamBackendData backend_data;
+struct SoundIoStreamPrivate {
+    SoundIoStream pub;
+    SoundIoStreamBackendData backend_data;
 };
 
 struct SoundIoPrivate {
@@ -139,25 +115,18 @@ struct SoundIoPrivate {
     void (*wakeup)(struct SoundIoPrivate *);
     void (*force_device_scan)(struct SoundIoPrivate *);
 
-    int (*outstream_open)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    void (*outstream_destroy)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_start)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
+    int (*stream_open)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    void (*stream_destroy)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    int (*stream_start)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    int (*stream_begin_write)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *,
             SoundIoChannelArea **out_areas, int *out_frame_count);
-    int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
-    int (*outstream_get_latency)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, double *out_latency);
-
-
-    int (*instream_open)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    void (*instream_destroy)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_start)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_begin_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
+    int (*stream_end_write)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    int (*stream_begin_read)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *,
             SoundIoChannelArea **out_areas, int *out_frame_count);
-    int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
-    int (*instream_get_latency)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, double *out_latency);
+    int (*stream_end_read)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    int (*stream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *);
+    int (*stream_pause)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *, bool pause);
+    int (*stream_get_latency)(struct SoundIoPrivate *, struct SoundIoStreamPrivate *, double *out_latency);
 
     SoundIoBackendData backend_data;
 };

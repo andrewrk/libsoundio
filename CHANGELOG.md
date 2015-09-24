@@ -1,3 +1,10 @@
+### Version 2.0.0 (UNRELEASED)
+
+ * Default sample rate is now 44100 instead of 48000.
+ * `SoundIoOutStream` and `SoundIoInStream` no longer exist. Instead, there is
+   `SoundIoStream` and a stream can be an output stream, an input stream, or
+   both.
+
 ### Version 1.0.1 (2015-09-11)
 
  * libsoundio no longer depends on or links against libm.

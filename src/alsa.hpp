@@ -43,8 +43,9 @@ struct SoundIoAlsa {
     bool emitted_shutdown_cb;
 };
 
-struct SoundIoOutStreamAlsa {
-    snd_pcm_t *handle;
+struct SoundIoStreamAlsa {
+    snd_pcm_t *out_handle;
+    snd_pcm_t *in_handle;
     snd_pcm_chmap_t *chmap;
     int chmap_size;
     snd_pcm_uframes_t offset;
@@ -58,27 +59,11 @@ struct SoundIoOutStreamAlsa {
     atomic_flag thread_exit_flag;
     int period_size;
     int write_frame_count;
-    bool is_paused;
-    atomic_flag clear_buffer_flag;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-};
-
-struct SoundIoInStreamAlsa {
-    snd_pcm_t *handle;
-    snd_pcm_chmap_t *chmap;
-    int chmap_size;
-    snd_pcm_uframes_t offset;
-    snd_pcm_access_t access;
-    int sample_buffer_size;
-    char *sample_buffer;
-    int poll_fd_count;
-    struct pollfd *poll_fds;
-    SoundIoOsThread *thread;
-    atomic_flag thread_exit_flag;
-    int period_size;
     int read_frame_count;
     bool is_paused;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    atomic_flag clear_buffer_flag;
+    SoundIoChannelArea in_areas[SOUNDIO_MAX_CHANNELS];
+    SoundIoChannelArea out_areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

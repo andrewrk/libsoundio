@@ -11,62 +11,62 @@
 #include <stdio.h>
 #include <string.h>
 
-static void playback_thread_run(void *arg) {
-    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate *)arg;
-    SoundIoOutStream *outstream = &os->pub;
-    SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
+static void stream_thread_run(void *arg) {
+    SoundIoStreamPrivate *os = (SoundIoStreamPrivate *)arg;
+    SoundIoStream *stream = &os->pub;
+    SoundIoStreamDummy *sd = &os->backend_data.dummy;
 
-    int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
-    int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
-    int free_frames = free_bytes / outstream->bytes_per_frame;
-    osd->frames_left = free_frames;
-    if (free_frames > 0)
-        outstream->write_callback(outstream, 0, free_frames);
+    if (stream->output_device) {
+        int out_fill_frames = (sd->out_buffer_write_offset - sd->out_buffer_read_offset);
+        int out_free_frames = sd->buffer_frame_count - out_fill_frames;
+        sd->out_frames_left = out_free_frames;
+        if (out_free_frames > 0)
+            stream->write_callback(stream, 0, out_free_frames);
+    }
     double start_time = soundio_os_get_time();
     long frames_consumed = 0;
 
-    while (osd->abort_flag.test_and_set()) {
+    while (sd->abort_flag.test_and_set()) {
         double now = soundio_os_get_time();
         double time_passed = now - start_time;
         double next_period = start_time +
-            ceil_dbl(time_passed / osd->period_duration) * osd->period_duration;
+            ceil_dbl(time_passed / sd->period_duration) * sd->period_duration;
         double relative_time = next_period - now;
-        soundio_os_cond_timed_wait(osd->cond, nullptr, relative_time);
-        if (!osd->clear_buffer_flag.test_and_set()) {
-            soundio_ring_buffer_clear(&osd->ring_buffer);
-            int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer);
-            int free_frames = free_bytes / outstream->bytes_per_frame;
-            osd->frames_left = free_frames;
-            if (free_frames > 0)
-                outstream->write_callback(outstream, 0, free_frames);
+        soundio_os_cond_timed_wait(sd->cond, nullptr, relative_time);
+        if (!sd->clear_buffer_flag.test_and_set()) {
+            sd->out_buffer_write_offset.store(0);
+            sd->out_buffer_read_offset.store(0);
+            sd->in_buffer_write_offset.store(0);
+            sd->in_buffer_read_offset.store(0);
+            sd->out_frames_left = sd->buffer_frame_count;
+            assert(sd->buffer_frame_count > 0);
+            stream->write_callback(stream, 0, sd->buffer_frame_count);
             frames_consumed = 0;
             start_time = soundio_os_get_time();
             continue;
         }
 
-        int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
-        int fill_frames = fill_bytes / outstream->bytes_per_frame;
-        int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
-        int free_frames = free_bytes / outstream->bytes_per_frame;
+        int out_fill_frames = (sd->out_buffer_write_offset - sd->out_buffer_read_offset);
+        int out_free_frames = sd->buffer_frame_count - out_fill_frames;
 
         double total_time = soundio_os_get_time() - start_time;
-        long total_frames = total_time * outstream->sample_rate;
+        long total_frames = total_time * stream->sample_rate;
         int frames_to_kill = total_frames - frames_consumed;
         int read_count = min(frames_to_kill, fill_frames);
-        int byte_count = read_count * outstream->bytes_per_frame;
-        soundio_ring_buffer_advance_read_ptr(&osd->ring_buffer, byte_count);
+        int byte_count = read_count * stream->bytes_per_frame;
+        soundio_ring_buffer_advance_read_ptr(&sd->ring_buffer, byte_count);
         frames_consumed += read_count;
 
         if (frames_to_kill > fill_frames) {
-            outstream->underflow_callback(outstream);
-            osd->frames_left = free_frames;
+            stream->underflow_callback(stream);
+            sd->out_frames_left = free_frames;
             if (free_frames > 0)
-                outstream->write_callback(outstream, 0, free_frames);
+                stream->write_callback(stream, 0, free_frames);
             frames_consumed = 0;
             start_time = soundio_os_get_time();
         } else if (free_frames > 0) {
-            osd->frames_left = free_frames;
-            outstream->write_callback(outstream, 0, free_frames);
+            sd->out_frames_left = free_frames;
+            stream->write_callback(stream, 0, free_frames);
         }
     }
 }
@@ -205,7 +205,7 @@ static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStr
         if (!osd->thread) {
             osd->abort_flag.test_and_set();
             int err;
-            if ((err = soundio_os_thread_create(playback_thread_run, os,
+            if ((err = soundio_os_thread_create(stream_thread_run, os,
                             soundio->emit_rtprio_warning, &osd->thread)))
             {
                 return err;
@@ -547,22 +547,16 @@ int soundio_dummy_init(SoundIoPrivate *si) {
     si->wakeup = wakeup_dummy;
     si->force_device_scan = force_device_scan_dummy;
 
-    si->outstream_open = outstream_open_dummy;
-    si->outstream_destroy = outstream_destroy_dummy;
-    si->outstream_start = outstream_start_dummy;
-    si->outstream_begin_write = outstream_begin_write_dummy;
-    si->outstream_end_write = outstream_end_write_dummy;
-    si->outstream_clear_buffer = outstream_clear_buffer_dummy;
-    si->outstream_pause = outstream_pause_dummy;
-    si->outstream_get_latency = outstream_get_latency_dummy;
-
-    si->instream_open = instream_open_dummy;
-    si->instream_destroy = instream_destroy_dummy;
-    si->instream_start = instream_start_dummy;
+    si->stream_open = stream_open_dummy;
+    si->stream_destroy = stream_destroy_dummy;
+    si->stream_start = stream_start_dummy;
+    si->stream_begin_write = stream_begin_write_dummy;
+    si->stream_end_write = stream_end_write_dummy;
     si->instream_begin_read = instream_begin_read_dummy;
     si->instream_end_read = instream_end_read_dummy;
-    si->instream_pause = instream_pause_dummy;
-    si->instream_get_latency = instream_get_latency_dummy;
+    si->stream_clear_buffer = stream_clear_buffer_dummy;
+    si->stream_pause = stream_pause_dummy;
+    si->stream_get_latency = stream_get_latency_dummy;
 
     return 0;
 }
