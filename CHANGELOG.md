@@ -1,3 +1,15 @@
+### Version 1.0.2 (2015-09-24)
+
+ * build: fix GNUInstallDirs not working.
+ * docs: fix incorrect docs for `soundio_instream_pause`.
+ * PulseAudio: fix `soundio_outstream_pause` triggering assertion when called
+   from within `write_callback`.
+ * fix mirrored memory not working on Linux (fixes corrupted data in ring
+   buffer).
+ * os: fix crash when creating non high priority thread fails.
+ * docs: fix typos and cleanup.
+ * fix and add test for `soundio_device_nearest_sample_rate`.
+
 ### Version 1.0.1 (2015-09-11)
 
  * libsoundio no longer depends on or links against libm.
