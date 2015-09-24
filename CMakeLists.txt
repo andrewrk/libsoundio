@@ -146,6 +146,7 @@ set(LIBSOUNDIO_SOURCES
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${CMAKE_SOURCE_DIR}/soundio/soundio.h"
+    "${CMAKE_SOURCE_DIR}/soundio/endian.h"
     ${CONFIGURE_OUT_FILE}
 )
 
@@ -207,15 +208,6 @@ set(EXAMPLE_CFLAGS "-std=c99 -Wall")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
 set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
 
-include(TestBigEndian)
-test_big_endian(IS_BIG_ENDIAN)
-if(IS_BIG_ENDIAN)
-    set(SOUNDIO_OS_BIG_ENDIAN true)
-    set(SOUNDIO_OS_LITTLE_ENDIAN false)
-else()
-    set(SOUNDIO_OS_BIG_ENDIAN false)
-    set(SOUNDIO_OS_LITTLE_ENDIAN true)
-endif()
 configure_file(
     "${CMAKE_SOURCE_DIR}/src/config.h.in"
     ${CONFIGURE_OUT_FILE}
