@@ -20,6 +20,8 @@ static int usage(char *exe) {
             "  [--device id]\n"
             "  [--raw]\n"
             "  [--name stream_name]\n"
+            "  [--latency seconds]\n"
+            "  [--sample-rate hz]\n"
             , exe);
     return 1;
 }
@@ -106,6 +108,8 @@ int main(int argc, char **argv) {
     char *device_id = NULL;
     bool raw = false;
     char *stream_name = NULL;
+    double latency = 0.0;
+    int sample_rate = 0;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (arg[0] == '-' && arg[1] == '-') {
@@ -136,6 +140,10 @@ int main(int argc, char **argv) {
                     device_id = argv[i];
                 } else if (strcmp(arg, "--name") == 0) {
                     stream_name = argv[i];
+                } else if (strcmp(arg, "--latency") == 0) {
+                    latency = atof(argv[i]);
+                } else if (strcmp(arg, "--sample-rate") == 0) {
+                    sample_rate = atoi(argv[i]);
                 } else {
                     return usage(exe);
                 }
@@ -204,6 +212,8 @@ int main(int argc, char **argv) {
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
     outstream->name = stream_name;
+    outstream->software_latency = latency;
+    outstream->sample_rate = sample_rate;
 
     if (soundio_device_supports_format(device, SoundIoFormatFloat32NE)) {
         outstream->format = SoundIoFormatFloat32NE;
