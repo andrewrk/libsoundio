@@ -45,6 +45,10 @@ the former. Features that only exist in some sound backends are exposed.
  * Exposes extra API that is only available on some backends. For example you
    can provide application name and stream names which is used by JACK and
    PulseAudio.
+ * Supported operating systems:
+   - Windows 7+
+   - MacOS 10.9+
+   - Linux with ALSA 1.0.27+
 
 ## Synopsis
 
