@@ -48,7 +48,7 @@ the former. Features that only exist in some sound backends are exposed.
  * Supported operating systems:
    - Windows 7+
    - MacOS 10.9+
-   - Linux with ALSA 1.0.27+
+   - Linux 3.7+
 
 ## Synopsis
 
