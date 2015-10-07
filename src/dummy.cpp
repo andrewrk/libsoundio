@@ -44,6 +44,12 @@ static void playback_thread_run(void *arg) {
             continue;
         }
 
+        if (osd->pause_requested.load()) {
+            start_time = now;
+            frames_consumed = 0;
+            continue;
+        }
+
         int fill_bytes = soundio_ring_buffer_fill_count(&osd->ring_buffer);
         int fill_frames = fill_bytes / outstream->bytes_per_frame;
         int free_bytes = soundio_ring_buffer_capacity(&osd->ring_buffer) - fill_bytes;
@@ -85,6 +91,12 @@ static void capture_thread_run(void *arg) {
             ceil_dbl(time_passed / isd->period_duration) * isd->period_duration;
         double relative_time = next_period - now;
         soundio_os_cond_timed_wait(isd->cond, nullptr, relative_time);
+
+        if (isd->pause_requested.load()) {
+            start_time = now;
+            frames_consumed = 0;
+            continue;
+        }
 
         int fill_bytes = soundio_ring_buffer_fill_count(&isd->ring_buffer);
         int free_bytes = soundio_ring_buffer_capacity(&isd->ring_buffer) - fill_bytes;
@@ -166,6 +178,7 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
     SoundIoDevice *device = outstream->device;
 
     osd->clear_buffer_flag.test_and_set();
+    osd->pause_requested.store(false);
 
     if (outstream->software_latency == 0.0)
         outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
@@ -193,30 +206,22 @@ static int outstream_open_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os)
 
 static int outstream_pause_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
-    SoundIo *soundio = &si->pub;
-    if (pause) {
-        if (osd->thread) {
-            osd->abort_flag.clear();
-            soundio_os_cond_signal(osd->cond, nullptr);
-            soundio_os_thread_destroy(osd->thread);
-            osd->thread = nullptr;
-        }
-    } else {
-        if (!osd->thread) {
-            osd->abort_flag.test_and_set();
-            int err;
-            if ((err = soundio_os_thread_create(playback_thread_run, os,
-                            soundio->emit_rtprio_warning, &osd->thread)))
-            {
-                return err;
-            }
-        }
-    }
+    osd->pause_requested.store(pause);
     return 0;
 }
 
 static int outstream_start_dummy(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    return outstream_pause_dummy(si, os, false);
+    SoundIoOutStreamDummy *osd = &os->backend_data.dummy;
+    SoundIo *soundio = &si->pub;
+    assert(!osd->thread);
+    osd->abort_flag.test_and_set();
+    int err;
+    if ((err = soundio_os_thread_create(playback_thread_run, os,
+                    soundio->emit_rtprio_warning, &osd->thread)))
+    {
+        return err;
+    }
+    return 0;
 }
 
 static int outstream_begin_write_dummy(SoundIoPrivate *si,
@@ -284,6 +289,7 @@ static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoInStream *instream = &is->pub;
     SoundIoDevice *device = instream->device;
 
+    isd->pause_requested.store(false);
 
     if (instream->software_latency == 0.0)
         instream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
@@ -313,30 +319,22 @@ static int instream_open_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
 
 static int instream_pause_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
     SoundIoInStreamDummy *isd = &is->backend_data.dummy;
-    SoundIo *soundio = &si->pub;
-    if (pause) {
-        if (isd->thread) {
-            isd->abort_flag.clear();
-            soundio_os_cond_signal(isd->cond, nullptr);
-            soundio_os_thread_destroy(isd->thread);
-            isd->thread = nullptr;
-        }
-    } else {
-        if (!isd->thread) {
-            isd->abort_flag.test_and_set();
-            int err;
-            if ((err = soundio_os_thread_create(capture_thread_run, is,
-                            soundio->emit_rtprio_warning, &isd->thread)))
-            {
-                return err;
-            }
-        }
-    }
+    isd->pause_requested.store(pause);
     return 0;
 }
 
 static int instream_start_dummy(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    return instream_pause_dummy(si, is, false);
+    SoundIoInStreamDummy *isd = &is->backend_data.dummy;
+    SoundIo *soundio = &si->pub;
+    assert(!isd->thread);
+    isd->abort_flag.test_and_set();
+    int err;
+    if ((err = soundio_os_thread_create(capture_thread_run, is,
+                    soundio->emit_rtprio_warning, &isd->thread)))
+    {
+        return err;
+    }
+    return 0;
 }
 
 static int instream_begin_read_dummy(SoundIoPrivate *si,
