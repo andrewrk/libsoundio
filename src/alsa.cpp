@@ -1047,6 +1047,8 @@ static void outstream_thread_run(void *arg) {
 
                 if ((snd_pcm_uframes_t)avail == osa->buffer_size_frames) {
                     outstream->write_callback(outstream, 0, avail);
+                    if (!osa->thread_exit_flag.test_and_set())
+                        return;
                     continue;
                 }
 
