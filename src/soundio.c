@@ -499,8 +499,10 @@ int soundio_outstream_open(struct SoundIoOutStream *outstream) {
         outstream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
     }
 
-    if (!outstream->sample_rate)
-        outstream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
+    if (!outstream->sample_rate) {
+        outstream->sample_rate = device->sample_rate_current ? device->sample_rate_current :
+            soundio_device_nearest_sample_rate(device, 44100);
+    }
 
     struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)outstream;
     outstream->bytes_per_frame = soundio_get_bytes_per_frame(outstream->format, outstream->layout.channel_count);
@@ -602,8 +604,10 @@ int soundio_instream_open(struct SoundIoInStream *instream) {
         instream->layout = soundio_device_supports_layout(device, stereo) ? *stereo : device->layouts[0];
     }
 
-    if (!instream->sample_rate)
-        instream->sample_rate = soundio_device_nearest_sample_rate(device, 48000);
+    if (!instream->sample_rate) {
+        instream->sample_rate = device->sample_rate_current ? device->sample_rate_current :
+            soundio_device_nearest_sample_rate(device, 44100);
+    }
 
 
     instream->bytes_per_frame = soundio_get_bytes_per_frame(instream->format, instream->layout.channel_count);

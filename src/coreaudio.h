@@ -22,6 +22,8 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si);
 struct SoundIoDeviceCoreAudio {
     AudioDeviceID device_id;
     UInt32 latency_frames;
+    AudioValueRange buffer_frame_size_range;
+    UInt32 buffer_frame_size;
 };
 
 SOUNDIO_MAKE_LIST_STRUCT(AudioDeviceID, SoundIoListAudioDeviceID, SOUNDIO_LIST_STATIC)

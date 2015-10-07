@@ -709,29 +709,35 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(UInt32);
-            UInt32 buffer_frame_size;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
-                &io_size, &buffer_frame_size)))
+                &io_size, &dca->buffer_frame_size)))
             {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
             double use_sample_rate = rd.device->sample_rate_current;
-            rd.device->software_latency_current = buffer_frame_size / use_sample_rate;
+            rd.device->software_latency_current = dca->buffer_frame_size / use_sample_rate;
+            if (aim == SoundIoDeviceAimOutput) {
+                fprintf(stderr, "buffer_frame_size: %ld\n", (long)dca->buffer_frame_size);
+                fprintf(stderr, "after dividing by %f, is now %f\n", use_sample_rate, rd.device->software_latency_current);
+            }
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSizeRange;
             prop_address.mScope = aim_to_scope(aim);
             prop_address.mElement = kAudioObjectPropertyElementMaster;
             io_size = sizeof(AudioValueRange);
-            AudioValueRange avr;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
-                &io_size, &avr)))
+                &io_size, &dca->buffer_frame_size_range)))
             {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
             }
-            rd.device->software_latency_min = avr.mMinimum / use_sample_rate;
-            rd.device->software_latency_max = avr.mMaximum / use_sample_rate;
+            rd.device->software_latency_min = dca->buffer_frame_size_range.mMinimum / use_sample_rate;
+            rd.device->software_latency_max = dca->buffer_frame_size_range.mMaximum / use_sample_rate;
+            if (aim == SoundIoDeviceAimOutput) {
+                fprintf(stderr, "min: %ld  max %ld\n", (long)dca->buffer_frame_size_range.mMinimum,
+                    (long)dca->buffer_frame_size_range.mMaximum);
+            }
 
             prop_address.mSelector = kAudioDevicePropertyLatency;
             prop_address.mScope = aim_to_scope(aim);
@@ -921,8 +927,10 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     struct SoundIoDevicePrivate *dev = (struct SoundIoDevicePrivate *)device;
     struct SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
 
-    if (outstream->software_latency == 0.0)
-        outstream->software_latency = device->software_latency_current;
+    if (outstream->software_latency == 0.0) {
+        outstream->software_latency = dca->buffer_frame_size / (double)outstream->sample_rate;
+        fprintf(stderr, "software_latency default to: %f\n", outstream->software_latency);
+    }
 
     outstream->software_latency = soundio_double_clamp(
             device->software_latency_min,
@@ -989,6 +997,11 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         OUTPUT_ELEMENT
     };
     UInt32 buffer_frame_size = outstream->software_latency * outstream->sample_rate;
+    buffer_frame_size = clamp((UInt32)dca->buffer_frame_size_range.mMinimum, buffer_frame_size,
+        (UInt32)dca->buffer_frame_size_range.mMaximum);
+
+    fprintf(stderr, "open buffer_frame_size: %ld  after multiplying %f by %d\n",
+        (long)buffer_frame_size, outstream->software_latency, outstream->sample_rate);
     if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address,
         0, NULL, sizeof(UInt32), &buffer_frame_size)))
     {

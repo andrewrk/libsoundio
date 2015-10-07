@@ -496,7 +496,8 @@ struct SoundIoOutStream {
     enum SoundIoFormat format;
 
     /// Sample rate is the number of frames per second.
-    /// Defaults to 48000 (and then clamped into range).
+    /// Defaults to SoundIoDevice::sample_rate_current if available,
+    /// otherwise 44100 clamped into range.
     int sample_rate;
 
     /// Defaults to Stereo, if available, followed by the first layout
@@ -598,7 +599,8 @@ struct SoundIoInStream {
     enum SoundIoFormat format;
 
     /// Sample rate is the number of frames per second.
-    /// Defaults to max(sample_rate_min, min(sample_rate_max, 48000))
+    /// Defaults to SoundIoDevice::sample_rate_current if available,
+    /// otherwise 44100 clamped into range.
     int sample_rate;
 
     /// Defaults to Stereo, if available, followed by the first layout
