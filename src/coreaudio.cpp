@@ -890,6 +890,7 @@ static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStr
     if (osca->instance) {
         AudioOutputUnitStop(osca->instance);
         AudioComponentInstanceDispose(osca->instance);
+        osca->instance = nullptr;
     }
 }
 
@@ -1098,9 +1099,11 @@ static void instream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
     if (isca->instance) {
         AudioOutputUnitStop(isca->instance);
         AudioComponentInstanceDispose(isca->instance);
+        isca->instance = nullptr;
     }
 
     free(isca->buffer_list);
+    isca->buffer_list = nullptr;
 }
 
 static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_action_flags,

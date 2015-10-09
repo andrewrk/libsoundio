@@ -366,6 +366,7 @@ static void outstream_destroy_jack(struct SoundIoPrivate *is, struct SoundIoOutS
     SoundIoOutStreamJack *osj = &os->backend_data.jack;
 
     jack_client_close(osj->client);
+    osj->client = nullptr;
 }
 
 static SoundIoDeviceJackPort *find_port_matching_channel(SoundIoDevice *device, SoundIoChannelId id) {
@@ -591,6 +592,7 @@ static void instream_destroy_jack(struct SoundIoPrivate *si, struct SoundIoInStr
     SoundIoInStreamJack *isj = &is->backend_data.jack;
 
     jack_client_close(isj->client);
+    isj->client = nullptr;
 }
 
 static int instream_xrun_callback(void *arg) {

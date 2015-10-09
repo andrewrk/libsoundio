@@ -1058,16 +1058,26 @@ static void outstream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoOu
         soundio_os_mutex_unlock(osw->mutex);
 
         soundio_os_thread_destroy(osw->thread);
+
+        osw->thread = nullptr;
     }
 
-    if (osw->h_event)
+    if (osw->h_event) {
         CloseHandle(osw->h_event);
+        osw->h_event = nullptr;
+    }
 
     free(osw->stream_name);
+    osw->stream_name = nullptr;
 
     soundio_os_cond_destroy(osw->cond);
+    osw->cond = nullptr;
+
     soundio_os_cond_destroy(osw->start_cond);
+    osw->start_cond = nullptr;
+
     soundio_os_mutex_destroy(osw->mutex);
+    osw->mutex = nullptr;
 }
 
 static int outstream_do_open(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
@@ -1572,14 +1582,23 @@ static void instream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoInS
         soundio_os_cond_signal(isw->start_cond, isw->mutex);
         soundio_os_mutex_unlock(isw->mutex);
         soundio_os_thread_destroy(isw->thread);
+
+        isw->thread = nullptr;
     }
 
-    if (isw->h_event)
+    if (isw->h_event) {
         CloseHandle(isw->h_event);
+        isw->h_event = nullptr;
+    }
 
     soundio_os_cond_destroy(isw->cond);
+    isw->cond = nullptr;
+
     soundio_os_cond_destroy(isw->start_cond);
+    isw->start_cond = nullptr;
+
     soundio_os_mutex_destroy(isw->mutex);
+    isw->mutex = nullptr;
 }
 
 static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {

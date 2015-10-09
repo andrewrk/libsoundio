@@ -927,14 +927,22 @@ static void outstream_destroy_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *
     if (osa->thread) {
         osa->thread_exit_flag.clear();
         soundio_os_thread_destroy(osa->thread);
+        osa->thread = nullptr;
     }
 
-    if (osa->handle)
+    if (osa->handle) {
         snd_pcm_close(osa->handle);
+        osa->handle = nullptr;
+    }
 
     free(osa->poll_fds);
+    osa->poll_fds = nullptr;
+
     free(osa->chmap);
+    osa->chmap = nullptr;
+
     free(osa->sample_buffer);
+    osa->sample_buffer = nullptr;
 }
 
 static int outstream_xrun_recovery(SoundIoOutStreamPrivate *os, int err) {
@@ -1502,14 +1510,22 @@ static void instream_destroy_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is
     if (isa->thread) {
         isa->thread_exit_flag.clear();
         soundio_os_thread_destroy(isa->thread);
+        isa->thread = nullptr;
     }
 
-    if (isa->handle)
+    if (isa->handle) {
         snd_pcm_close(isa->handle);
+        isa->handle = nullptr;
+    }
 
     free(isa->poll_fds);
+    isa->poll_fds = nullptr;
+
     free(isa->chmap);
+    isa->chmap = nullptr;
+
     free(isa->sample_buffer);
+    isa->sample_buffer = nullptr;
 }
 
 static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
