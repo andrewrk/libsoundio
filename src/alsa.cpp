@@ -1206,7 +1206,8 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
     osa->clear_buffer_flag.test_and_set();
 
     if (outstream->software_latency == 0.0)
-        outstream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
+        outstream->software_latency = 1.0;
+    outstream->software_latency = clamp(device->software_latency_min, outstream->software_latency, device->software_latency_max);
 
     int ch_count = outstream->layout.channel_count;
 
@@ -1267,22 +1268,17 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
 
-    osa->buffer_size_frames = ceil_dbl_to_int(outstream->software_latency * (double)outstream->sample_rate);
-
-    if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &osa->buffer_size_frames)) < 0) {
-        outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
-    }
-    outstream->software_latency = ((double)osa->buffer_size_frames) / (double)outstream->sample_rate;
-
+    int period_count;
     if (device->is_raw) {
+        period_count = 4;
         unsigned int microseconds = 0.25 * outstream->software_latency * 1000000.0;
         if ((err = snd_pcm_hw_params_set_period_time_near(osa->handle, hwparams, &microseconds, nullptr)) < 0) {
             outstream_destroy_alsa(si, os);
             return SoundIoErrorOpeningDevice;
         }
     } else {
-        double period_duration = outstream->software_latency / 2.0;
+        period_count = 2;
+        double period_duration = 0.5 * outstream->software_latency;
         snd_pcm_uframes_t period_frames =
             ceil_dbl_to_uframes(period_duration * (double)outstream->sample_rate);
 
@@ -1298,6 +1294,13 @@ static int outstream_open_alsa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) 
         return SoundIoErrorOpeningDevice;
     }
     osa->period_size = period_size;
+
+    osa->buffer_size_frames = osa->period_size * period_count;
+    if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &osa->buffer_size_frames)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+    outstream->software_latency = ((double)osa->buffer_size_frames) / (double)outstream->sample_rate;
 
     // write the hardware parameters to device
     if ((err = snd_pcm_hw_params(osa->handle, hwparams)) < 0) {
@@ -1534,7 +1537,8 @@ static int instream_open_alsa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoDevice *device = instream->device;
 
     if (instream->software_latency == 0.0)
-        instream->software_latency = clamp(device->software_latency_min, 1.0, device->software_latency_max);
+        instream->software_latency = 1.0;
+    instream->software_latency = clamp(device->software_latency_min, instream->software_latency, device->software_latency_max);
 
     int ch_count = instream->layout.channel_count;
 
