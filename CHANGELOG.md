@@ -1,3 +1,14 @@
+### Version 1.0.3 (2015-10-20)
+
+ * Architecture independent header files.
+ * Add --latency and --sample-rate to sine example.
+ * ALSA: fix deadlock under some circumstances.
+ * dummy: fix deadlock when pause called from `write_callback`.
+ * Fix double clean-up corruption when opening stream fails.
+ * Add --device and --raw to underflow test.
+ * ALSA: use period size to calculate buffer size, fixes opening output stream
+   sometimes resulting in an error.
+
 ### Version 1.0.2 (2015-09-24)
 
  * build: fix GNUInstallDirs not working.
