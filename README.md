@@ -10,6 +10,10 @@ the former. Features that only exist in some sound backends are exposed.
 
 ## Features and Limitations
 
+ * Supported operating systems:
+   - Windows 7+
+   - MacOS 10.9+
+   - Linux 3.7+
  * Supported backends:
    - [JACK](http://jackaudio.org/)
    - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/)
@@ -45,10 +49,6 @@ the former. Features that only exist in some sound backends are exposed.
  * Exposes extra API that is only available on some backends. For example you
    can provide application name and stream names which is used by JACK and
    PulseAudio.
- * Supported operating systems:
-   - Windows 7+
-   - MacOS 10.9+
-   - Linux 3.7+
 
 ## Synopsis
 
