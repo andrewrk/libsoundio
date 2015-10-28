@@ -49,7 +49,6 @@ struct SoundIoOutStreamJack {
     jack_client_t *client;
     int period_size;
     int frames_left;
-    bool is_paused;
     double hardware_latency;
     SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
     SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];

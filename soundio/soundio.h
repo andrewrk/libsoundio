@@ -1006,14 +1006,15 @@ SOUNDIO_EXPORT int soundio_outstream_end_write(struct SoundIoOutStream *outstrea
 /// * #SoundIoErrorIncompatibleDevice
 SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
-/// If the underlying device supports pausing, this pauses the stream.
-/// SoundIoOutStream::write_callback may be called a few more times if the
-/// buffer is not full.
+/// If the underlying backend and device support pausing, this pauses the
+/// stream. SoundIoOutStream::write_callback may be called a few more times if
+/// the buffer is not full.
 /// Pausing might put the hardware into a low power state which is ideal if your
 /// software is silent for some time.
-/// This function may be called from any thread.
+/// This function may be called from any thread context, including
+/// SoundIoOutStream::write_callback.
 /// Pausing when already paused or unpausing when already unpaused has no
-/// effect and always returns SoundIoErrorNone.
+/// effect and returns #SoundIoErrorNone.
 ///
 /// Possible errors:
 /// * #SoundIoErrorBackendDisconnected
@@ -1021,6 +1022,8 @@ SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outst
 /// * #SoundIoErrorIncompatibleDevice - device does not support
 ///   pausing/unpausing. This error code might not be returned even if the
 ///   device does not support pausing/unpausing.
+/// * #SoundIoErrorIncompatibleBackend - backend does not support
+///   pausing/unpausing.
 /// * #SoundIoErrorInvalid - outstream not opened and started
 SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, bool pause);
 
@@ -1124,7 +1127,7 @@ SOUNDIO_EXPORT int soundio_instream_end_read(struct SoundIoInStream *instream);
 /// #SoundIoErrorIncompatibleDevice.
 /// This function may be called from any thread.
 /// Pausing when already paused or unpausing when already unpaused has no
-/// effect and always returns SoundIoErrorNone.
+/// effect and always returns #SoundIoErrorNone.
 ///
 /// Possible errors:
 /// * #SoundIoErrorBackendDisconnected

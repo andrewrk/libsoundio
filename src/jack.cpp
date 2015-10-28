@@ -426,8 +426,6 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     SoundIoDevicePrivate *dev = (SoundIoDevicePrivate *)device;
     SoundIoDeviceJack *dj = &dev->backend_data.jack;
 
-    osj->is_paused = true;
-
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
@@ -517,43 +515,38 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
 }
 
 static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
-    SoundIoOutStreamJack *osj = &os->backend_data.jack;
-    SoundIoOutStream *outstream = &os->pub;
     SoundIoJack *sij = &si->backend_data.jack;
+
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    int err;
-    if (pause) {
-        if (!osj->is_paused) {
-            if ((err = jack_deactivate(osj->client)))
-                return SoundIoErrorStreaming;
-            osj->is_paused = true;
-        }
-    } else {
-        if (osj->is_paused) {
-            if ((err = jack_activate(osj->client)))
-                return SoundIoErrorStreaming;
-
-            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-                SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
-                const char *dest_port_name = osjp->dest_port_name;
-                // allow unconnected ports
-                if (!dest_port_name)
-                    continue;
-                const char *source_port_name = jack_port_name(osjp->source_port);
-                if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
-                    return SoundIoErrorStreaming;
-            }
-            osj->is_paused = false;
-        }
-    }
-
-    return 0;
+    return SoundIoErrorIncompatibleBackend;
 }
 
 static int outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
-    return outstream_pause_jack(si, os, false);
+    SoundIoOutStreamJack *osj = &os->backend_data.jack;
+    SoundIoOutStream *outstream = &os->pub;
+    SoundIoJack *sij = &si->backend_data.jack;
+    int err;
+
+    if (sij->is_shutdown)
+        return SoundIoErrorBackendDisconnected;
+
+    if ((err = jack_activate(osj->client)))
+        return SoundIoErrorStreaming;
+
+    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+        SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+        const char *dest_port_name = osjp->dest_port_name;
+        // allow unconnected ports
+        if (!dest_port_name)
+            continue;
+        const char *source_port_name = jack_port_name(osjp->source_port);
+        if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
+            return SoundIoErrorStreaming;
+    }
+
+    return 0;
 }
 
 static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
@@ -742,37 +735,38 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
 }
 
 static int instream_pause_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
-    SoundIoInStreamJack *isj = &is->backend_data.jack;
-    SoundIoInStream *instream = &is->pub;
     SoundIoJack *sij = &si->backend_data.jack;
+
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
 
-    int err;
-    if (pause) {
-        if ((err = jack_deactivate(isj->client)))
-            return SoundIoErrorStreaming;
-    } else {
-        if ((err = jack_activate(isj->client)))
-            return SoundIoErrorStreaming;
-
-        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-            SoundIoInStreamJackPort *isjp = &isj->ports[ch];
-            const char *source_port_name = isjp->source_port_name;
-            // allow unconnected ports
-            if (!source_port_name)
-                continue;
-            const char *dest_port_name = jack_port_name(isjp->dest_port);
-            if ((err = jack_connect(isj->client, source_port_name, dest_port_name)))
-                return SoundIoErrorStreaming;
-        }
-    }
-
-    return 0;
+    return SoundIoErrorIncompatibleBackend;
 }
 
 static int instream_start_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
-    return instream_pause_jack(si, is, false);
+    SoundIoInStreamJack *isj = &is->backend_data.jack;
+    SoundIoInStream *instream = &is->pub;
+    SoundIoJack *sij = &si->backend_data.jack;
+    int err;
+
+    if (sij->is_shutdown)
+        return SoundIoErrorBackendDisconnected;
+
+    if ((err = jack_activate(isj->client)))
+        return SoundIoErrorStreaming;
+
+    for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+        SoundIoInStreamJackPort *isjp = &isj->ports[ch];
+        const char *source_port_name = isjp->source_port_name;
+        // allow unconnected ports
+        if (!source_port_name)
+            continue;
+        const char *dest_port_name = jack_port_name(isjp->dest_port);
+        if ((err = jack_connect(isj->client, source_port_name, dest_port_name)))
+            return SoundIoErrorStreaming;
+    }
+
+    return 0;
 }
 
 static int instream_begin_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
