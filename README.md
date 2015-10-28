@@ -259,6 +259,7 @@ For each backend, do the following:
     - Use 'p' to test pausing, 'u' to test unpausing, 'q' to test cleanup.
     - 'c' for clear buffer. Clear buffer should not pause the stream and it
       should also not cause an underflow.
+    - Use 'P' to test pausing from the callback, and then 'u' to unpause.
  0. Run `./underflow` and read the testing instructions that it prints.
  0. Run `./sio_microphone` and ensure that it is both recording and playing
     back correctly. If possible use the `--in-device` and `--out-device`

@@ -53,6 +53,7 @@ static void write_sample_float64ne(char *ptr, double sample) {
 static void (*write_sample)(char *ptr, double sample);
 static const double PI = 3.14159265358979323846264338328;
 static double seconds_offset = 0.0;
+static volatile bool want_pause = false;
 static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     double float_sample_rate = outstream->sample_rate;
     double seconds_per_frame = 1.0 / float_sample_rate;
@@ -95,6 +96,8 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         if (frames_left <= 0)
             break;
     }
+
+    soundio_outstream_pause(outstream, want_pause);
 }
 
 static void underflow_callback(struct SoundIoOutStream *outstream) {
@@ -200,6 +203,7 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "'p\\n' - pause\n"
             "'u\\n' - unpause\n"
+            "'P\\n' - pause from within callback\n"
             "'c\\n' - clear buffer\n"
             "'q\\n' - quit\n");
 
@@ -252,7 +256,10 @@ int main(int argc, char **argv) {
         if (c == 'p') {
             fprintf(stderr, "pausing result: %s\n",
                     soundio_strerror(soundio_outstream_pause(outstream, true)));
+        } else if (c == 'P') {
+            want_pause = true;
         } else if (c == 'u') {
+            want_pause = false;
             fprintf(stderr, "unpausing result: %s\n",
                     soundio_strerror(soundio_outstream_pause(outstream, false)));
         } else if (c == 'c') {
