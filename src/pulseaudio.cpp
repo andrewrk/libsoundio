@@ -699,9 +699,8 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
         ospa->buffer_attr.tlength = buffer_length;
     }
 
-    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_START_CORKED|PA_STREAM_AUTO_TIMING_UPDATE);
-    if (outstream->software_latency > 0.0)
-        flags = (pa_stream_flags_t) (flags | PA_STREAM_ADJUST_LATENCY);
+    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_START_CORKED | PA_STREAM_AUTO_TIMING_UPDATE |
+            PA_STREAM_INTERPOLATE_TIMING);
 
     int err = pa_stream_connect_playback(ospa->stream,
             outstream->device->id, &ospa->buffer_attr,
@@ -938,9 +937,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_stream_flags_t flags = PA_STREAM_AUTO_TIMING_UPDATE;
-    if (instream->software_latency > 0.0)
-        flags = (pa_stream_flags_t) (flags|PA_STREAM_ADJUST_LATENCY);
+    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING);
 
     int err = pa_stream_connect_record(ispa->stream,
             instream->device->id,

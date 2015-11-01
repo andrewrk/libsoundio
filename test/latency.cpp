@@ -16,7 +16,7 @@
 #include <math.h>
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n", exe);
+    fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi] [--latency seconds]\n", exe);
     return 1;
 }
 
@@ -129,6 +129,7 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 int main(int argc, char **argv) {
     char *exe = argv[0];
     enum SoundIoBackend backend = SoundIoBackendNone;
+    double software_latency = 0.0;
     for (int i = 1; i < argc; i += 1) {
         char *arg = argv[i];
         if (arg[0] == '-' && arg[1] == '-') {
@@ -152,6 +153,8 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Invalid backend: %s\n", argv[i]);
                     return 1;
                 }
+            } else if (strcmp(arg, "--latency") == 0) {
+                software_latency = atof(argv[i]);
             } else {
                 return usage(exe);
             }
@@ -186,6 +189,7 @@ int main(int argc, char **argv) {
     outstream->format = SoundIoFormatFloat32NE;
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
+    outstream->software_latency = software_latency;
 
     if (soundio_device_supports_format(device, SoundIoFormatFloat32NE)) {
         outstream->format = SoundIoFormatFloat32NE;
