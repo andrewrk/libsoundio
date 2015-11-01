@@ -5,25 +5,25 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "ring_buffer.hpp"
-#include "soundio.hpp"
-#include "util.hpp"
+#include "ring_buffer.h"
+#include "soundio_private.h"
+#include "util.h"
 
 #include <stdlib.h>
 
 struct SoundIoRingBuffer *soundio_ring_buffer_create(struct SoundIo *soundio, int requested_capacity) {
-    SoundIoRingBuffer *rb = allocate<SoundIoRingBuffer>(1);
+    struct SoundIoRingBuffer *rb = ALLOCATE(struct SoundIoRingBuffer, 1);
 
     assert(requested_capacity > 0);
 
     if (!rb) {
         soundio_ring_buffer_destroy(rb);
-        return nullptr;
+        return NULL;
     }
 
     if (soundio_ring_buffer_init(rb, requested_capacity)) {
         soundio_ring_buffer_destroy(rb);
-        return nullptr;
+        return NULL;
     }
 
     return rb;
@@ -43,25 +43,31 @@ int soundio_ring_buffer_capacity(struct SoundIoRingBuffer *rb) {
 }
 
 char *soundio_ring_buffer_write_ptr(struct SoundIoRingBuffer *rb) {
-    return rb->mem.address + (rb->write_offset % rb->capacity);
+    long write_offset = SOUNDIO_ATOMIC_LOAD(rb->write_offset);
+    return rb->mem.address + (write_offset % rb->capacity);
 }
 
 void soundio_ring_buffer_advance_write_ptr(struct SoundIoRingBuffer *rb, int count) {
-    rb->write_offset += count;
+    SOUNDIO_ATOMIC_FETCH_ADD(rb->write_offset, count);
     assert(soundio_ring_buffer_fill_count(rb) >= 0);
 }
 
 char *soundio_ring_buffer_read_ptr(struct SoundIoRingBuffer *rb) {
-    return rb->mem.address + (rb->read_offset % rb->capacity);
+    long read_offset = SOUNDIO_ATOMIC_LOAD(rb->read_offset);
+    return rb->mem.address + (read_offset % rb->capacity);
 }
 
 void soundio_ring_buffer_advance_read_ptr(struct SoundIoRingBuffer *rb, int count) {
-    rb->read_offset += count;
+    SOUNDIO_ATOMIC_FETCH_ADD(rb->read_offset, count);
     assert(soundio_ring_buffer_fill_count(rb) >= 0);
 }
 
 int soundio_ring_buffer_fill_count(struct SoundIoRingBuffer *rb) {
-    int count = rb->write_offset - rb->read_offset;
+    // Whichever offset we load first might have a smaller value. So we load
+    // the read_offset first.
+    long read_offset = SOUNDIO_ATOMIC_LOAD(rb->read_offset);
+    long write_offset = SOUNDIO_ATOMIC_LOAD(rb->write_offset);
+    int count = write_offset - read_offset;
     assert(count >= 0);
     assert(count <= rb->capacity);
     return count;
@@ -72,15 +78,16 @@ int soundio_ring_buffer_free_count(struct SoundIoRingBuffer *rb) {
 }
 
 void soundio_ring_buffer_clear(struct SoundIoRingBuffer *rb) {
-    return rb->write_offset.store(rb->read_offset.load());
+    long read_offset = SOUNDIO_ATOMIC_LOAD(rb->read_offset);
+    SOUNDIO_ATOMIC_STORE(rb->write_offset, read_offset);
 }
 
 int soundio_ring_buffer_init(struct SoundIoRingBuffer *rb, int requested_capacity) {
     int err;
     if ((err = soundio_os_init_mirrored_memory(&rb->mem, requested_capacity)))
         return err;
-    rb->write_offset = 0;
-    rb->read_offset = 0;
+    SOUNDIO_ATOMIC_STORE(rb->write_offset, 0);
+    SOUNDIO_ATOMIC_STORE(rb->read_offset, 0);
     rb->capacity = rb->mem.capacity;
 
     return 0;

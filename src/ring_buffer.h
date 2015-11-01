@@ -5,16 +5,16 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_RING_BUFFER_HPP
-#define SOUNDIO_RING_BUFFER_HPP
+#ifndef SOUNDIO_RING_BUFFER_H
+#define SOUNDIO_RING_BUFFER_H
 
-#include "atomics.hpp"
 #include "os.h"
+#include "atomics.h"
 
 struct SoundIoRingBuffer {
-    SoundIoOsMirroredMemory mem;
-    atomic_long write_offset;
-    atomic_long read_offset;
+    struct SoundIoOsMirroredMemory mem;
+    struct SoundIoAtomicLong write_offset;
+    struct SoundIoAtomicLong read_offset;
     int capacity;
 };
 

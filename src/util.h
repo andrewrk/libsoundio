@@ -5,26 +5,44 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_UTIL_HPP
-#define SOUNDIO_UTIL_HPP
+#ifndef SOUNDIO_UTIL_H
+#define SOUNDIO_UTIL_H
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
-template<typename T>
-__attribute__((malloc)) static inline T *allocate_nonzero(size_t count) {
-    return reinterpret_cast<T*>(malloc(count * sizeof(T)));
+#define ALLOCATE_NONZERO(Type, count) malloc((count) * sizeof(Type))
+
+#define ALLOCATE(Type, count) calloc(count, sizeof(Type))
+
+#define REALLOCATE_NONZERO(Type, old, new_count) realloc(old, (new_count) * sizeof(Type))
+
+#define ARRAY_LENGTH(array) (sizeof(array)/sizeof((array)[0]))
+
+static inline int soundio_int_min(int a, int b) {
+    return (a <= b) ? a : b;
 }
 
-template<typename T>
-__attribute__((malloc)) static inline T *allocate(size_t count) {
-    return reinterpret_cast<T*>(calloc(count, sizeof(T)));
+static inline int soundio_int_max(int a, int b) {
+    return (a >= b) ? a : b;
 }
 
-template<typename T>
-static inline T *reallocate_nonzero(T * old, size_t new_count) {
-    return reinterpret_cast<T*>(realloc(old, new_count * sizeof(T)));
+static inline int soundio_int_clamp(int min_value, int value, int max_value) {
+    return soundio_int_max(soundio_int_min(value, max_value), min_value);
+}
+
+static inline double soundio_double_min(double a, double b) {
+    return (a <= b) ? a : b;
+}
+
+static inline double soundio_double_max(double a, double b) {
+    return (a >= b) ? a : b;
+}
+
+static inline double soundio_double_clamp(double min_value, double value, double max_value) {
+    return soundio_double_max(soundio_double_min(value, max_value), min_value);
 }
 
 void soundio_panic(const char *format, ...)
@@ -36,9 +54,9 @@ char *soundio_alloc_sprintf(int *len, const char *format, ...)
     __attribute__ ((format (printf, 2, 3)));
 
 static inline char *soundio_str_dupe(const char *str, int str_len) {
-    char *out = allocate_nonzero<char>(str_len + 1);
+    char *out = ALLOCATE_NONZERO(char, str_len + 1);
     if (!out)
-        return nullptr;
+        return NULL;
     memcpy(out, str, str_len);
     out[str_len] = 0;
     return out;
@@ -61,24 +79,4 @@ static inline double ceil_dbl(double x) {
     return ceiling;
 }
 
-
-template <typename T, long n>
-static constexpr long array_length(const T (&)[n]) {
-    return n;
-}
-
-template <typename T>
-static inline T max(T a, T b) {
-    return (a >= b) ? a : b;
-}
-
-template <typename T>
-static inline T min(T a, T b) {
-    return (a <= b) ? a : b;
-}
-
-template<typename T>
-static inline T clamp(T min_value, T value, T max_value) {
-    return max(min(value, max_value), min_value);
-}
 #endif

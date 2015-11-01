@@ -5,15 +5,15 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "soundio.hpp"
+#include "soundio_private.h"
 #include "os.h"
-#include "util.hpp"
-#include "atomics.hpp"
+#include "util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 static int usage(char *exe) {
     fprintf(stderr, "Usage: %s [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi] [--latency seconds]\n", exe);
@@ -51,9 +51,9 @@ static int pulse_frames_left = -1;
 static const double PI = 3.14159265358979323846264338328;
 static double seconds_offset = 0.0;
 
-static SoundIoRingBuffer pulse_rb;
+static struct SoundIoRingBuffer pulse_rb;
 
-static void write_time(SoundIoOutStream *outstream, double extra) {
+static void write_time(struct SoundIoOutStream *outstream, double extra) {
     double latency;
     int err;
     if ((err = soundio_outstream_get_latency(outstream, &latency))) {

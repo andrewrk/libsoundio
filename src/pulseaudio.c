@@ -5,8 +5,8 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "pulseaudio.hpp"
-#include "soundio.hpp"
+#include "pulseaudio.h"
+#include "soundio_private.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -15,19 +15,19 @@
 static void subscribe_callback(pa_context *context,
         pa_subscription_event_type_t event_bits, uint32_t index, void *userdata)
 {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     sipa->device_scan_queued = true;
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
     soundio->on_events_signal(soundio);
 }
 
-static int subscribe_to_events(SoundIoPrivate *si) {
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static int subscribe_to_events(struct SoundIoPrivate *si) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_subscription_mask_t events = (pa_subscription_mask_t)(
             PA_SUBSCRIPTION_MASK_SINK|PA_SUBSCRIPTION_MASK_SOURCE|PA_SUBSCRIPTION_MASK_SERVER);
-    pa_operation *subscribe_op = pa_context_subscribe(sipa->pulse_context, events, nullptr, si);
+    pa_operation *subscribe_op = pa_context_subscribe(sipa->pulse_context, events, NULL, si);
     if (!subscribe_op)
         return SoundIoErrorNoMem;
     pa_operation_unref(subscribe_op);
@@ -35,9 +35,9 @@ static int subscribe_to_events(SoundIoPrivate *si) {
 }
 
 static void context_state_callback(pa_context *context, void *userdata) {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    SoundIo *soundio = &si->pub;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIo *soundio = &si->pub;
 
     switch (pa_context_get_state(context)) {
     case PA_CONTEXT_UNCONNECTED: // The context hasn't been connected yet.
@@ -68,8 +68,8 @@ static void context_state_callback(pa_context *context, void *userdata) {
     }
 }
 
-static void destroy_pa(SoundIoPrivate *si) {
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void destroy_pa(struct SoundIoPrivate *si) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     if (sipa->main_loop)
         pa_threaded_mainloop_stop(sipa->main_loop);
@@ -90,7 +90,7 @@ static void destroy_pa(SoundIoPrivate *si) {
     free(sipa->default_source_name);
 }
 
-static SoundIoFormat from_pulseaudio_format(pa_sample_spec sample_spec) {
+static enum SoundIoFormat from_pulseaudio_format(pa_sample_spec sample_spec) {
     switch (sample_spec.format) {
     case PA_SAMPLE_U8:          return SoundIoFormatU8;
     case PA_SAMPLE_S16LE:       return SoundIoFormatS16LE;
@@ -113,7 +113,7 @@ static SoundIoFormat from_pulseaudio_format(pa_sample_spec sample_spec) {
     return SoundIoFormatInvalid;
 }
 
-static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
+static enum SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     switch (pos) {
     case PA_CHANNEL_POSITION_MONO: return SoundIoChannelIdFrontCenter;
     case PA_CHANNEL_POSITION_FRONT_LEFT: return SoundIoChannelIdFrontLeft;
@@ -156,15 +156,15 @@ static SoundIoChannelId from_pulseaudio_channel_pos(pa_channel_position_t pos) {
     }
 }
 
-static void set_from_pulseaudio_channel_map(pa_channel_map channel_map, SoundIoChannelLayout *channel_layout) {
+static void set_from_pulseaudio_channel_map(pa_channel_map channel_map, struct SoundIoChannelLayout *channel_layout) {
     channel_layout->channel_count = channel_map.channels;
     for (int i = 0; i < channel_map.channels; i += 1) {
         channel_layout->channels[i] = from_pulseaudio_channel_pos(channel_map.map[i]);
     }
-    channel_layout->name = nullptr;
+    channel_layout->name = NULL;
     int builtin_layout_count = soundio_channel_layout_builtin_count();
     for (int i = 0; i < builtin_layout_count; i += 1) {
-        const SoundIoChannelLayout *builtin_layout = soundio_channel_layout_get_builtin(i);
+        const struct SoundIoChannelLayout *builtin_layout = soundio_channel_layout_get_builtin(i);
         if (soundio_channel_layout_equal(builtin_layout, channel_layout)) {
             channel_layout->name = builtin_layout->name;
             break;
@@ -172,9 +172,9 @@ static void set_from_pulseaudio_channel_map(pa_channel_map channel_map, SoundIoC
     }
 }
 
-static int set_all_device_channel_layouts(SoundIoDevice *device) {
+static int set_all_device_channel_layouts(struct SoundIoDevice *device) {
     device->layout_count = soundio_channel_layout_builtin_count();
-    device->layouts = allocate<SoundIoChannelLayout>(device->layout_count);
+    device->layouts = ALLOCATE(struct SoundIoChannelLayout, device->layout_count);
     if (!device->layouts)
         return SoundIoErrorNoMem;
     for (int i = 0; i < device->layout_count; i += 1)
@@ -182,9 +182,9 @@ static int set_all_device_channel_layouts(SoundIoDevice *device) {
     return 0;
 }
 
-static int set_all_device_formats(SoundIoDevice *device) {
+static int set_all_device_formats(struct SoundIoDevice *device) {
     device->format_count = 9;
-    device->formats = allocate<SoundIoFormat>(device->format_count);
+    device->formats = ALLOCATE(enum SoundIoFormat, device->format_count);
     if (!device->formats)
         return SoundIoErrorNoMem;
     device->formats[0] = SoundIoFormatU8;
@@ -199,10 +199,10 @@ static int set_all_device_formats(SoundIoDevice *device) {
     return 0;
 }
 
-static int perform_operation(SoundIoPrivate *si, pa_operation *op) {
+static int perform_operation(struct SoundIoPrivate *si, pa_operation *op) {
     if (!op)
         return SoundIoErrorNoMem;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     for (;;) {
         switch (pa_operation_get_state(op)) {
         case PA_OPERATION_RUNNING:
@@ -219,9 +219,9 @@ static int perform_operation(SoundIoPrivate *si, pa_operation *op) {
 }
 
 static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *info, int eol, void *userdata) {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     int err;
     if (eol) {
         pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -230,12 +230,12 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
     if (sipa->device_query_err)
         return;
 
-    SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
+    struct SoundIoDevicePrivate *dev = ALLOCATE(struct SoundIoDevicePrivate, 1);
     if (!dev) {
         sipa->device_query_err = SoundIoErrorNoMem;
         return;
     }
-    SoundIoDevice *device = &dev->pub;
+    struct SoundIoDevice *device = &dev->pub;
 
     device->ref_count = 1;
     device->soundio = soundio;
@@ -252,8 +252,8 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
     // some reasonable min and max values.
     device->sample_rate_count = 1;
     device->sample_rates = &dev->prealloc_sample_rate_range;
-    device->sample_rates[0].min = min(SOUNDIO_MIN_SAMPLE_RATE, device->sample_rate_current);
-    device->sample_rates[0].max = max(SOUNDIO_MAX_SAMPLE_RATE, device->sample_rate_current);
+    device->sample_rates[0].min = soundio_int_min(SOUNDIO_MIN_SAMPLE_RATE, device->sample_rate_current);
+    device->sample_rates[0].max = soundio_int_max(SOUNDIO_MAX_SAMPLE_RATE, device->sample_rate_current);
 
     device->current_format = from_pulseaudio_format(info->sample_spec);
     // PulseAudio performs sample format conversion, so any PulseAudio
@@ -274,7 +274,7 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
 
     device->aim = SoundIoDeviceAimOutput;
 
-    if (sipa->current_devices_info->output_devices.append(device)) {
+    if (SoundIoListDevicePtr_append(&sipa->current_devices_info->output_devices, device)) {
         soundio_device_unref(device);
         sipa->device_query_err = SoundIoErrorNoMem;
         return;
@@ -282,9 +282,9 @@ static void sink_info_callback(pa_context *pulse_context, const pa_sink_info *in
 }
 
 static void source_info_callback(pa_context *pulse_context, const pa_source_info *info, int eol, void *userdata) {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     int err;
 
     if (eol) {
@@ -294,12 +294,12 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
     if (sipa->device_query_err)
         return;
 
-    SoundIoDevicePrivate *dev = allocate<SoundIoDevicePrivate>(1);
+    struct SoundIoDevicePrivate *dev = ALLOCATE(struct SoundIoDevicePrivate, 1);
     if (!dev) {
         sipa->device_query_err = SoundIoErrorNoMem;
         return;
     }
-    SoundIoDevice *device = &dev->pub;
+    struct SoundIoDevice *device = &dev->pub;
 
     device->ref_count = 1;
     device->soundio = soundio;
@@ -316,8 +316,8 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
     // some reasonable min and max values.
     device->sample_rate_count = 1;
     device->sample_rates = &dev->prealloc_sample_rate_range;
-    device->sample_rates[0].min = min(8000, device->sample_rate_current);
-    device->sample_rates[0].max = max(5644800, device->sample_rate_current);
+    device->sample_rates[0].min = soundio_int_min(SOUNDIO_MIN_SAMPLE_RATE, device->sample_rate_current);
+    device->sample_rates[0].max = soundio_int_max(SOUNDIO_MAX_SAMPLE_RATE, device->sample_rate_current);
 
     device->current_format = from_pulseaudio_format(info->sample_spec);
     // PulseAudio performs sample format conversion, so any PulseAudio
@@ -338,7 +338,7 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
 
     device->aim = SoundIoDeviceAimInput;
 
-    if (sipa->current_devices_info->input_devices.append(device)) {
+    if (SoundIoListDevicePtr_append(&sipa->current_devices_info->input_devices, device)) {
         soundio_device_unref(device);
         sipa->device_query_err = SoundIoErrorNoMem;
         return;
@@ -346,9 +346,9 @@ static void source_info_callback(pa_context *pulse_context, const pa_source_info
 }
 
 static void server_info_callback(pa_context *pulse_context, const pa_server_info *info, void *userdata) {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
     assert(si);
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     assert(!sipa->default_sink_name);
     assert(!sipa->default_source_name);
@@ -363,26 +363,26 @@ static void server_info_callback(pa_context *pulse_context, const pa_server_info
 }
 
 // always called even when refresh_devices succeeds
-static void cleanup_refresh_devices(SoundIoPrivate *si) {
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void cleanup_refresh_devices(struct SoundIoPrivate *si) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     soundio_destroy_devices_info(sipa->current_devices_info);
-    sipa->current_devices_info = nullptr;
+    sipa->current_devices_info = NULL;
 
     free(sipa->default_sink_name);
-    sipa->default_sink_name = nullptr;
+    sipa->default_sink_name = NULL;
 
     free(sipa->default_source_name);
-    sipa->default_source_name = nullptr;
+    sipa->default_source_name = NULL;
 }
 
 // call this while holding the main loop lock
-static int refresh_devices(SoundIoPrivate *si) {
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static int refresh_devices(struct SoundIoPrivate *si) {
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     assert(!sipa->current_devices_info);
-    sipa->current_devices_info = allocate<SoundIoDevicesInfo>(1);
+    sipa->current_devices_info = ALLOCATE(struct SoundIoDevicesInfo, 1);
     if (!sipa->current_devices_info)
         return SoundIoErrorNoMem;
 
@@ -414,7 +414,9 @@ static int refresh_devices(SoundIoPrivate *si) {
     if (sipa->current_devices_info->input_devices.length > 0) {
         sipa->current_devices_info->default_input_index = 0;
         for (int i = 0; i < sipa->current_devices_info->input_devices.length; i += 1) {
-            SoundIoDevice *device = sipa->current_devices_info->input_devices.at(i);
+            struct SoundIoDevice *device = SoundIoListDevicePtr_val_at(
+                    &sipa->current_devices_info->input_devices, i);
+
             assert(device->aim == SoundIoDeviceAimInput);
             if (strcmp(device->id, sipa->default_source_name) == 0) {
                 sipa->current_devices_info->default_input_index = i;
@@ -425,7 +427,9 @@ static int refresh_devices(SoundIoPrivate *si) {
     if (sipa->current_devices_info->output_devices.length > 0) {
         sipa->current_devices_info->default_output_index = 0;
         for (int i = 0; i < sipa->current_devices_info->output_devices.length; i += 1) {
-            SoundIoDevice *device = sipa->current_devices_info->output_devices.at(i);
+            struct SoundIoDevice *device = SoundIoListDevicePtr_val_at(
+                    &sipa->current_devices_info->output_devices, i);
+
             assert(device->aim == SoundIoDeviceAimOutput);
             if (strcmp(device->id, sipa->default_sink_name) == 0) {
                 sipa->current_devices_info->default_output_index = i;
@@ -435,20 +439,20 @@ static int refresh_devices(SoundIoPrivate *si) {
 
     soundio_destroy_devices_info(sipa->ready_devices_info);
     sipa->ready_devices_info = sipa->current_devices_info;
-    sipa->current_devices_info = nullptr;
+    sipa->current_devices_info = NULL;
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
     soundio->on_events_signal(soundio);
 
     return 0;
 }
 
-static void my_flush_events(SoundIoPrivate *si, bool wait) {
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void my_flush_events(struct SoundIoPrivate *si, bool wait) {
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     bool change = false;
     bool cb_shutdown = false;
-    SoundIoDevicesInfo *old_devices_info = nullptr;
+    struct SoundIoDevicesInfo *old_devices_info = NULL;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
@@ -467,7 +471,7 @@ static void my_flush_events(SoundIoPrivate *si, bool wait) {
     } else if (sipa->ready_devices_info) {
         old_devices_info = si->safe_devices_info;
         si->safe_devices_info = sipa->ready_devices_info;
-        sipa->ready_devices_info = nullptr;
+        sipa->ready_devices_info = NULL;
         change = true;
     }
 
@@ -481,25 +485,25 @@ static void my_flush_events(SoundIoPrivate *si, bool wait) {
     soundio_destroy_devices_info(old_devices_info);
 }
 
-static void flush_events_pa(SoundIoPrivate *si) {
+static void flush_events_pa(struct SoundIoPrivate *si) {
     my_flush_events(si, false);
 }
 
-static void wait_events_pa(SoundIoPrivate *si) {
+static void wait_events_pa(struct SoundIoPrivate *si) {
     my_flush_events(si, false);
     my_flush_events(si, true);
 }
 
-static void wakeup_pa(SoundIoPrivate *si) {
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void wakeup_pa(struct SoundIoPrivate *si) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
     pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
-static void force_device_scan_pa(SoundIoPrivate *si) {
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void force_device_scan_pa(struct SoundIoPrivate *si) {
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
     sipa->device_scan_queued = true;
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
@@ -507,7 +511,7 @@ static void force_device_scan_pa(SoundIoPrivate *si) {
     pa_threaded_mainloop_unlock(sipa->main_loop);
 }
 
-static pa_sample_format_t to_pulseaudio_format(SoundIoFormat format) {
+static pa_sample_format_t to_pulseaudio_format(enum SoundIoFormat format) {
     switch (format) {
     case SoundIoFormatU8:         return PA_SAMPLE_U8;
     case SoundIoFormatS16LE:      return PA_SAMPLE_S16LE;
@@ -534,7 +538,7 @@ static pa_sample_format_t to_pulseaudio_format(SoundIoFormat format) {
     return PA_SAMPLE_INVALID;
 }
 
-static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_id) {
+static pa_channel_position_t to_pulseaudio_channel_pos(enum SoundIoChannelId channel_id) {
     switch (channel_id) {
     case SoundIoChannelIdFrontLeft: return PA_CHANNEL_POSITION_FRONT_LEFT;
     case SoundIoChannelIdFrontRight: return PA_CHANNEL_POSITION_FRONT_RIGHT;
@@ -577,7 +581,7 @@ static pa_channel_position_t to_pulseaudio_channel_pos(SoundIoChannelId channel_
     }
 }
 
-static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *channel_layout) {
+static pa_channel_map to_pulseaudio_channel_map(const struct SoundIoChannelLayout *channel_layout) {
     pa_channel_map channel_map;
     channel_map.channels = channel_layout->channel_count;
 
@@ -590,19 +594,19 @@ static pa_channel_map to_pulseaudio_channel_map(const SoundIoChannelLayout *chan
 }
 
 static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
-    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate*) userdata;
-    SoundIoOutStream *outstream = &os->pub;
-    SoundIo *soundio = outstream->device->soundio;
-    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate*) userdata;
+    struct SoundIoOutStream *outstream = &os->pub;
+    struct SoundIo *soundio = outstream->device->soundio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
         case PA_STREAM_READY:
-            ospa->stream_ready = true;
+            SOUNDIO_ATOMIC_STORE(ospa->stream_ready, true);
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
@@ -612,48 +616,48 @@ static void playback_stream_state_callback(pa_stream *stream, void *userdata) {
 }
 
 static void playback_stream_underflow_callback(pa_stream *stream, void *userdata) {
-    SoundIoOutStream *outstream = (SoundIoOutStream*)userdata;
+    struct SoundIoOutStream *outstream = (struct SoundIoOutStream*)userdata;
     outstream->underflow_callback(outstream);
 }
 
 static void playback_stream_write_callback(pa_stream *stream, size_t nbytes, void *userdata) {
-    SoundIoOutStreamPrivate *os = (SoundIoOutStreamPrivate*)(userdata);
-    SoundIoOutStream *outstream = &os->pub;
+    struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate*)(userdata);
+    struct SoundIoOutStream *outstream = &os->pub;
     int frame_count = nbytes / outstream->bytes_per_frame;
     outstream->write_callback(outstream, 0, frame_count);
 }
 
-static void outstream_destroy_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+static void outstream_destroy_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
 
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
     if (stream) {
         pa_threaded_mainloop_lock(sipa->main_loop);
 
-        pa_stream_set_write_callback(stream, nullptr, nullptr);
-        pa_stream_set_state_callback(stream, nullptr, nullptr);
-        pa_stream_set_underflow_callback(stream, nullptr, nullptr);
-        pa_stream_set_overflow_callback(stream, nullptr, nullptr);
+        pa_stream_set_write_callback(stream, NULL, NULL);
+        pa_stream_set_state_callback(stream, NULL, NULL);
+        pa_stream_set_underflow_callback(stream, NULL, NULL);
+        pa_stream_set_overflow_callback(stream, NULL, NULL);
         pa_stream_disconnect(stream);
 
         pa_stream_unref(stream);
 
         pa_threaded_mainloop_unlock(sipa->main_loop);
 
-        ospa->stream = nullptr;
+        ospa->stream = NULL;
     }
 }
 
 static void timing_update_callback(pa_stream *stream, int success, void *userdata) {
-    SoundIoPrivate *si = (SoundIoPrivate *)userdata;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)userdata;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
 
-static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
-    SoundIoOutStream *outstream = &os->pub;
+static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    struct SoundIoOutStream *outstream = &os->pub;
 
     if ((unsigned)outstream->layout.channel_count > PA_CHANNELS_MAX)
         return SoundIoErrorIncompatibleBackend;
@@ -661,9 +665,9 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     if (!outstream->name)
         outstream->name = "SoundIoOutStream";
 
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    ospa->stream_ready.store(false);
-    ospa->clear_buffer_flag.test_and_set();
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    SOUNDIO_ATOMIC_STORE(ospa->stream_ready, false);
+    atomic_flag_test_and_set(&ospa->clear_buffer_flag);
 
     assert(sipa->pulse_context);
 
@@ -704,13 +708,13 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
 
     int err = pa_stream_connect_playback(ospa->stream,
             outstream->device->id, &ospa->buffer_attr,
-            flags, nullptr, nullptr);
+            flags, NULL, NULL);
     if (err) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorOpeningDevice;
     }
 
-    while (!ospa->stream_ready.load())
+    while (!SOUNDIO_ATOMIC_LOAD(ospa->stream_ready))
         pa_threaded_mainloop_wait(sipa->main_loop);
 
     pa_operation *update_timing_info_op = pa_stream_update_timing_info(ospa->stream, timing_update_callback, si);
@@ -727,10 +731,10 @@ static int outstream_open_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     return 0;
 }
 
-static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    SoundIoOutStream *outstream = &os->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+static int outstream_start_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    struct SoundIoOutStream *outstream = &os->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
@@ -738,7 +742,7 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     int frame_count = ospa->write_byte_count / outstream->bytes_per_frame;
     outstream->write_callback(outstream, 0, frame_count);
 
-    pa_operation *op = pa_stream_cork(ospa->stream, false, nullptr, nullptr);
+    pa_operation *op = pa_stream_cork(ospa->stream, false, NULL, NULL);
     if (!op) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
         return SoundIoErrorStreaming;
@@ -753,11 +757,11 @@ static int outstream_start_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
     return 0;
 }
 
-static int outstream_begin_write_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os, SoundIoChannelArea **out_areas, int *frame_count)
+static int outstream_begin_write_pa(struct SoundIoPrivate *si,
+        struct SoundIoOutStreamPrivate *os, struct SoundIoChannelArea **out_areas, int *frame_count)
 {
-    SoundIoOutStream *outstream = &os->pub;
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    struct SoundIoOutStream *outstream = &os->pub;
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
     ospa->write_byte_count = *frame_count * outstream->bytes_per_frame;
@@ -775,28 +779,28 @@ static int outstream_begin_write_pa(SoundIoPrivate *si,
     return 0;
 }
 
-static int outstream_end_write_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os) {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+static int outstream_end_write_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
-    pa_seek_mode_t seek_mode = ospa->clear_buffer_flag.test_and_set() ? PA_SEEK_RELATIVE : PA_SEEK_RELATIVE_ON_READ;
-    if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, nullptr, 0, seek_mode))
+    pa_seek_mode_t seek_mode = atomic_flag_test_and_set(&ospa->clear_buffer_flag) ? PA_SEEK_RELATIVE : PA_SEEK_RELATIVE_ON_READ;
+    if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, NULL, 0, seek_mode))
         return SoundIoErrorStreaming;
 
     return 0;
 }
 
-static int outstream_clear_buffer_pa(SoundIoPrivate *si,
-        SoundIoOutStreamPrivate *os)
+static int outstream_clear_buffer_pa(struct SoundIoPrivate *si,
+        struct SoundIoOutStreamPrivate *os)
 {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
-    ospa->clear_buffer_flag.clear();
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    atomic_flag_clear(&ospa->clear_buffer_flag);
     return 0;
 }
 
-static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, bool pause) {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static int outstream_pause_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
         pa_threaded_mainloop_lock(sipa->main_loop);
@@ -818,8 +822,8 @@ static int outstream_pause_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, b
     return 0;
 }
 
-static int outstream_get_latency_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate *os, double *out_latency) {
-    SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+static int outstream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, double *out_latency) {
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
 
     int err;
     pa_usec_t r_usec;
@@ -832,19 +836,19 @@ static int outstream_get_latency_pa(SoundIoPrivate *si, SoundIoOutStreamPrivate 
 }
 
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
-    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
-    SoundIoInStream *instream = &is->pub;
-    SoundIo *soundio = instream->device->soundio;
-    SoundIoPrivate *si = (SoundIoPrivate *)soundio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoInStreamPrivate *is = (struct SoundIoInStreamPrivate*)userdata;
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoInStream *instream = &is->pub;
+    struct SoundIo *soundio = instream->device->soundio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
         case PA_STREAM_READY:
-            ispa->stream_ready = true;
+            SOUNDIO_ATOMIC_STORE(ispa->stream_ready, true);
             pa_threaded_mainloop_signal(sipa->main_loop, 0);
             break;
         case PA_STREAM_FAILED:
@@ -854,43 +858,43 @@ static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
 }
 
 static void recording_stream_read_callback(pa_stream *stream, size_t nbytes, void *userdata) {
-    SoundIoInStreamPrivate *is = (SoundIoInStreamPrivate*)userdata;
-    SoundIoInStream *instream = &is->pub;
+    struct SoundIoInStreamPrivate *is = (struct SoundIoInStreamPrivate*)userdata;
+    struct SoundIoInStream *instream = &is->pub;
     assert(nbytes % instream->bytes_per_frame == 0);
     assert(nbytes > 0);
     int available_frame_count = nbytes / instream->bytes_per_frame;
     instream->read_callback(instream, 0, available_frame_count);
 }
 
-static void instream_destroy_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static void instream_destroy_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_stream *stream = ispa->stream;
     if (stream) {
         pa_threaded_mainloop_lock(sipa->main_loop);
 
-        pa_stream_set_state_callback(stream, nullptr, nullptr);
-        pa_stream_set_read_callback(stream, nullptr, nullptr);
+        pa_stream_set_state_callback(stream, NULL, NULL);
+        pa_stream_set_read_callback(stream, NULL, NULL);
         pa_stream_disconnect(stream);
         pa_stream_unref(stream);
 
         pa_threaded_mainloop_unlock(sipa->main_loop);
 
-        ispa->stream = nullptr;
+        ispa->stream = NULL;
     }
 }
 
-static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
-    SoundIoInStream *instream = &is->pub;
+static int instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoInStream *instream = &is->pub;
 
     if ((unsigned)instream->layout.channel_count > PA_CHANNELS_MAX)
         return SoundIoErrorIncompatibleBackend;
     if (!instream->name)
         instream->name = "SoundIoInStream";
 
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
-    ispa->stream_ready = false;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    SOUNDIO_ATOMIC_STORE(ispa->stream_ready, false);
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
@@ -931,10 +935,10 @@ static int instream_open_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     return 0;
 }
 
-static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    SoundIoInStream *instream = &is->pub;
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static int instream_start_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    struct SoundIoInStream *instream = &is->pub;
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
     pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING);
@@ -947,7 +951,7 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
         return SoundIoErrorOpeningDevice;
     }
 
-    while (!ispa->stream_ready)
+    while (!SOUNDIO_ATOMIC_LOAD(ispa->stream_ready))
         pa_threaded_mainloop_wait(sipa->main_loop);
 
     pa_operation *update_timing_info_op = pa_stream_update_timing_info(ispa->stream, timing_update_callback, si);
@@ -961,14 +965,14 @@ static int instream_start_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
     return 0;
 }
 
-static int instream_begin_read_pa(SoundIoPrivate *si,
-        SoundIoInStreamPrivate *is, SoundIoChannelArea **out_areas, int *frame_count)
+static int instream_begin_read_pa(struct SoundIoPrivate *si,
+        struct SoundIoInStreamPrivate *is, struct SoundIoChannelArea **out_areas, int *frame_count)
 {
-    SoundIoInStream *instream = &is->pub;
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoInStream *instream = &is->pub;
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     pa_stream *stream = ispa->stream;
 
-    assert(ispa->stream_ready);
+    assert(SOUNDIO_ATOMIC_LOAD(ispa->stream_ready));
 
     if (!ispa->peek_buf) {
         if (pa_stream_peek(stream, (const void **)&ispa->peek_buf, &ispa->peek_buf_size))
@@ -980,12 +984,12 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
         // hole
         if (!ispa->peek_buf) {
             *frame_count = ispa->peek_buf_frames_left;
-            *out_areas = nullptr;
+            *out_areas = NULL;
             return 0;
         }
     }
 
-    ispa->read_frame_count = min(*frame_count, ispa->peek_buf_frames_left);
+    ispa->read_frame_count = soundio_int_min(*frame_count, ispa->peek_buf_frames_left);
     *frame_count = ispa->read_frame_count;
     for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
         ispa->areas[ch].ptr = ispa->peek_buf + ispa->peek_buf_index + instream->bytes_per_sample * ch;
@@ -997,9 +1001,9 @@ static int instream_begin_read_pa(SoundIoPrivate *si,
     return 0;
 }
 
-static int instream_end_read_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) {
-    SoundIoInStream *instream = &is->pub;
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+static int instream_end_read_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+    struct SoundIoInStream *instream = &is->pub;
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     pa_stream *stream = ispa->stream;
 
     // hole
@@ -1016,15 +1020,15 @@ static int instream_end_read_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is) 
     if (ispa->peek_buf_index >= ispa->peek_buf_size) {
         if (pa_stream_drop(stream))
             return SoundIoErrorStreaming;
-        ispa->peek_buf = nullptr;
+        ispa->peek_buf = NULL;
     }
 
     return 0;
 }
 
-static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, bool pause) {
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+static int instream_pause_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     if (!pa_threaded_mainloop_in_thread(sipa->main_loop)) {
         pa_threaded_mainloop_lock(sipa->main_loop);
@@ -1044,8 +1048,8 @@ static int instream_pause_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, boo
     return 0;
 }
 
-static int instream_get_latency_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *is, double *out_latency) {
-    SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
+static int instream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, double *out_latency) {
+    struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
 
     int err;
     pa_usec_t r_usec;
@@ -1057,9 +1061,9 @@ static int instream_get_latency_pa(SoundIoPrivate *si, SoundIoInStreamPrivate *i
     return 0;
 }
 
-int soundio_pulseaudio_init(SoundIoPrivate *si) {
-    SoundIo *soundio = &si->pub;
-    SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+int soundio_pulseaudio_init(struct SoundIoPrivate *si) {
+    struct SoundIo *soundio = &si->pub;
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
     sipa->device_scan_queued = true;
 

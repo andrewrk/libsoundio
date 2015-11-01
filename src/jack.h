@@ -5,33 +5,39 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_JACK_HPP
-#define SOUNDIO_JACK_HPP
+#ifndef SOUNDIO_JACK_H
+#define SOUNDIO_JACK_H
 
-#include "soundio_private.h"
+#include "soundio_internal.h"
 #include "os.h"
-#include "atomics.hpp"
+#include "atomics.h"
 
+// jack.h does not properly put `void` in function prototypes with no
+// arguments, so we're forced to temporarily disable -Werror=strict-prototypes
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include <jack/jack.h>
+#pragma GCC diagnostic pop
 
+struct SoundIoPrivate;
 int soundio_jack_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceJackPort {
     char *full_name;
     int full_name_len;
-    SoundIoChannelId channel_id;
+    enum SoundIoChannelId channel_id;
     jack_latency_range_t latency_range;
 };
 
 struct SoundIoDeviceJack {
     int port_count;
-    SoundIoDeviceJackPort *ports;
+    struct SoundIoDeviceJackPort *ports;
 };
 
 struct SoundIoJack {
     jack_client_t *client;
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
     atomic_flag refresh_devices_flag;
     int sample_rate;
     int period_size;
@@ -50,8 +56,8 @@ struct SoundIoOutStreamJack {
     int period_size;
     int frames_left;
     double hardware_latency;
-    SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoOutStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamJackPort {
@@ -65,8 +71,8 @@ struct SoundIoInStreamJack {
     int period_size;
     int frames_left;
     double hardware_latency;
-    SoundIoInStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoInStreamJackPort ports[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
     char *buf_ptrs[SOUNDIO_MAX_CHANNELS];
 };
 

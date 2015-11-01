@@ -1,9 +1,9 @@
 #undef NDEBUG
 
-#include "soundio.hpp"
+#include "soundio_private.h"
 #include "os.h"
-#include "util.hpp"
-#include "atomics.hpp"
+#include "util.h"
+#include "atomics.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -58,7 +58,7 @@ static void test_create_outstream(void) {
 static void test_ring_buffer_basic(void) {
     struct SoundIo *soundio = soundio_create();
     assert(soundio);
-    SoundIoRingBuffer *rb = soundio_ring_buffer_create(soundio, 10);
+    struct SoundIoRingBuffer *rb = soundio_ring_buffer_create(soundio, 10);
     assert(rb);
 
     int page_size = soundio_os_page_size();
@@ -98,41 +98,41 @@ static void test_ring_buffer_basic(void) {
     soundio_destroy(soundio);
 }
 
-static SoundIoRingBuffer *rb = nullptr;
+static struct SoundIoRingBuffer *rb = NULL;
 static const int rb_size = 3528;
 static long expected_write_head;
 static long expected_read_head;
-static atomic_bool rb_done;
-static atomic_int rb_write_it;
-static atomic_int rb_read_it;
+static struct SoundIoAtomicBool rb_done;
+static struct SoundIoAtomicInt rb_write_it;
+static struct SoundIoAtomicInt rb_read_it;
 
 // just for testing purposes; does not need to be high quality random
 static double random_double(void) {
     return ((double)rand() / (double)RAND_MAX);
 }
 
-static void reader_thread_run(void *) {
-    while (!rb_done) {
-        rb_read_it += 1;
+static void reader_thread_run(void *arg) {
+    while (!SOUNDIO_ATOMIC_LOAD(rb_done)) {
+        SOUNDIO_ATOMIC_FETCH_ADD(rb_read_it, 1);
         int fill_count = soundio_ring_buffer_fill_count(rb);
         assert(fill_count >= 0);
         assert(fill_count <= rb_size);
-        int amount_to_read = min((int)(random_double() * 2.0 * fill_count), fill_count);
+        int amount_to_read = soundio_int_min(random_double() * 2.0 * fill_count, fill_count);
         soundio_ring_buffer_advance_read_ptr(rb, amount_to_read);
         expected_read_head += amount_to_read;
     }
 }
 
-static void writer_thread_run(void *) {
-    while (!rb_done) {
-        rb_write_it += 1;
+static void writer_thread_run(void *arg) {
+    while (!SOUNDIO_ATOMIC_LOAD(rb_done)) {
+        SOUNDIO_ATOMIC_FETCH_ADD(rb_write_it, 1);
         int fill_count = soundio_ring_buffer_fill_count(rb);
         assert(fill_count >= 0);
         assert(fill_count <= rb_size);
         int free_count = rb_size - fill_count;
         assert(free_count >= 0);
         assert(free_count <= rb_size);
-        int value = min((int)(random_double() * 2.0 * free_count), free_count);
+        int value = soundio_int_min(random_double() * 2.0 * free_count, free_count);
         soundio_ring_buffer_advance_write_ptr(rb, value);
         expected_write_head += value;
     }
@@ -144,18 +144,18 @@ static void test_ring_buffer_threaded(void) {
     rb = soundio_ring_buffer_create(soundio, rb_size);
     expected_write_head = 0;
     expected_read_head = 0;
-    rb_read_it = 0;
-    rb_write_it = 0;
-    rb_done = false;
+    SOUNDIO_ATOMIC_STORE(rb_read_it, 0);
+    SOUNDIO_ATOMIC_STORE(rb_write_it, 0);
+    SOUNDIO_ATOMIC_STORE(rb_done, false);
 
-    SoundIoOsThread *reader_thread;
-    ok_or_panic(soundio_os_thread_create(reader_thread_run, nullptr, nullptr, &reader_thread));
+    struct SoundIoOsThread *reader_thread;
+    ok_or_panic(soundio_os_thread_create(reader_thread_run, NULL, NULL, &reader_thread));
 
-    SoundIoOsThread *writer_thread;
-    ok_or_panic(soundio_os_thread_create(writer_thread_run, nullptr, nullptr, &writer_thread));
+    struct SoundIoOsThread *writer_thread;
+    ok_or_panic(soundio_os_thread_create(writer_thread_run, NULL, NULL, &writer_thread));
 
-    while (rb_read_it < 100000 || rb_write_it < 100000) {}
-    rb_done = true;
+    while (SOUNDIO_ATOMIC_LOAD(rb_read_it) < 100000 || SOUNDIO_ATOMIC_LOAD(rb_write_it) < 100000) {}
+    SOUNDIO_ATOMIC_STORE(rb_done, true);
 
     soundio_os_thread_destroy(reader_thread);
     soundio_os_thread_destroy(writer_thread);
@@ -219,10 +219,10 @@ struct Test {
 static struct Test tests[] = {
     {"os_get_time", test_os_get_time},
     {"create output stream", test_create_outstream},
-    {"ring buffer basic", test_ring_buffer_basic},
-    {"ring buffer threaded", test_ring_buffer_threaded},
     {"mirrored memory", test_mirrored_memory},
     {"soundio_device_nearest_sample_rate", test_nearest_sample_rate},
+    {"ring buffer basic", test_ring_buffer_basic},
+    {"ring buffer threaded", test_ring_buffer_threaded},
     {NULL, NULL},
 };
 
@@ -233,7 +233,7 @@ static void exec_test(struct Test *test) {
 }
 
 int main(int argc, char *argv[]) {
-    const char *match = nullptr;
+    const char *match = NULL;
 
     if (argc == 2)
         match = argv[1];

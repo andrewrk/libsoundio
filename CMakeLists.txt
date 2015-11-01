@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.5)
-project(libsoundio C CXX)
+project(libsoundio C)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
@@ -135,12 +135,12 @@ endif()
 
 
 set(LIBSOUNDIO_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/soundio.cpp"
-    "${CMAKE_SOURCE_DIR}/src/util.cpp"
-    "${CMAKE_SOURCE_DIR}/src/os.cpp"
-    "${CMAKE_SOURCE_DIR}/src/dummy.cpp"
-    "${CMAKE_SOURCE_DIR}/src/channel_layout.cpp"
-    "${CMAKE_SOURCE_DIR}/src/ring_buffer.cpp"
+    "${CMAKE_SOURCE_DIR}/src/soundio.c"
+    "${CMAKE_SOURCE_DIR}/src/util.c"
+    "${CMAKE_SOURCE_DIR}/src/os.c"
+    "${CMAKE_SOURCE_DIR}/src/dummy.c"
+    "${CMAKE_SOURCE_DIR}/src/channel_layout.c"
+    "${CMAKE_SOURCE_DIR}/src/ring_buffer.c"
 )
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
@@ -152,27 +152,27 @@ set(LIBSOUNDIO_HEADERS
 
 if(SOUNDIO_HAVE_JACK)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/jack.cpp"
+        "${CMAKE_SOURCE_DIR}/src/jack.c"
     )
 endif()
 if(SOUNDIO_HAVE_PULSEAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/pulseaudio.cpp"
+        "${CMAKE_SOURCE_DIR}/src/pulseaudio.c"
     )
 endif()
 if(SOUNDIO_HAVE_ALSA)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/alsa.cpp"
+        "${CMAKE_SOURCE_DIR}/src/alsa.c"
     )
 endif()
 if(SOUNDIO_HAVE_COREAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/coreaudio.cpp"
+        "${CMAKE_SOURCE_DIR}/src/coreaudio.c"
     )
 endif()
 if(SOUNDIO_HAVE_WASAPI)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/wasapi.cpp"
+        "${CMAKE_SOURCE_DIR}/src/wasapi.c"
     )
 endif()
 
@@ -195,15 +195,10 @@ set(LIBSOUNDIO_LIBS
 
 
 
-# GTFO, -lstdc++ !!
-set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
-set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
-
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Werror -pedantic")
 
 
-set(LIB_CFLAGS "-std=c++11 -fno-exceptions -fno-rtti -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -Wno-c99-extensions")
+set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L")
 set(EXAMPLE_CFLAGS "-std=c99 -Wall")
 set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
 set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
@@ -277,7 +272,7 @@ if(BUILD_EXAMPLE_PROGRAMS)
 endif()
 
 if(BUILD_TESTS)
-    add_executable(unit_tests "${CMAKE_SOURCE_DIR}/test/unit_tests.cpp" ${LIBSOUNDIO_SOURCES})
+    add_executable(unit_tests "${CMAKE_SOURCE_DIR}/test/unit_tests.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
     set_target_properties(unit_tests PROPERTIES
         LINKER_LANGUAGE C
@@ -285,7 +280,7 @@ if(BUILD_TESTS)
         LINK_FLAGS ${TEST_LDFLAGS}
     )
 
-    add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.cpp" ${LIBSOUNDIO_SOURCES})
+    add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} m)
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C

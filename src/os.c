@@ -5,9 +5,16 @@
  * See http://opensource.org/licenses/MIT
  */
 
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE
+#undef _POSIX_C_SOURCE
+#else
+#define _GNU_SOURCE
+#endif
+
 #include "os.h"
-#include "soundio_private.h"
-#include "util.hpp"
+#include "soundio_internal.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <time.h>
@@ -53,7 +60,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#ifndef MAP_ANONYMOUS
+#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
@@ -159,7 +166,7 @@ double soundio_os_get_time(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
 static DWORD WINAPI run_win32_thread(LPVOID userdata) {
     struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
-    HRESULT err = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    HRESULT err = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     assert(err == S_OK);
     thread->run(thread->arg);
     CoUninitialize();
@@ -184,7 +191,7 @@ int soundio_os_thread_create(
 {
     *out_thread = NULL;
 
-    struct SoundIoOsThread *thread = allocate<SoundIoOsThread>(1);
+    struct SoundIoOsThread *thread = ALLOCATE(struct SoundIoOsThread, 1);
     if (!thread) {
         soundio_os_thread_destroy(thread);
         return SoundIoErrorNoMem;
@@ -276,7 +283,7 @@ void soundio_os_thread_destroy(struct SoundIoOsThread *thread) {
 }
 
 struct SoundIoOsMutex *soundio_os_mutex_create(void) {
-    struct SoundIoOsMutex *mutex = allocate<SoundIoOsMutex>(1);
+    struct SoundIoOsMutex *mutex = ALLOCATE(struct SoundIoOsMutex, 1);
     if (!mutex) {
         soundio_os_mutex_destroy(mutex);
         return NULL;
@@ -328,7 +335,7 @@ void soundio_os_mutex_unlock(struct SoundIoOsMutex *mutex) {
 }
 
 struct SoundIoOsCond * soundio_os_cond_create(void) {
-    struct SoundIoOsCond *cond = allocate<SoundIoOsCond>(1);
+    struct SoundIoOsCond *cond = ALLOCATE(struct SoundIoOsCond, 1);
 
     if (!cond) {
         soundio_os_cond_destroy(cond);
@@ -558,7 +565,7 @@ static int internal_init(void) {
     GetSystemInfo(&win32_system_info);
     page_size = win32_system_info.dwAllocationGranularity;
 #else
-    page_size = getpagesize();
+    page_size = sysconf(_SC_PAGESIZE);
 #if defined(__MACH__)
     host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
 #endif
@@ -581,7 +588,7 @@ int soundio_os_init(void) {
     if ((err = internal_init()))
         return err;
 
-    if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, nullptr))
+    if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, NULL))
         return SoundIoErrorSystemResources;
 #else
     assert_no_err(pthread_mutex_lock(&init_mutex));
@@ -734,5 +741,5 @@ void soundio_os_deinit_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
     int err = munmap(mem->address, 2 * mem->capacity);
     assert(!err);
 #endif
-    mem->address = nullptr;
+    mem->address = NULL;
 }

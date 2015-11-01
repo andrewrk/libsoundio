@@ -5,13 +5,13 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_WASAPI_HPP
-#define SOUNDIO_WASAPI_HPP
+#ifndef SOUNDIO_WASAPI_H
+#define SOUNDIO_WASAPI_H
 
-#include "soundio_private.h"
+#include "soundio_internal.h"
 #include "os.h"
-#include "atomics.hpp"
-#include "list.hpp"
+#include "list.h"
+#include "atomics.h"
 
 #define INITGUID
 #define CINTERFACE
@@ -25,6 +25,7 @@
 #include <audiosessiontypes.h>
 #include <audiopolicy.h>
 
+struct SoundIoPrivate;
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceWasapi {
@@ -33,10 +34,10 @@ struct SoundIoDeviceWasapi {
 };
 
 struct SoundIoWasapi {
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
-    SoundIoOsCond *scan_devices_cond;
-    SoundIoOsMutex *scan_devices_mutex;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
+    struct SoundIoOsCond *scan_devices_cond;
+    struct SoundIoOsMutex *scan_devices_mutex;
     struct SoundIoOsThread *thread;
     bool abort_flag;
     // this one is ready to be read with flush_events. protected by mutex
@@ -58,17 +59,17 @@ struct SoundIoOutStreamWasapi {
     IAudioSessionControl *audio_session_control;
     LPWSTR stream_name;
     bool need_resample;
-    SoundIoOsThread *thread;
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
-    SoundIoOsCond *start_cond;
+    struct SoundIoOsThread *thread;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
+    struct SoundIoOsCond *start_cond;
     atomic_flag thread_exit_flag;
     bool is_raw;
     int writable_frame_count;
     UINT32 buffer_frame_count;
     int write_frame_count;
     HANDLE h_event;
-    atomic_bool desired_pause_state;
+    struct SoundIoAtomicBool desired_pause_state;
     atomic_flag pause_resume_flag;
     atomic_flag clear_buffer_flag;
     bool is_paused;
@@ -76,7 +77,7 @@ struct SoundIoOutStreamWasapi {
     int open_err;
     bool started;
     UINT32 min_padding_frames;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamWasapi {
@@ -84,10 +85,10 @@ struct SoundIoInStreamWasapi {
     IAudioCaptureClient *audio_capture_client;
     IAudioSessionControl *audio_session_control;
     LPWSTR stream_name;
-    SoundIoOsThread *thread;
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
-    SoundIoOsCond *start_cond;
+    struct SoundIoOsThread *thread;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
+    struct SoundIoOsCond *start_cond;
     atomic_flag thread_exit_flag;
     bool is_raw;
     int readable_frame_count;
@@ -100,7 +101,7 @@ struct SoundIoInStreamWasapi {
     bool started;
     char *read_buf;
     int read_buf_frames_left;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

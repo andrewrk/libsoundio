@@ -5,23 +5,24 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_DUMMY_HPP
-#define SOUNDIO_DUMMY_HPP
+#ifndef SOUNDIO_DUMMY_H
+#define SOUNDIO_DUMMY_H
 
-#include "soundio_private.h"
+#include "soundio_internal.h"
 #include "os.h"
-#include "atomics.hpp"
-#include "ring_buffer.hpp"
+#include "ring_buffer.h"
+#include "atomics.h"
 
+struct SoundIoPrivate;
 int soundio_dummy_init(struct SoundIoPrivate *si);
 
 struct SoundIoDummy {
-    SoundIoOsMutex *mutex;
-    SoundIoOsCond *cond;
+    struct SoundIoOsMutex *mutex;
+    struct SoundIoOsCond *cond;
     bool devices_emitted;
 };
 
-struct SoundIoDeviceDummy { };
+struct SoundIoDeviceDummy { int make_the_struct_not_empty; };
 
 struct SoundIoOutStreamDummy {
     struct SoundIoOsThread *thread;
@@ -34,8 +35,8 @@ struct SoundIoOutStreamDummy {
     struct SoundIoRingBuffer ring_buffer;
     double playback_start_time;
     atomic_flag clear_buffer_flag;
-    atomic_bool pause_requested;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoAtomicBool pause_requested;
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamDummy {
@@ -47,8 +48,8 @@ struct SoundIoInStreamDummy {
     int read_frame_count;
     int buffer_frame_count;
     struct SoundIoRingBuffer ring_buffer;
-    atomic_bool pause_requested;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoAtomicBool pause_requested;
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif

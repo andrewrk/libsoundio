@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "util.hpp"
+#include "util.h"
 
 void soundio_panic(const char *format, ...) {
     va_list ap;
@@ -25,13 +25,13 @@ char *soundio_alloc_sprintf(int *len, const char *format, ...) {
     va_start(ap, format);
     va_copy(ap2, ap);
 
-    int len1 = vsnprintf(nullptr, 0, format, ap);
+    int len1 = vsnprintf(NULL, 0, format, ap);
     assert(len1 >= 0);
 
     size_t required_size = len1 + 1;
-    char *mem = allocate<char>(required_size);
+    char *mem = ALLOCATE(char, required_size);
     if (!mem)
-        return nullptr;
+        return NULL;
 
     int len2 = vsnprintf(mem, required_size, format, ap2);
     assert(len2 == len1);

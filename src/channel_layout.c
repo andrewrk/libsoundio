@@ -5,7 +5,7 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#include "soundio.hpp"
+#include "soundio_private.h"
 
 #include <stdio.h>
 
@@ -308,12 +308,12 @@ static struct SoundIoChannelLayout builtin_channel_layouts[] = {
     },
 };
 
-static const int channel_name_alias_count = 3;
-static const char *channel_names[][channel_name_alias_count] = {
+#define CHANNEL_NAME_ALIAS_COUNT 3
+static const char *channel_names[][CHANNEL_NAME_ALIAS_COUNT] = {
     [SoundIoChannelIdInvalid] = {
         "(Invalid Channel)",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontLeft] = {
         "Front Left",
@@ -407,258 +407,258 @@ static const char *channel_names[][channel_name_alias_count] = {
     },
     [SoundIoChannelIdBackLeftCenter] = {
         "Back Left Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdBackRightCenter] = {
         "Back Right Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontLeftWide] = {
         "Front Left Wide",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontRightWide] = {
         "Front Right Wide",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontLeftHigh] = {
         "Front Left High",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontCenterHigh] = {
         "Front Center High",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdFrontRightHigh] = {
         "Front Right High",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdTopFrontLeftCenter] = {
         "Top Front Left Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdTopFrontRightCenter] = {
         "Top Front Right Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdTopSideLeft] = {
         "Top Side Left",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdTopSideRight] = {
         "Top Side Right",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdLeftLfe] = {
         "Left LFE",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdRightLfe] = {
         "Right LFE",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdLfe2] = {
         "LFE 2",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdBottomCenter] = {
         "Bottom Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdBottomLeftCenter] = {
         "Bottom Left Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdBottomRightCenter] = {
         "Bottom Right Center",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdMsMid] = {
         "Mid/Side Mid",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdMsSide] = {
         "Mid/Side Side",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAmbisonicW] = {
         "Ambisonic W",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAmbisonicX] = {
         "Ambisonic X",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAmbisonicY] = {
         "Ambisonic Y",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAmbisonicZ] = {
         "Ambisonic Z",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdXyX] = {
         "X-Y X",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdXyY] = {
         "X-Y Y",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdHeadphonesLeft] = {
         "Headphones Left",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdHeadphonesRight] = {
         "Headphones Right",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdClickTrack] = {
         "Click Track",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdForeignLanguage] = {
         "Foreign Language",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdHearingImpaired] = {
         "Hearing Impaired",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdNarration] = {
         "Narration",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdHaptic] = {
         "Haptic",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdDialogCentricMix] = {
         "Dialog Centric Mix",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux] = {
         "Aux",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux0] = {
         "Aux 0",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux1] = {
         "Aux 1",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux2] = {
         "Aux 2",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux3] = {
         "Aux 3",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux4] = {
         "Aux 4",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux5] = {
         "Aux 5",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux6] = {
         "Aux 6",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux7] = {
         "Aux 7",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux8] = {
         "Aux 8",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux9] = {
         "Aux 9",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux10] = {
         "Aux 10",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux11] = {
         "Aux 11",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux12] = {
         "Aux 12",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux13] = {
         "Aux 13",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux14] = {
         "Aux 14",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
     [SoundIoChannelIdAux15] = {
         "Aux 15",
-        nullptr,
-        nullptr,
+        NULL,
+        NULL,
     },
 };
 
 const char *soundio_get_channel_name(enum SoundIoChannelId id) {
-    if (id < 0 || id > array_length(channel_names))
+    if (id >= ARRAY_LENGTH(channel_names))
         return "(Invalid Channel)";
     else
         return channel_names[id][0];
@@ -680,12 +680,12 @@ bool soundio_channel_layout_equal(
 }
 
 int soundio_channel_layout_builtin_count(void) {
-    return array_length(builtin_channel_layouts);
+    return ARRAY_LENGTH(builtin_channel_layouts);
 }
 
 const struct SoundIoChannelLayout *soundio_channel_layout_get_builtin(int index) {
     assert(index >= 0);
-    assert(index <= array_length(builtin_channel_layouts));
+    assert(index <= ARRAY_LENGTH(builtin_channel_layouts));
     return &builtin_channel_layouts[index];
 }
 
@@ -700,14 +700,14 @@ int soundio_channel_layout_find_channel(
 }
 
 bool soundio_channel_layout_detect_builtin(struct SoundIoChannelLayout *layout) {
-    for (int i = 0; i < array_length(builtin_channel_layouts); i += 1) {
+    for (int i = 0; i < ARRAY_LENGTH(builtin_channel_layouts); i += 1) {
         const struct SoundIoChannelLayout *builtin_layout = &builtin_channel_layouts[i];
         if (soundio_channel_layout_equal(builtin_layout, layout)) {
             layout->name = builtin_layout->name;
             return true;
         }
     }
-    layout->name = nullptr;
+    layout->name = NULL;
     return false;
 }
 
@@ -722,18 +722,18 @@ const struct SoundIoChannelLayout *soundio_channel_layout_get_default(int channe
         case 7: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId6Point1);
         case 8: return soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point1);
     }
-    return nullptr;
+    return NULL;
 }
 
 enum SoundIoChannelId soundio_parse_channel_id(const char *str, int str_len) {
-    for (int id = 0; id < array_length(channel_names); id += 1) {
-        for (int i = 0; i < channel_name_alias_count; i += 1) {
+    for (int id = 0; id < ARRAY_LENGTH(channel_names); id += 1) {
+        for (int i = 0; i < CHANNEL_NAME_ALIAS_COUNT; i += 1) {
             const char *alias = channel_names[id][i];
             if (!alias)
                 break;
             int alias_len = strlen(alias);
             if (soundio_streql(alias, alias_len, str, str_len))
-                return (SoundIoChannelId)id;
+                return (enum SoundIoChannelId)id;
         }
     }
     return SoundIoChannelIdInvalid;

@@ -5,17 +5,18 @@
  * See http://opensource.org/licenses/MIT
  */
 
-#ifndef SOUNDIO_PULSEAUDIO_HPP
-#define SOUNDIO_PULSEAUDIO_HPP
+#ifndef SOUNDIO_PULSEAUDIO_H
+#define SOUNDIO_PULSEAUDIO_H
 
-#include "soundio_private.h"
-#include "atomics.hpp"
+#include "soundio_internal.h"
+#include "atomics.h"
 
 #include <pulse/pulseaudio.h>
 
+struct SoundIoPrivate;
 int soundio_pulseaudio_init(struct SoundIoPrivate *si);
 
-struct SoundIoDevicePulseAudio { };
+struct SoundIoDevicePulseAudio { int make_the_struct_not_empty; };
 
 struct SoundIoPulseAudio {
     int device_query_err;
@@ -41,24 +42,24 @@ struct SoundIoPulseAudio {
 
 struct SoundIoOutStreamPulseAudio {
     pa_stream *stream;
-    atomic_bool stream_ready;
+    struct SoundIoAtomicBool stream_ready;
     pa_buffer_attr buffer_attr;
     char *write_ptr;
     size_t write_byte_count;
     atomic_flag clear_buffer_flag;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 struct SoundIoInStreamPulseAudio {
     pa_stream *stream;
-    atomic_bool stream_ready;
+    struct SoundIoAtomicBool stream_ready;
     pa_buffer_attr buffer_attr;
     char *peek_buf;
     size_t peek_buf_index;
     size_t peek_buf_size;
     int peek_buf_frames_left;
     int read_frame_count;
-    SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif
