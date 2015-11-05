@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
 
     int default_in_device_index = soundio_default_input_device_index(soundio);
     if (default_in_device_index < 0)
-        panic("no output device found");
+        panic("no input device found");
 
     int in_device_index = default_in_device_index;
     if (in_device_id) {
