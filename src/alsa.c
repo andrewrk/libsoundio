@@ -480,15 +480,16 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         return SoundIoErrorNoMem;
     }
 
+    int default_output_index = -1;
+    int sysdefault_output_index = -1;
+    int default_input_index = -1;
+    int sysdefault_input_index = -1;
+
     for (void **hint_ptr = hints; *hint_ptr; hint_ptr += 1) {
         char *name = snd_device_name_get_hint(*hint_ptr, "NAME");
         // null - libsoundio has its own dummy backend. API clients should use
         // that instead of alsa null device.
         if (strcmp(name, "null") == 0 ||
-            // sysdefault is confusing - the name and description is identical
-            // to default, and my best guess for what it does is ignore ~/.asoundrc
-            // which is just an accident waiting to happen.
-            str_has_prefix(name, "sysdefault:") ||
             // all these surround devices are clutter
             str_has_prefix(name, "front:") ||
             str_has_prefix(name, "surround21:") ||
@@ -508,7 +509,20 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         char *io = snd_device_name_get_hint(*hint_ptr, "IOID");
         bool is_playback;
         bool is_capture;
-        if (io) {
+
+        // Workaround for Raspberry Pi driver bug, reporting itself as output
+        // when really it is input.
+        if (descr && strcmp(descr, "bcm2835 ALSA, bcm2835 ALSA") == 0 &&
+            descr1 && strcmp(descr1, "Direct sample snooping device") == 0)
+        {
+            is_playback = false;
+            is_capture = true;
+        } else if (descr && strcmp(descr, "bcm2835 ALSA, bcm2835 IEC958/HDMI") == 0 &&
+                   descr1 && strcmp(descr1, "Direct sample snooping device") == 0)
+        {
+            is_playback = false;
+            is_capture = true;
+        } else if (io) {
             if (strcmp(io, "Input") == 0) {
                 is_playback = false;
                 is_capture = true;
@@ -561,16 +575,26 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             struct SoundIoListDevicePtr *device_list;
             bool is_default = str_has_prefix(name, "default:") || strcmp(name, "default") == 0;
+            bool is_sysdefault = str_has_prefix(name, "sysdefault:") || strcmp(name, "sysdefault") == 0;
+
             if (stream == SND_PCM_STREAM_PLAYBACK) {
                 device->aim = SoundIoDeviceAimOutput;
                 device_list = &devices_info->output_devices;
-                if (devices_info->default_output_index < 0 && is_default)
+                if (is_default)
+                    default_output_index = device_list->length;
+                if (is_sysdefault)
+                    sysdefault_output_index = device_list->length;
+                if (devices_info->default_output_index == -1)
                     devices_info->default_output_index = device_list->length;
             } else {
                 assert(stream == SND_PCM_STREAM_CAPTURE);
                 device->aim = SoundIoDeviceAimInput;
                 device_list = &devices_info->input_devices;
-                if (devices_info->default_input_index < 0 && is_default)
+                if (is_default)
+                    default_input_index = device_list->length;
+                if (is_sysdefault)
+                    sysdefault_input_index = device_list->length;
+                if (devices_info->default_input_index == -1)
                     devices_info->default_input_index = device_list->length;
             }
 
@@ -588,6 +612,18 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
         free(name);
         free(descr);
+    }
+
+    if (default_input_index >= 0) {
+        devices_info->default_input_index = default_input_index;
+    } else if (sysdefault_input_index >= 0) {
+        devices_info->default_input_index = sysdefault_input_index;
+    }
+
+    if (default_output_index >= 0) {
+        devices_info->default_output_index = default_output_index;
+    } else if (sysdefault_output_index >= 0) {
+        devices_info->default_output_index = sysdefault_output_index;
     }
 
     snd_device_name_free_hint(hints);

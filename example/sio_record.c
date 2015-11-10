@@ -203,9 +203,18 @@ int main(int argc, char **argv) {
     } else {
         int device_index = soundio_default_input_device_index(soundio);
         selected_device = soundio_get_input_device(soundio, device_index);
+        if (!selected_device) {
+            fprintf(stderr, "No input devices available.\n");
+            return 1;
+        }
     }
 
     fprintf(stderr, "Device: %s\n", selected_device->name);
+
+    if (selected_device->probe_error) {
+        fprintf(stderr, "Unable to probe device: %s\n", soundio_strerror(selected_device->probe_error));
+        return 1;
+    }
 
     soundio_device_sort_channel_layouts(selected_device);
 
