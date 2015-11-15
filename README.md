@@ -12,7 +12,7 @@ the former. Features that only exist in some sound backends are exposed.
 
  * Supported operating systems:
    - Windows 7+
-   - MacOS 10.9+
+   - MacOS 10.10+
    - Linux 3.7+
  * Supported backends:
    - [JACK](http://jackaudio.org/)
