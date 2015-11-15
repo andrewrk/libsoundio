@@ -36,6 +36,17 @@ static void wakeup_device_poll(struct SoundIoAlsa *sia) {
     }
 }
 
+static void wakeup_outstream_poll(struct SoundIoOutStreamAlsa *osa) {
+    ssize_t amt = write(osa->poll_exit_pipe_fd[1], "a", 1);
+    if (amt == -1) {
+        assert(errno != EBADF);
+        assert(errno != EIO);
+        assert(errno != ENOSPC);
+        assert(errno != EPERM);
+        assert(errno != EPIPE);
+    }
+}
+
 static void destroy_alsa(struct SoundIoPrivate *si) {
     struct SoundIoAlsa *sia = &si->backend_data.alsa;
 
@@ -970,6 +981,7 @@ static void outstream_destroy_alsa(struct SoundIoPrivate *si, struct SoundIoOutS
 
     if (osa->thread) {
         atomic_flag_clear(&osa->thread_exit_flag);
+        wakeup_outstream_poll(osa);
         soundio_os_thread_destroy(osa->thread);
         osa->thread = NULL;
     }
@@ -1034,13 +1046,15 @@ static int outstream_wait_for_poll(struct SoundIoOutStreamPrivate *os) {
     int err;
     unsigned short revents;
     for (;;) {
-        if ((err = poll(osa->poll_fds, osa->poll_fd_count, -1)) < 0) {
-            return err;
+        if ((err = poll(osa->poll_fds, osa->poll_fd_count_with_extra, -1)) < 0) {
+            return SoundIoErrorStreaming;
         }
+        if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
+            return SoundIoErrorInterrupted;
         if ((err = snd_pcm_poll_descriptors_revents(osa->handle,
                         osa->poll_fds, osa->poll_fd_count, &revents)) < 0)
         {
-            return err;
+            return SoundIoErrorStreaming;
         }
         if (revents & (POLLERR|POLLNVAL|POLLHUP)) {
             return 0;
@@ -1113,10 +1127,10 @@ static void outstream_thread_run(void *arg) {
             case SND_PCM_STATE_RUNNING:
             case SND_PCM_STATE_PAUSED:
             {
-                if ((err = outstream_wait_for_poll(os)) < 0) {
-                    if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
+                if ((err = outstream_wait_for_poll(os))) {
+                    if (err == SoundIoErrorInterrupted)
                         return;
-                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    outstream->error_callback(outstream, err);
                     return;
                 }
                 if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
@@ -1379,7 +1393,8 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
         return SoundIoErrorOpeningDevice;
     }
 
-    osa->poll_fds = ALLOCATE(struct pollfd, osa->poll_fd_count);
+    osa->poll_fd_count_with_extra = osa->poll_fd_count + 1;
+    osa->poll_fds = ALLOCATE(struct pollfd, osa->poll_fd_count_with_extra);
     if (!osa->poll_fds) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorNoMem;
@@ -1389,6 +1404,17 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
     }
+
+    struct pollfd *extra_fd = &osa->poll_fds[osa->poll_fd_count];
+    if (pipe2(osa->poll_exit_pipe_fd, O_NONBLOCK)) {
+        assert(errno != EFAULT);
+        assert(errno != EINVAL);
+        assert(errno == EMFILE || errno == ENFILE);
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorSystemResources;
+    }
+    extra_fd->fd = osa->poll_exit_pipe_fd[0];
+    extra_fd->events = POLLIN;
 
     return 0;
 }

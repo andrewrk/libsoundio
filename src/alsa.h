@@ -56,7 +56,9 @@ struct SoundIoOutStreamAlsa {
     int sample_buffer_size;
     char *sample_buffer;
     int poll_fd_count;
+    int poll_fd_count_with_extra;
     struct pollfd *poll_fds;
+    int poll_exit_pipe_fd[2];
     struct SoundIoOsThread *thread;
     atomic_flag thread_exit_flag;
     snd_pcm_uframes_t period_size;
