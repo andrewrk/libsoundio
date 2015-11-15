@@ -1312,34 +1312,7 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
         return SoundIoErrorOpeningDevice;
     }
 
-    int period_count;
-    if (device->is_raw) {
-        period_count = 4;
-        unsigned int microseconds = 0.25 * outstream->software_latency * 1000000.0;
-        if ((err = snd_pcm_hw_params_set_period_time_near(osa->handle, hwparams, &microseconds, NULL)) < 0) {
-            outstream_destroy_alsa(si, os);
-            return SoundIoErrorOpeningDevice;
-        }
-    } else {
-        period_count = 2;
-        double period_duration = 0.5 * outstream->software_latency;
-        snd_pcm_uframes_t period_frames =
-            ceil_dbl_to_uframes(period_duration * (double)outstream->sample_rate);
-
-        if ((err = snd_pcm_hw_params_set_period_size_near(osa->handle, hwparams, &period_frames, NULL)) < 0) {
-            outstream_destroy_alsa(si, os);
-            return SoundIoErrorOpeningDevice;
-        }
-    }
-
-    snd_pcm_uframes_t period_size;
-    if ((snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL)) < 0) {
-        outstream_destroy_alsa(si, os);
-        return SoundIoErrorOpeningDevice;
-    }
-    osa->period_size = period_size;
-
-    osa->buffer_size_frames = osa->period_size * period_count;
+    osa->buffer_size_frames = outstream->software_latency * outstream->sample_rate;
     if ((err = snd_pcm_hw_params_set_buffer_size_near(osa->handle, hwparams, &osa->buffer_size_frames)) < 0) {
         outstream_destroy_alsa(si, os);
         return SoundIoErrorOpeningDevice;
@@ -1351,6 +1324,12 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
         outstream_destroy_alsa(si, os);
         return (err == -EINVAL) ? SoundIoErrorIncompatibleDevice : SoundIoErrorOpeningDevice;
     }
+
+    if ((snd_pcm_hw_params_get_period_size(hwparams, &osa->period_size, NULL)) < 0) {
+        outstream_destroy_alsa(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
 
     // set channel map
     osa->chmap->channels = ch_count;

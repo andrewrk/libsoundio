@@ -59,7 +59,7 @@ struct SoundIoOutStreamAlsa {
     struct pollfd *poll_fds;
     struct SoundIoOsThread *thread;
     atomic_flag thread_exit_flag;
-    int period_size;
+    snd_pcm_uframes_t period_size;
     int write_frame_count;
     bool is_paused;
     atomic_flag clear_buffer_flag;
