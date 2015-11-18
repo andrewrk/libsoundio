@@ -1,0 +1,3 @@
+LIBSOUNDIO_@LIBSOUNDIO_VERSION_MAJOR@ {
+  global: *;
+};
