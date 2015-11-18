@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(libsoundio C)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
-include(CheckCCompilerFlag)
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
     set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "library install dir (lib)")
@@ -213,27 +212,15 @@ configure_file(
     "${CMAKE_SOURCE_DIR}/doc/doxygen.conf.in"
     ${DOXYGEN_CONF_FILE}
 )
-set(LINK_VERSION_SCRIPT "${CMAKE_BINARY_DIR}/link_version_script")
-configure_file(
-    "${CMAKE_SOURCE_DIR}/src/link_version_script.in"
-    ${LINK_VERSION_SCRIPT}
-)
-set(VERSION_SCRIPT_FLAG "-Wl,--version-script='${LINK_VERSION_SCRIPT}'")
-check_c_compiler_flag("${VERSION_SCRIPT_FLAG}" VERSION_SCRIPT_OK)
-if (VERSION_SCRIPT_OK)
-    set(SHARED_LINK_FLAGS "${VERSION_SCRIPT_FLAG}")
-else()
-    set(SHARED_LINK_FLAGS " ")
-endif()
 
-add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES} ${LINK_VERSION_SCRIPT})
+add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
 set_target_properties(libsoundio_shared PROPERTIES
     OUTPUT_NAME soundio
     SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
     VERSION ${LIBSOUNDIO_VERSION}
     COMPILE_FLAGS ${LIB_CFLAGS}
     LINKER_LANGUAGE C
-    LINK_FLAGS "${SHARED_LINK_FLAGS}"
+    LINK_FLAGS "-Wl,--default-symver"
 )
 target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
 install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
