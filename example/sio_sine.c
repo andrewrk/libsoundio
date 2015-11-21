@@ -200,12 +200,6 @@ int main(int argc, char **argv) {
     }
 
     fprintf(stderr, "Output device: %s\n", device->name);
-    fprintf(stderr,
-            "'p\\n' - pause\n"
-            "'u\\n' - unpause\n"
-            "'P\\n' - pause from within callback\n"
-            "'c\\n' - clear buffer\n"
-            "'q\\n' - quit\n");
 
     if (device->probe_error) {
         fprintf(stderr, "Cannot probe device: %s\n", soundio_strerror(device->probe_error));
@@ -241,6 +235,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    fprintf(stderr, "Software latency: %f\n", outstream->software_latency);
+    fprintf(stderr,
+            "'p\\n' - pause\n"
+            "'u\\n' - unpause\n"
+            "'P\\n' - pause from within callback\n"
+            "'c\\n' - clear buffer\n"
+            "'q\\n' - quit\n");
 
     if (outstream->layout_error)
         fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));

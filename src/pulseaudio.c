@@ -724,7 +724,7 @@ static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     }
 
     size_t writable_size = pa_stream_writable_size(ospa->stream);
-    outstream->software_latency = writable_size / bytes_per_second;
+    outstream->software_latency = ((double)writable_size) / (double)bytes_per_second;
 
     pa_threaded_mainloop_unlock(sipa->main_loop);
 
