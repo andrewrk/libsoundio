@@ -915,8 +915,9 @@ SOUNDIO_EXPORT struct SoundIoOutStream *soundio_outstream_create(struct SoundIoD
 /// You may not call this function from the SoundIoOutStream::write_callback thread context.
 SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
-/// After you call this function, SoundIoOutStream:software_latency is set to the correct
-/// value.
+/// After you call this function, SoundIoOutStream::software_latency is set to
+/// the correct value.
+///
 /// The next thing to do is call ::soundio_instream_start.
 /// If this function returns an error, the outstream is in an invalid state and
 /// you must call ::soundio_outstream_destroy on it.
