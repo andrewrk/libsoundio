@@ -940,6 +940,8 @@ SOUNDIO_EXPORT int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
 /// After you call this function, SoundIoOutStream::write_callback will be called.
 ///
+/// This function might directly call SoundIoOutStream::write_callback.
+///
 /// Possible errors:
 /// * #SoundIoErrorStreaming
 /// * #SoundIoErrorNoMem
