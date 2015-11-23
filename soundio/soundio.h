@@ -8,7 +8,6 @@
 #ifndef SOUNDIO_SOUNDIO_H
 #define SOUNDIO_SOUNDIO_H
 
-#include "config.h"
 #include "endian.h"
 #include <stdbool.h>
 
@@ -670,7 +669,14 @@ struct SoundIoInStream {
     int layout_error;
 };
 
-// Main Context
+/// See also ::soundio_version_major, ::soundio_version_minor, ::soundio_version_patch
+SOUNDIO_EXPORT const char *soundio_version_string(void);
+/// See also ::soundio_version_string, ::soundio_version_minor, ::soundio_version_patch
+SOUNDIO_EXPORT int soundio_version_major(void);
+/// See also ::soundio_version_major, ::soundio_version_string, ::soundio_version_patch
+SOUNDIO_EXPORT int soundio_version_minor(void);
+/// See also ::soundio_version_major, ::soundio_version_minor, ::soundio_version_string
+SOUNDIO_EXPORT int soundio_version_patch(void);
 
 /// Create a SoundIo context. You may create multiple instances of this to
 /// connect to multiple backends. Sets all fields to defaults.

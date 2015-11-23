@@ -9,6 +9,7 @@
 #define SOUNDIO_SOUNDIO_PRIVATE_H
 
 #include "soundio_internal.h"
+#include "config.h"
 
 #ifdef SOUNDIO_HAVE_JACK
 #include "jack.h"

@@ -1,6 +1,6 @@
 # libsoundio
 
-C99 library providing cross-platform audio input and output. The API is
+C library providing cross-platform audio input and output. The API is
 suitable for real-time software such as digital audio workstations as well
 as consumer software such as music players.
 

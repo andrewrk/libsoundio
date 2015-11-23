@@ -147,7 +147,6 @@ set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${CMAKE_SOURCE_DIR}/soundio/soundio.h"
     "${CMAKE_SOURCE_DIR}/soundio/endian.h"
-    ${CONFIGURE_OUT_FILE}
 )
 
 if(SOUNDIO_HAVE_JACK)
