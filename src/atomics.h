@@ -11,6 +11,29 @@
 // Simple wrappers around atomic values so that the compiler will catch it if
 // I accidentally use operators such as +, -, += on them.
 
+#ifdef __cplusplus
+
+#include <atomic>
+
+struct SoundIoAtomicLong {
+    std::atomic<long> x;
+};
+
+struct SoundIoAtomicInt {
+    std::atomic<int> x;
+};
+
+struct SoundIoAtomicBool {
+    std::atomic<bool> x;
+};
+
+#define SOUNDIO_ATOMIC_LOAD(a) (a.x.load())
+#define SOUNDIO_ATOMIC_FETCH_ADD(a, delta) (a.x.fetch_add(delta))
+#define SOUNDIO_ATOMIC_STORE(a, value) (a.x.store(value))
+#define SOUNDIO_ATOMIC_EXCHANGE(a, value) (a.x.exchange(value))
+
+#else
+
 #include <stdatomic.h>
 
 struct SoundIoAtomicLong {
@@ -29,5 +52,7 @@ struct SoundIoAtomicBool {
 #define SOUNDIO_ATOMIC_FETCH_ADD(a, delta) atomic_fetch_add(&a.x, delta)
 #define SOUNDIO_ATOMIC_STORE(a, value) atomic_store(&a.x, value)
 #define SOUNDIO_ATOMIC_EXCHANGE(a, value) atomic_exchange(&a.x, value)
+
+#endif
 
 #endif
