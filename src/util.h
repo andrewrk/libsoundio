@@ -13,11 +13,11 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#define ALLOCATE_NONZERO(Type, count) malloc((count) * sizeof(Type))
+#define ALLOCATE_NONZERO(Type, count) ((Type*)malloc((count) * sizeof(Type)))
 
-#define ALLOCATE(Type, count) calloc(count, sizeof(Type))
+#define ALLOCATE(Type, count) ((Type*)calloc(count, sizeof(Type)))
 
-#define REALLOCATE_NONZERO(Type, old, new_count) realloc(old, (new_count) * sizeof(Type))
+#define REALLOCATE_NONZERO(Type, old, new_count) ((Type*)realloc(old, (new_count) * sizeof(Type)))
 
 #define ARRAY_LENGTH(array) (sizeof(array)/sizeof((array)[0]))
 
