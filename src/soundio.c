@@ -171,9 +171,9 @@ static void default_backend_disconnect_cb(struct SoundIo *soundio, int err) {
     soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
 }
 
-static atomic_flag rtprio_seen = ATOMIC_FLAG_INIT;
+static struct SoundIoAtomicFlag rtprio_seen = SOUNDIO_ATOMIC_FLAG_INIT;
 static void default_emit_rtprio_warning(void) {
-    if (!atomic_flag_test_and_set(&rtprio_seen)) {
+    if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(rtprio_seen)) {
         fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
         fprintf(stderr, "See "
             "https://github.com/andrewrk/genesis/wiki/warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");

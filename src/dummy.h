@@ -27,14 +27,14 @@ struct SoundIoDeviceDummy { int make_the_struct_not_empty; };
 struct SoundIoOutStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
-    atomic_flag abort_flag;
+    struct SoundIoAtomicFlag abort_flag;
     double period_duration;
     int buffer_frame_count;
     int frames_left;
     int write_frame_count;
     struct SoundIoRingBuffer ring_buffer;
     double playback_start_time;
-    atomic_flag clear_buffer_flag;
+    struct SoundIoAtomicFlag clear_buffer_flag;
     struct SoundIoAtomicBool pause_requested;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
@@ -42,7 +42,7 @@ struct SoundIoOutStreamDummy {
 struct SoundIoInStreamDummy {
     struct SoundIoOsThread *thread;
     struct SoundIoOsCond *cond;
-    atomic_flag abort_flag;
+    struct SoundIoAtomicFlag abort_flag;
     double period_duration;
     int frames_left;
     int read_frame_count;

@@ -152,7 +152,7 @@ static void destroy_ca(struct SoundIoPrivate *si) {
     SoundIoListAudioDeviceID_deinit(&sica->registered_listeners);
 
     if (sica->thread) {
-        atomic_flag_clear(&sica->abort_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(sica->abort_flag);
         soundio_os_cond_signal(sica->scan_devices_cond, NULL);
         soundio_os_thread_destroy(sica->thread);
     }
@@ -846,7 +846,7 @@ static void device_thread_run(void *arg) {
     int err;
 
     for (;;) {
-        if (!atomic_flag_test_and_set(&sica->abort_flag))
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sica->abort_flag))
             break;
         if (SOUNDIO_ATOMIC_LOAD(sica->service_restarted)) {
             shutdown_backend(si, SoundIoErrorBackendDisconnected);
@@ -1122,7 +1122,7 @@ static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_
     }
 
     OSStatus os_err;
-    if ((os_err = AudioUnitRender(isca->instance, io_action_flags, in_time_stamp, 
+    if ((os_err = AudioUnitRender(isca->instance, io_action_flags, in_time_stamp,
         in_bus_number, in_number_frames, isca->buffer_list)))
     {
         instream->error_callback(instream, SoundIoErrorStreaming);
@@ -1348,7 +1348,7 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si) {
     SOUNDIO_ATOMIC_STORE(sica->have_devices_flag, false);
     SOUNDIO_ATOMIC_STORE(sica->device_scan_queued, true);
     SOUNDIO_ATOMIC_STORE(sica->service_restarted, false);
-    atomic_flag_test_and_set(&sica->abort_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sica->abort_flag);
 
     sica->mutex = soundio_os_mutex_create();
     if (!sica->mutex) {

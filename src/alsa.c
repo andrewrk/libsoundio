@@ -51,7 +51,7 @@ static void destroy_alsa(struct SoundIoPrivate *si) {
     struct SoundIoAlsa *sia = &si->backend_data.alsa;
 
     if (sia->thread) {
-        atomic_flag_clear(&sia->abort_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(sia->abort_flag);
         wakeup_device_poll(sia);
         soundio_os_thread_destroy(sia->thread);
     }
@@ -804,7 +804,7 @@ static void device_thread_run(void *arg) {
     int err;
     for (;;) {
         int poll_num = poll(fds, 2, -1);
-        if (!atomic_flag_test_and_set(&sia->abort_flag))
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sia->abort_flag))
             break;
         if (poll_num == -1) {
             if (errno == EINTR)
@@ -980,7 +980,7 @@ static void outstream_destroy_alsa(struct SoundIoPrivate *si, struct SoundIoOutS
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
 
     if (osa->thread) {
-        atomic_flag_clear(&osa->thread_exit_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(osa->thread_exit_flag);
         wakeup_outstream_poll(osa);
         soundio_os_thread_destroy(osa->thread);
         osa->thread = NULL;
@@ -1049,7 +1049,7 @@ static int outstream_wait_for_poll(struct SoundIoOutStreamPrivate *os) {
         if ((err = poll(osa->poll_fds, osa->poll_fd_count_with_extra, -1)) < 0) {
             return SoundIoErrorStreaming;
         }
-        if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag))
             return SoundIoErrorInterrupted;
         if ((err = snd_pcm_poll_descriptors_revents(osa->handle,
                         osa->poll_fds, osa->poll_fd_count, &revents)) < 0)
@@ -1113,7 +1113,7 @@ static void outstream_thread_run(void *arg) {
 
                 if ((snd_pcm_uframes_t)avail == osa->buffer_size_frames) {
                     outstream->write_callback(outstream, 0, avail);
-                    if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
+                    if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag))
                         return;
                     continue;
                 }
@@ -1133,9 +1133,9 @@ static void outstream_thread_run(void *arg) {
                     outstream->error_callback(outstream, err);
                     return;
                 }
-                if (!atomic_flag_test_and_set(&osa->thread_exit_flag))
+                if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag))
                     return;
-                if (!atomic_flag_test_and_set(&osa->clear_buffer_flag)) {
+                if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->clear_buffer_flag)) {
                     if ((err = snd_pcm_drop(osa->handle)) < 0) {
                         outstream->error_callback(outstream, SoundIoErrorStreaming);
                         return;
@@ -1213,12 +1213,12 @@ static void instream_thread_run(void *arg) {
             case SND_PCM_STATE_PAUSED:
             {
                 if ((err = instream_wait_for_poll(is)) < 0) {
-                    if (!atomic_flag_test_and_set(&isa->thread_exit_flag))
+                    if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isa->thread_exit_flag))
                         return;
                     instream->error_callback(instream, SoundIoErrorStreaming);
                     return;
                 }
-                if (!atomic_flag_test_and_set(&isa->thread_exit_flag))
+                if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isa->thread_exit_flag))
                     return;
 
                 snd_pcm_sframes_t avail = snd_pcm_avail_update(isa->handle);
@@ -1261,7 +1261,7 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
     struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoDevice *device = outstream->device;
 
-    atomic_flag_test_and_set(&osa->clear_buffer_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->clear_buffer_flag);
 
     if (outstream->software_latency == 0.0)
         outstream->software_latency = 1.0;
@@ -1426,7 +1426,7 @@ static int outstream_start_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     assert(!osa->thread);
 
     int err;
-    atomic_flag_test_and_set(&osa->thread_exit_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag);
     if ((err = soundio_os_thread_create(outstream_thread_run, os, soundio->emit_rtprio_warning, &osa->thread)))
         return err;
 
@@ -1515,7 +1515,7 @@ static int outstream_clear_buffer_alsa(struct SoundIoPrivate *si,
         struct SoundIoOutStreamPrivate *os)
 {
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
-    atomic_flag_clear(&osa->clear_buffer_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(osa->clear_buffer_flag);
     return 0;
 }
 
@@ -1560,7 +1560,7 @@ static void instream_destroy_alsa(struct SoundIoPrivate *si, struct SoundIoInStr
     struct SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
 
     if (isa->thread) {
-        atomic_flag_clear(&isa->thread_exit_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(isa->thread_exit_flag);
         soundio_os_thread_destroy(isa->thread);
         isa->thread = NULL;
     }
@@ -1727,7 +1727,7 @@ static int instream_start_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
 
     assert(!isa->thread);
 
-    atomic_flag_test_and_set(&isa->thread_exit_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isa->thread_exit_flag);
     int err;
     if ((err = soundio_os_thread_create(instream_thread_run, is, soundio->emit_rtprio_warning, &isa->thread))) {
         instream_destroy_alsa(si, is);
@@ -1857,7 +1857,7 @@ int soundio_alsa_init(struct SoundIoPrivate *si) {
 
     sia->notify_fd = -1;
     sia->notify_wd = -1;
-    atomic_flag_test_and_set(&sia->abort_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sia->abort_flag);
 
     sia->mutex = soundio_os_mutex_create();
     if (!sia->mutex) {

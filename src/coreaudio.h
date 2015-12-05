@@ -30,7 +30,7 @@ struct SoundIoCoreAudio {
     struct SoundIoOsMutex *mutex;
     struct SoundIoOsCond *cond;
     struct SoundIoOsThread *thread;
-    atomic_flag abort_flag;
+    struct SoundIoAtomicFlag abort_flag;
 
     // this one is ready to be read with flush_events. protected by mutex
     struct SoundIoDevicesInfo *ready_devices_info;

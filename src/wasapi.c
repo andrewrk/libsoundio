@@ -1048,7 +1048,7 @@ static void outstream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoOu
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
     if (osw->thread) {
-        atomic_flag_clear(&osw->thread_exit_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(osw->thread_exit_flag);
         if (osw->h_event)
             SetEvent(osw->h_event);
 
@@ -1268,13 +1268,13 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
         double wait_time = time_until_underrun / 2.0;
         soundio_os_mutex_lock(osw->mutex);
         soundio_os_cond_timed_wait(osw->cond, osw->mutex, wait_time);
-        if (!atomic_flag_test_and_set(&osw->thread_exit_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag)) {
             soundio_os_mutex_unlock(osw->mutex);
             return;
         }
         soundio_os_mutex_unlock(osw->mutex);
         bool reset_buffer = false;
-        if (!atomic_flag_test_and_set(&osw->clear_buffer_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->clear_buffer_flag)) {
             if (!osw->is_paused) {
                 if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
                     outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1286,10 +1286,10 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
                 outstream->error_callback(outstream, SoundIoErrorStreaming);
                 return;
             }
-            atomic_flag_clear(&osw->pause_resume_flag);
+            SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
             reset_buffer = true;
         }
-        if (!atomic_flag_test_and_set(&osw->pause_resume_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->pause_resume_flag)) {
             bool pause = SOUNDIO_ATOMIC_LOAD(osw->desired_pause_state);
             if (pause && !osw->is_paused) {
                 if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
@@ -1335,9 +1335,9 @@ static void outstream_raw_run(struct SoundIoOutStreamPrivate *os) {
 
     for (;;) {
         WaitForSingleObject(osw->h_event, INFINITE);
-        if (!atomic_flag_test_and_set(&osw->thread_exit_flag))
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag))
             return;
-        if (!atomic_flag_test_and_set(&osw->pause_resume_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->pause_resume_flag)) {
             bool pause = SOUNDIO_ATOMIC_LOAD(osw->desired_pause_state);
             if (pause && !osw->is_paused) {
                 if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
@@ -1382,7 +1382,7 @@ static void outstream_thread_run(void *arg) {
     osw->open_complete = true;
     soundio_os_cond_signal(osw->cond, osw->mutex);
     for (;;) {
-        if (!atomic_flag_test_and_set(&osw->thread_exit_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag)) {
             soundio_os_mutex_unlock(osw->mutex);
             return;
         }
@@ -1407,8 +1407,8 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
     struct SoundIoDevice *device = outstream->device;
     struct SoundIo *soundio = &si->pub;
 
-    atomic_flag_test_and_set(&osw->pause_resume_flag);
-    atomic_flag_test_and_set(&osw->clear_buffer_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->pause_resume_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->clear_buffer_flag);
     SOUNDIO_ATOMIC_STORE(osw->desired_pause_state, false);
 
     // All the COM functions are supposed to be called from the same thread. libsoundio API does not
@@ -1443,7 +1443,7 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
         }
     }
 
-    atomic_flag_test_and_set(&osw->thread_exit_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag);
     int err;
     if ((err = soundio_os_thread_create(outstream_thread_run, os,
                     soundio->emit_rtprio_warning, &osw->thread)))
@@ -1469,7 +1469,7 @@ static int outstream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoOutSt
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
     SOUNDIO_ATOMIC_STORE(osw->desired_pause_state, pause);
-    atomic_flag_clear(&osw->pause_resume_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
     if (osw->h_event) {
         SetEvent(osw->h_event);
     } else {
@@ -1534,7 +1534,7 @@ static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct Sound
     if (osw->h_event) {
         return SoundIoErrorIncompatibleDevice;
     } else {
-        atomic_flag_clear(&osw->clear_buffer_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(osw->clear_buffer_flag);
         soundio_os_mutex_lock(osw->mutex);
         soundio_os_cond_signal(osw->cond, osw->mutex);
         soundio_os_mutex_unlock(osw->mutex);
@@ -1573,7 +1573,7 @@ static void instream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoInS
     struct SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
 
     if (isw->thread) {
-        atomic_flag_clear(&isw->thread_exit_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(isw->thread_exit_flag);
         if (isw->h_event)
             SetEvent(isw->h_event);
 
@@ -1750,7 +1750,7 @@ static void instream_raw_run(struct SoundIoInStreamPrivate *is) {
 
     for (;;) {
         WaitForSingleObject(isw->h_event, INFINITE);
-        if (!atomic_flag_test_and_set(&isw->thread_exit_flag))
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isw->thread_exit_flag))
             return;
 
         instream->read_callback(instream, isw->buffer_frame_count, isw->buffer_frame_count);
@@ -1771,7 +1771,7 @@ static void instream_shared_run(struct SoundIoInStreamPrivate *is) {
     for (;;) {
         soundio_os_mutex_lock(isw->mutex);
         soundio_os_cond_timed_wait(isw->cond, isw->mutex, instream->software_latency / 2.0);
-        if (!atomic_flag_test_and_set(&isw->thread_exit_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isw->thread_exit_flag)) {
             soundio_os_mutex_unlock(isw->mutex);
             return;
         }
@@ -1813,7 +1813,7 @@ static void instream_thread_run(void *arg) {
     isw->open_complete = true;
     soundio_os_cond_signal(isw->cond, isw->mutex);
     for (;;) {
-        if (!atomic_flag_test_and_set(&isw->thread_exit_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isw->thread_exit_flag)) {
             soundio_os_mutex_unlock(isw->mutex);
             return;
         }
@@ -1870,7 +1870,7 @@ static int instream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoInStrea
         }
     }
 
-    atomic_flag_test_and_set(&isw->thread_exit_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isw->thread_exit_flag);
     int err;
     if ((err = soundio_os_thread_create(instream_thread_run, is,
                     soundio->emit_rtprio_warning, &isw->thread)))

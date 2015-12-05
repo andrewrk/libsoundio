@@ -63,15 +63,15 @@ struct SoundIoOutStreamWasapi {
     struct SoundIoOsMutex *mutex;
     struct SoundIoOsCond *cond;
     struct SoundIoOsCond *start_cond;
-    atomic_flag thread_exit_flag;
+    struct SoundIoAtomicFlag thread_exit_flag;
     bool is_raw;
     int writable_frame_count;
     UINT32 buffer_frame_count;
     int write_frame_count;
     HANDLE h_event;
     struct SoundIoAtomicBool desired_pause_state;
-    atomic_flag pause_resume_flag;
-    atomic_flag clear_buffer_flag;
+    struct SoundIoAtomicFlag pause_resume_flag;
+    struct SoundIoAtomicFlag clear_buffer_flag;
     bool is_paused;
     bool open_complete;
     int open_err;
@@ -89,7 +89,7 @@ struct SoundIoInStreamWasapi {
     struct SoundIoOsMutex *mutex;
     struct SoundIoOsCond *cond;
     struct SoundIoOsCond *start_cond;
-    atomic_flag thread_exit_flag;
+    struct SoundIoAtomicFlag thread_exit_flag;
     bool is_raw;
     int readable_frame_count;
     UINT32 buffer_frame_count;
