@@ -13,14 +13,13 @@
 #include "list.h"
 #include "atomics.h"
 
-#define INITGUID
 #define CINTERFACE
 #define COBJMACROS
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <mmdeviceapi.h>
-#include <functiondiscoverykeys_devpkey.h>
-#include <mmreg.h>
 #include <audioclient.h>
 #include <audiosessiontypes.h>
 #include <audiopolicy.h>
