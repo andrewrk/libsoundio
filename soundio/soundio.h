@@ -18,14 +18,18 @@
 #define SOUNDIO_EXTERN_C
 #endif
 
-#if defined(_WIN32)
-#if defined(SOUNDIO_BUILDING_LIBRARY)
-#define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __declspec(dllexport)
+#if defined(SOUNDIO_STATIC_LIBRARY)
+# define SOUNDIO_EXPORT
 #else
-#define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __declspec(dllimport)
-#endif
-#else
-#define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __attribute__((visibility ("default")))
+# if defined(_WIN32)
+#  if defined(SOUNDIO_BUILDING_LIBRARY)
+#   define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __declspec(dllexport)
+#  else
+#   define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __declspec(dllimport)
+#  endif
+# else
+#  define SOUNDIO_EXPORT SOUNDIO_EXTERN_C __attribute__((visibility ("default")))
+# endif
 #endif
 /// \endcond
 
