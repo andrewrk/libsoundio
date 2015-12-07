@@ -33,36 +33,29 @@ static const enum SoundIoBackend available_backends[] = {
     SoundIoBackendDummy,
 };
 
-static int (*backend_init_fns[])(struct SoundIoPrivate *) = {
-    [SoundIoBackendNone] = NULL,
+typedef int (*backend_init_t)(struct SoundIoPrivate *);
+static backend_init_t *make_backend_init_fns()
+{
+    static backend_init_t fns[6] = { 0 };
 #ifdef SOUNDIO_HAVE_JACK
-    [SoundIoBackendJack] = soundio_jack_init,
-#else
-    [SoundIoBackendJack] = NULL,
+    fns[SoundIoBackendJack] = soundio_jack_init;
 #endif
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
-    [SoundIoBackendPulseAudio] = soundio_pulseaudio_init,
-#else
-    [SoundIoBackendPulseAudio] = NULL,
+    fns[SoundIoBackendPulseAudio] = soundio_pulseaudio_init;
 #endif
 #ifdef SOUNDIO_HAVE_ALSA
-    [SoundIoBackendAlsa] = soundio_alsa_init,
-#else
-    [SoundIoBackendAlsa] = NULL,
+    fns[SoundIoBackendAlsa] = soundio_alsa_init;
 #endif
 #ifdef SOUNDIO_HAVE_COREAUDIO
-    [SoundIoBackendCoreAudio] = soundio_coreaudio_init,
-#else
-    [SoundIoBackendCoreAudio] = NULL,
+    fns[SoundIoBackendCoreAudio] = soundio_coreaudio_init;
 #endif
 #ifdef SOUNDIO_HAVE_WASAPI
-    [SoundIoBackendWasapi] = soundio_wasapi_init,
-#else
-    [SoundIoBackendWasapi] = NULL,
+    fns[SoundIoBackendWasapi] = soundio_wasapi_init;
 #endif
-    [SoundIoBackendDummy] = soundio_dummy_init,
-};
-
+    fns[SoundIoBackendDummy] = soundio_dummy_init;
+    return &fns[0];
+}
+static backend_init_t *backend_init_fns = make_backend_init_fns();
 
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoDevice*, SoundIoListDevicePtr, SOUNDIO_LIST_NOT_STATIC)
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoSampleRateRange, SoundIoListSampleRateRange, SOUNDIO_LIST_NOT_STATIC)
