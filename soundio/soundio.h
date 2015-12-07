@@ -183,6 +183,8 @@ enum SoundIoChannelId {
     SoundIoChannelIdAux13,
     SoundIoChannelIdAux14,
     SoundIoChannelIdAux15,
+
+    SoundIoChannelIdMax
 };
 
 /// Built-in channel layouts for convenience.
@@ -213,6 +215,8 @@ enum SoundIoChannelLayoutId {
     SoundIoChannelLayoutId7Point1Wide,
     SoundIoChannelLayoutId7Point1WideBack,
     SoundIoChannelLayoutIdOctagonal,
+
+    SoundIoChannelLayoutIdMax
 };
 
 enum SoundIoBackend {
