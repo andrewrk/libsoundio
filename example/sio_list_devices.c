@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
             if (i >= argc) {
                 return usage(exe);
             } else if (strcmp(arg, "--backend") == 0) {
-                if (strcmp("-dummy", argv[i]) == 0) {
+                if (strcmp("dummy", argv[i]) == 0) {
                     backend = SoundIoBackendDummy;
                 } else if (strcmp("alsa", argv[i]) == 0) {
                     backend = SoundIoBackendAlsa;
