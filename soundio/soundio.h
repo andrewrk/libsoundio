@@ -19,7 +19,7 @@
 #endif
 
 #if defined(SOUNDIO_STATIC_LIBRARY)
-# define SOUNDIO_EXPORT
+# define SOUNDIO_EXPORT SOUNDIO_EXTERN_C
 #else
 # if defined(_WIN32)
 #  if defined(SOUNDIO_BUILDING_LIBRARY)
@@ -183,8 +183,6 @@ enum SoundIoChannelId {
     SoundIoChannelIdAux13,
     SoundIoChannelIdAux14,
     SoundIoChannelIdAux15,
-
-    SoundIoChannelIdMax
 };
 
 /// Built-in channel layouts for convenience.
@@ -215,8 +213,6 @@ enum SoundIoChannelLayoutId {
     SoundIoChannelLayoutId7Point1Wide,
     SoundIoChannelLayoutId7Point1WideBack,
     SoundIoChannelLayoutIdOctagonal,
-
-    SoundIoChannelLayoutIdMax
 };
 
 enum SoundIoBackend {

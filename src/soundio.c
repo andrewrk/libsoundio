@@ -34,28 +34,39 @@ static const enum SoundIoBackend available_backends[] = {
 };
 
 typedef int (*backend_init_t)(struct SoundIoPrivate *);
-static backend_init_t *make_backend_init_fns()
-{
-    static backend_init_t fns[6] = { 0 };
+static backend_init_t backend_init_fns[] = {
 #ifdef SOUNDIO_HAVE_JACK
-    fns[SoundIoBackendJack] = soundio_jack_init;
+    &soundio_jack_init,
+#else
+    NULL,
 #endif
+
 #ifdef SOUNDIO_HAVE_PULSEAUDIO
-    fns[SoundIoBackendPulseAudio] = soundio_pulseaudio_init;
+    &soundio_pulseaudio_init,
+#else
+    NULL,
 #endif
+
 #ifdef SOUNDIO_HAVE_ALSA
-    fns[SoundIoBackendAlsa] = soundio_alsa_init;
+    &soundio_alsa_init,
+#else
+    NULL,
 #endif
+
 #ifdef SOUNDIO_HAVE_COREAUDIO
-    fns[SoundIoBackendCoreAudio] = soundio_coreaudio_init;
+    &soundio_coreaudio_init,
+#else
+    NULL,
 #endif
+
 #ifdef SOUNDIO_HAVE_WASAPI
-    fns[SoundIoBackendWasapi] = soundio_wasapi_init;
+    soundio_wasapi_init,
+#else
+    NULL,
 #endif
-    fns[SoundIoBackendDummy] = soundio_dummy_init;
-    return &fns[0];
-}
-static backend_init_t *backend_init_fns = make_backend_init_fns();
+
+    &soundio_dummy_init,
+};
 
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoDevice*, SoundIoListDevicePtr, SOUNDIO_LIST_NOT_STATIC)
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoSampleRateRange, SoundIoListSampleRateRange, SOUNDIO_LIST_NOT_STATIC)
