@@ -35,6 +35,8 @@ static const enum SoundIoBackend available_backends[] = {
 
 typedef int (*backend_init_t)(struct SoundIoPrivate *);
 static backend_init_t backend_init_fns[] = {
+    NULL, // None backend
+
 #ifdef SOUNDIO_HAVE_JACK
     &soundio_jack_init,
 #else
