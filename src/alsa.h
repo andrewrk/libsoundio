@@ -32,7 +32,7 @@ struct SoundIoAlsa {
     struct SoundIoOsCond *cond;
 
     struct SoundIoOsThread *thread;
-    atomic_flag abort_flag;
+    struct SoundIoAtomicFlag abort_flag;
     int notify_fd;
     int notify_wd;
     bool have_devices_flag;
@@ -60,11 +60,11 @@ struct SoundIoOutStreamAlsa {
     struct pollfd *poll_fds;
     int poll_exit_pipe_fd[2];
     struct SoundIoOsThread *thread;
-    atomic_flag thread_exit_flag;
+    struct SoundIoAtomicFlag thread_exit_flag;
     snd_pcm_uframes_t period_size;
     int write_frame_count;
     bool is_paused;
-    atomic_flag clear_buffer_flag;
+    struct SoundIoAtomicFlag clear_buffer_flag;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
@@ -79,7 +79,7 @@ struct SoundIoInStreamAlsa {
     int poll_fd_count;
     struct pollfd *poll_fds;
     struct SoundIoOsThread *thread;
-    atomic_flag thread_exit_flag;
+    struct SoundIoAtomicFlag thread_exit_flag;
     int period_size;
     int read_frame_count;
     bool is_paused;

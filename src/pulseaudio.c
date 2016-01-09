@@ -667,7 +667,7 @@ static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamP
 
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     SOUNDIO_ATOMIC_STORE(ospa->stream_ready, false);
-    atomic_flag_test_and_set(&ospa->clear_buffer_flag);
+    SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(ospa->clear_buffer_flag);
 
     assert(sipa->pulse_context);
 
@@ -783,7 +783,7 @@ static int outstream_end_write_pa(struct SoundIoPrivate *si, struct SoundIoOutSt
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
-    pa_seek_mode_t seek_mode = atomic_flag_test_and_set(&ospa->clear_buffer_flag) ? PA_SEEK_RELATIVE : PA_SEEK_RELATIVE_ON_READ;
+    pa_seek_mode_t seek_mode = SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(ospa->clear_buffer_flag) ? PA_SEEK_RELATIVE : PA_SEEK_RELATIVE_ON_READ;
     if (pa_stream_write(stream, ospa->write_ptr, ospa->write_byte_count, NULL, 0, seek_mode))
         return SoundIoErrorStreaming;
 
@@ -794,7 +794,7 @@ static int outstream_clear_buffer_pa(struct SoundIoPrivate *si,
         struct SoundIoOutStreamPrivate *os)
 {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
-    atomic_flag_clear(&ospa->clear_buffer_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(ospa->clear_buffer_flag);
     return 0;
 }
 

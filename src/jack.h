@@ -38,7 +38,7 @@ struct SoundIoJack {
     jack_client_t *client;
     struct SoundIoOsMutex *mutex;
     struct SoundIoOsCond *cond;
-    atomic_flag refresh_devices_flag;
+    struct SoundIoAtomicFlag refresh_devices_flag;
     int sample_rate;
     int period_size;
     bool is_shutdown;

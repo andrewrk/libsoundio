@@ -33,36 +33,42 @@ static const enum SoundIoBackend available_backends[] = {
     SoundIoBackendDummy,
 };
 
-static int (*backend_init_fns[])(struct SoundIoPrivate *) = {
-    [SoundIoBackendNone] = NULL,
-#ifdef SOUNDIO_HAVE_JACK
-    [SoundIoBackendJack] = soundio_jack_init,
-#else
-    [SoundIoBackendJack] = NULL,
-#endif
-#ifdef SOUNDIO_HAVE_PULSEAUDIO
-    [SoundIoBackendPulseAudio] = soundio_pulseaudio_init,
-#else
-    [SoundIoBackendPulseAudio] = NULL,
-#endif
-#ifdef SOUNDIO_HAVE_ALSA
-    [SoundIoBackendAlsa] = soundio_alsa_init,
-#else
-    [SoundIoBackendAlsa] = NULL,
-#endif
-#ifdef SOUNDIO_HAVE_COREAUDIO
-    [SoundIoBackendCoreAudio] = soundio_coreaudio_init,
-#else
-    [SoundIoBackendCoreAudio] = NULL,
-#endif
-#ifdef SOUNDIO_HAVE_WASAPI
-    [SoundIoBackendWasapi] = soundio_wasapi_init,
-#else
-    [SoundIoBackendWasapi] = NULL,
-#endif
-    [SoundIoBackendDummy] = soundio_dummy_init,
-};
+typedef int (*backend_init_t)(struct SoundIoPrivate *);
+static backend_init_t backend_init_fns[] = {
+    NULL, // None backend
 
+#ifdef SOUNDIO_HAVE_JACK
+    &soundio_jack_init,
+#else
+    NULL,
+#endif
+
+#ifdef SOUNDIO_HAVE_PULSEAUDIO
+    &soundio_pulseaudio_init,
+#else
+    NULL,
+#endif
+
+#ifdef SOUNDIO_HAVE_ALSA
+    &soundio_alsa_init,
+#else
+    NULL,
+#endif
+
+#ifdef SOUNDIO_HAVE_COREAUDIO
+    &soundio_coreaudio_init,
+#else
+    NULL,
+#endif
+
+#ifdef SOUNDIO_HAVE_WASAPI
+    soundio_wasapi_init,
+#else
+    NULL,
+#endif
+
+    &soundio_dummy_init,
+};
 
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoDevice*, SoundIoListDevicePtr, SOUNDIO_LIST_NOT_STATIC)
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoSampleRateRange, SoundIoListSampleRateRange, SOUNDIO_LIST_NOT_STATIC)
@@ -171,9 +177,9 @@ static void default_backend_disconnect_cb(struct SoundIo *soundio, int err) {
     soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
 }
 
-static atomic_flag rtprio_seen = ATOMIC_FLAG_INIT;
+static struct SoundIoAtomicFlag rtprio_seen = SOUNDIO_ATOMIC_FLAG_INIT;
 static void default_emit_rtprio_warning(void) {
-    if (!atomic_flag_test_and_set(&rtprio_seen)) {
+    if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(rtprio_seen)) {
         fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
         fprintf(stderr, "See "
             "https://github.com/andrewrk/genesis/wiki/warning:-unable-to-set-high-priority-thread:-Operation-not-permitted\n");

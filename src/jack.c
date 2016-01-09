@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 
-static atomic_flag global_msg_callback_flag = ATOMIC_FLAG_INIT;
+static struct SoundIoAtomicFlag global_msg_callback_flag = SOUNDIO_ATOMIC_FLAG_INIT;
 
 struct SoundIoJackPort {
     const char *full_name;
@@ -315,9 +315,9 @@ static void my_flush_events(struct SoundIoPrivate *si, bool wait) {
     if (cb_shutdown) {
         soundio->on_backend_disconnect(soundio, SoundIoErrorBackendDisconnected);
     } else {
-        if (!atomic_flag_test_and_set(&sij->refresh_devices_flag)) {
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sij->refresh_devices_flag)) {
             if ((err = refresh_devices(si))) {
-                atomic_flag_clear(&sij->refresh_devices_flag);
+                SOUNDIO_ATOMIC_FLAG_CLEAR(sij->refresh_devices_flag);
             } else {
                 soundio->on_devices_change(soundio);
             }
@@ -344,7 +344,7 @@ static void wakeup_jack(struct SoundIoPrivate *si) {
 static void force_device_scan_jack(struct SoundIoPrivate *si) {
     struct SoundIo *soundio = &si->pub;
     struct SoundIoJack *sij = &si->backend_data.jack;
-    atomic_flag_clear(&sij->refresh_devices_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(sij->refresh_devices_flag);
     soundio_os_mutex_lock(sij->mutex);
     soundio_os_cond_signal(sij->cond, sij->mutex);
     soundio->on_events_signal(soundio);
@@ -806,7 +806,7 @@ static int instream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoIn
 static void notify_devices_change(struct SoundIoPrivate *si) {
     struct SoundIo *soundio = &si->pub;
     struct SoundIoJack *sij = &si->backend_data.jack;
-    atomic_flag_clear(&sij->refresh_devices_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(sij->refresh_devices_flag);
     soundio_os_mutex_lock(sij->mutex);
     soundio_os_cond_signal(sij->cond, sij->mutex);
     soundio->on_events_signal(soundio);
@@ -869,12 +869,12 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     struct SoundIoJack *sij = &si->backend_data.jack;
     struct SoundIo *soundio = &si->pub;
 
-    if (!atomic_flag_test_and_set(&global_msg_callback_flag)) {
+    if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(global_msg_callback_flag)) {
         if (soundio->jack_error_callback)
             jack_set_error_function(soundio->jack_error_callback);
         if (soundio->jack_info_callback)
             jack_set_info_function(soundio->jack_info_callback);
-        atomic_flag_clear(&global_msg_callback_flag);
+        SOUNDIO_ATOMIC_FLAG_CLEAR(global_msg_callback_flag);
     }
 
     sij->mutex = soundio_os_mutex_create();
@@ -923,7 +923,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     }
     jack_on_shutdown(sij->client, shutdown_callback, si);
 
-    atomic_flag_clear(&sij->refresh_devices_flag);
+    SOUNDIO_ATOMIC_FLAG_CLEAR(sij->refresh_devices_flag);
     sij->period_size = jack_get_buffer_size(sij->client);
     sij->sample_rate = jack_get_sample_rate(sij->client);
 
