@@ -516,6 +516,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             continue;
         }
 
+        // One or both of descr and descr1 can be NULL.
         char *descr = snd_device_name_get_hint(*hint_ptr, "DESC");
         char *descr1 = str_partition_on_char(descr, '\n');
 
@@ -574,9 +575,13 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             device->soundio = soundio;
             device->is_raw = false;
             device->id = strdup(name);
-            device->name = descr1 ?
-                soundio_alloc_sprintf(NULL, "%s: %s", descr, descr1) : descr ?
-                strdup(descr) : strdup(name);
+            if (descr1) {
+                device->name = soundio_alloc_sprintf(NULL, "%s: %s", descr, descr1);
+            } else if (descr) {
+                device->name = strdup(descr);
+            } else {
+                device->name = strdup(name);
+            }
 
             if (!device->id || !device->name) {
                 soundio_device_unref(device);
