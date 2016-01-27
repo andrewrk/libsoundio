@@ -79,6 +79,8 @@ static inline snd_pcm_uframes_t ceil_dbl_to_uframes(double x) {
 }
 
 static char * str_partition_on_char(char *str, char c) {
+    if (!str)
+        return NULL;
     while (*str) {
         if (*str == c) {
             *str = 0;
@@ -573,7 +575,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             device->is_raw = false;
             device->id = strdup(name);
             device->name = descr1 ?
-                soundio_alloc_sprintf(NULL, "%s: %s", descr, descr1) : strdup(descr);
+                soundio_alloc_sprintf(NULL, "%s: %s", descr, descr1) : descr ?
+                strdup(descr) : strdup(name);
 
             if (!device->id || !device->name) {
                 soundio_device_unref(device);
