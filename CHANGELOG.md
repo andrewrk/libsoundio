@@ -1,3 +1,32 @@
+### Version 1.1.0 (2016-01-31)
+
+ * JACK: delete broken pause implementation. Previously, calling
+   `soundio_outstream_pause` or `soundio_instream_pause` during the
+   `write_callback` or `read_callback` would cause a deadlock. Now, attempting
+   to pause always results in `SoundIoErrorBackendIncompatible`.
+ * PulseAudio: improve latency handling code. It now passes the latency test
+   along with all the other backends.
+ * PulseAudio: fix incorrect outstream `software_latency`.
+ * libsoundio source code is now pure C, no C++ mixed in.
+ * ALSA: better device detection.
+   - No longer suppress sysdefault.
+   - If default and sysdefault are missing, use the first device as the default
+     device.
+ * Workaround for Raspberry Pi driver that incorrectly reports itself as Output
+   when it is actually Input.
+ * ALSA: let alsa lib choose period settings. Fixes behavior with many ALSA
+   devices.
+ * ALSA: fix potential cleanup deadlock.
+ * ALSA: fix crash for devices with null description, thanks to Charles Lehner.
+ * CoreAudio: drop support for MacOS 10.9. There was a bug for this system that
+   was never resolved, so it didn't work in the first place.
+ * Record example handles device not found and probe errors gracefully.
+ * Fix typo in microphone example, thanks to James Dyson.
+ * Improve documentation.
+ * New functions available: `soundio_version_string`, `soundio_version_major`,
+   `soundio_version_minor`, `soundio_version_patch`.
+ * libsoundio source code now builds with MSVC, thanks to Raphaël Londeix.
+
 ### Version 1.0.3 (2015-10-20)
 
  * Architecture independent header files.
