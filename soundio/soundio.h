@@ -928,7 +928,7 @@ SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream
 /// After you call this function, SoundIoOutStream::software_latency is set to
 /// the correct value.
 ///
-/// The next thing to do is call ::soundio_instream_start.
+/// The next thing to do is call ::soundio_outstream_start.
 /// If this function returns an error, the outstream is in an invalid state and
 /// you must call ::soundio_outstream_destroy on it.
 ///
