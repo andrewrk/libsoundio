@@ -697,8 +697,10 @@ int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t 
     }
 
     char *address = (char*)mmap(NULL, actual_capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (address == MAP_FAILED)
+    if (address == MAP_FAILED) {
+        close(fd);
         return SoundIoErrorNoMem;
+    }
 
     char *other_address = (char*)mmap(address, actual_capacity, PROT_READ|PROT_WRITE,
             MAP_FIXED|MAP_SHARED, fd, 0);
