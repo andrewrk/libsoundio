@@ -1182,7 +1182,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     DWORD flags;
     REFERENCE_TIME buffer_duration;
     REFERENCE_TIME periodicity;
-    WAVEFORMATEXTENSIBLE wave_format = {0};
+    WAVEFORMATEXTENSIBLE wave_format = {{0}};
     wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
     if (osw->is_raw) {
@@ -1702,7 +1702,7 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     DWORD flags;
     REFERENCE_TIME buffer_duration;
     REFERENCE_TIME periodicity;
-    WAVEFORMATEXTENSIBLE wave_format = {0};
+    WAVEFORMATEXTENSIBLE wave_format = {{0}};
     wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
     if (isw->is_raw) {
