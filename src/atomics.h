@@ -37,7 +37,7 @@ struct SoundIoAtomicFlag {
 #define SOUNDIO_ATOMIC_EXCHANGE(a, value) (a.x.exchange(value))
 #define SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(a) (a.x.test_and_set())
 #define SOUNDIO_ATOMIC_FLAG_CLEAR(a) (a.x.clear())
-#define SOUNDIO_ATOMIC_FLAG_INIT {ATOMIC_FLAG_INIT}
+#define SOUNDIO_ATOMIC_FLAG_INIT ATOMIC_FLAG_INIT
 
 #else
 
@@ -65,7 +65,7 @@ struct SoundIoAtomicFlag {
 #define SOUNDIO_ATOMIC_EXCHANGE(a, value) atomic_exchange(&a.x, value)
 #define SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(a) atomic_flag_test_and_set(&a.x)
 #define SOUNDIO_ATOMIC_FLAG_CLEAR(a) atomic_flag_clear(&a.x)
-#define SOUNDIO_ATOMIC_FLAG_INIT {ATOMIC_FLAG_INIT}
+#define SOUNDIO_ATOMIC_FLAG_INIT ATOMIC_FLAG_INIT
 
 #endif
 
