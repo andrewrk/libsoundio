@@ -280,7 +280,10 @@ static int from_coreaudio_layout(const AudioChannelLayout *ca_layout, struct Sou
     switch (ca_layout->mChannelLayoutTag) {
     case kAudioChannelLayoutTag_UseChannelDescriptions:
     {
-        layout->channel_count = ca_layout->mNumberChannelDescriptions;
+        layout->channel_count = soundio_int_min(
+            SOUNDIO_MAX_CHANNELS,
+            ca_layout->mNumberChannelDescriptions
+        );
         for (int i = 0; i < layout->channel_count; i += 1) {
             layout->channels[i] = from_channel_descr(&ca_layout->mChannelDescriptions[i]);
         }
