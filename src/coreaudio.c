@@ -631,10 +631,15 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             rd.device->layout_count = 1;
             rd.device->layouts = &rd.device->current_layout;
-            // in CoreAudio, format is always 32-bit native endian float
-            rd.device->format_count = 1;
-            rd.device->formats = &dev->prealloc_format;
-            rd.device->formats[0] = SoundIoFormatFloat32NE;
+
+            rd.device->format_count = 4;
+            rd.device->formats = ALLOCATE(enum SoundIoFormat, rd.device->format_count);
+            if (!rd.device->formats)
+                return SoundIoErrorNoMem;
+            rd.device->formats[0] = SoundIoFormatS16LE;
+            rd.device->formats[1] = SoundIoFormatS32LE;
+            rd.device->formats[2] = SoundIoFormatFloat32LE;
+            rd.device->formats[3] = SoundIoFormatFloat64LE;
 
             prop_address.mSelector = kAudioDevicePropertyNominalSampleRate;
             prop_address.mScope = aim_to_scope(aim);
@@ -917,6 +922,30 @@ static OSStatus write_callback_ca(void *userdata, AudioUnitRenderActionFlags *io
     return noErr;
 }
 
+static int set_ca_desc(enum SoundIoFormat fmt, AudioStreamBasicDescription *desc) {
+    switch (fmt) {
+    case SoundIoFormatFloat32LE:
+        desc->mFormatFlags = kAudioFormatFlagIsFloat;
+        desc->mBitsPerChannel = 32;
+        break;
+    case SoundIoFormatFloat64LE:
+        desc->mFormatFlags = kAudioFormatFlagIsFloat;
+        desc->mBitsPerChannel = 64;
+        break;
+    case SoundIoFormatS32LE:
+        desc->mFormatFlags = kAudioFormatFlagIsSignedInteger;
+        desc->mBitsPerChannel = 32;
+        break;
+    case SoundIoFormatS16LE:
+        desc->mFormatFlags = kAudioFormatFlagIsSignedInteger;
+        desc->mBitsPerChannel = 16;
+        break;
+    default:
+        return SoundIoErrorIncompatibleDevice;
+    }
+    return 0;
+}
+
 static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     struct SoundIoOutStream *outstream = &os->pub;
@@ -957,12 +986,15 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     AudioStreamBasicDescription format = {0};
     format.mSampleRate = outstream->sample_rate;
     format.mFormatID = kAudioFormatLinearPCM;
-    format.mFormatFlags = kAudioFormatFlagIsFloat;
+    int err;
+    if ((err = set_ca_desc(outstream->format, &format))) {
+        outstream_destroy_ca(si, os);
+        return err;
+    }
     format.mBytesPerPacket = outstream->bytes_per_frame;
     format.mFramesPerPacket = 1;
     format.mBytesPerFrame = outstream->bytes_per_frame;
     format.mChannelsPerFrame = outstream->layout.channel_count;
-    format.mBitsPerChannel = 32;
 
     if ((os_err = AudioUnitSetProperty(osca->instance, kAudioOutputUnitProperty_CurrentDevice,
         kAudioUnitScope_Input, OUTPUT_ELEMENT, &dca->device_id, sizeof(AudioDeviceID))))
@@ -975,7 +1007,7 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         kAudioUnitScope_Input, OUTPUT_ELEMENT, &format, sizeof(AudioStreamBasicDescription))))
     {
         outstream_destroy_ca(si, os);
-        return SoundIoErrorOpeningDevice;
+        return SoundIoErrorIncompatibleDevice;
     }
 
     AURenderCallbackStruct render_callback = {write_callback_ca, os};
@@ -1248,12 +1280,16 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     AudioStreamBasicDescription format = {0};
     format.mSampleRate = instream->sample_rate;
     format.mFormatID = kAudioFormatLinearPCM;
-    format.mFormatFlags = kAudioFormatFlagIsFloat;
     format.mBytesPerPacket = instream->bytes_per_frame;
     format.mFramesPerPacket = 1;
     format.mBytesPerFrame = instream->bytes_per_frame;
     format.mChannelsPerFrame = instream->layout.channel_count;
-    format.mBitsPerChannel = 32;
+
+    int err;
+    if ((err = set_ca_desc(instream->format, &format))) {
+        instream_destroy_ca(si, is);
+        return err;
+    }
 
     if ((os_err = AudioUnitSetProperty(isca->instance, kAudioUnitProperty_StreamFormat,
         kAudioUnitScope_Output, INPUT_ELEMENT, &format, sizeof(AudioStreamBasicDescription))))
