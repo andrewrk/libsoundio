@@ -1784,6 +1784,10 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     if (FAILED(hr = IAudioClient_GetBufferSize(isw->audio_client, &isw->buffer_frame_count))) {
         return SoundIoErrorOpeningDevice;
     }
+    if (instream->software_latency == 0.0)
+        instream->software_latency = 1.0;
+    instream->software_latency = soundio_double_clamp(device->software_latency_min,
+            instream->software_latency, device->software_latency_max);
     if (isw->is_raw)
         instream->software_latency = isw->buffer_frame_count / (double)instream->sample_rate;
 
