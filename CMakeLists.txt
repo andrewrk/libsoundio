@@ -192,15 +192,19 @@ set(LIBSOUNDIO_LIBS
     ${CMAKE_THREAD_LIBS_INIT}
 )
 
-
-
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
-
-
-set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
-set(EXAMPLE_CFLAGS "-std=c99 -Wall")
-set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
-set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
+if(MSVC)
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /WX /Wall")
+    set(LIB_CFLAGS "/TP /W4")
+    set(EXAMPLE_CFLAGS "/W4")
+    set(TEST_CFLAGS "${LIB_CFLAGS}")
+    set(TEST_LDFLAGS " ")
+else()
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
+    set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
+    set(EXAMPLE_CFLAGS "-std=c99 -Wall")
+    set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
+    set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
+endif()
 
 configure_file(
     "${CMAKE_SOURCE_DIR}/src/config.h.in"
