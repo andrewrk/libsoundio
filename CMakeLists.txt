@@ -243,7 +243,6 @@ install(FILES
 # Example Programs
 
 if(BUILD_EXAMPLE_PROGRAMS)
-    
     add_executable(sio_sine example/sio_sine.c)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
