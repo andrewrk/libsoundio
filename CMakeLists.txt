@@ -198,12 +198,14 @@ if(MSVC)
     set(EXAMPLE_CFLAGS "/W4")
     set(TEST_CFLAGS "${LIB_CFLAGS}")
     set(TEST_LDFLAGS " ")
+    set(LIBM " ")
 else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
     set(EXAMPLE_CFLAGS "-std=c99 -Wall")
     set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
     set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
+    set(LIBM "m")
 endif()
 
 configure_file(
@@ -249,7 +251,7 @@ if(BUILD_EXAMPLE_PROGRAMS)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_sine libsoundio_shared m)
+    target_link_libraries(sio_sine libsoundio_shared ${LIBM})
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_list_devices example/sio_list_devices.c)
@@ -284,7 +286,7 @@ if(BUILD_TESTS)
     )
 
     add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
-    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} m)
+    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${LIB_CFLAGS}
@@ -294,7 +296,7 @@ if(BUILD_TESTS)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(underflow libsoundio_shared m)
+    target_link_libraries(underflow libsoundio_shared ${LIBM})
 
     add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
     set_target_properties(backend_disconnect_recover PROPERTIES
