@@ -282,7 +282,7 @@ if(BUILD_TESTS)
     )
 
     add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
-    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM_LIBRARY))
+    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM_LIBRARY})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${LIB_CFLAGS}
