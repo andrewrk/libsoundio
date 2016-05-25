@@ -32,6 +32,8 @@ option(ENABLE_ALSA "Enable ALSA backend" ON)
 option(ENABLE_COREAUDIO "Enable CoreAudio backend" ON)
 option(ENABLE_WASAPI "Enable WASAPI backend" ON)
 
+find_package(Libm)
+
 find_package(Threads)
 if(Threads_FOUND)
     set(STATUS_THREADS "OK")
@@ -249,7 +251,7 @@ if(BUILD_EXAMPLE_PROGRAMS)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_sine libsoundio_shared m)
+    target_link_libraries(sio_sine libsoundio_shared ${LIBM_LIBRARY})
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_list_devices example/sio_list_devices.c)
@@ -284,7 +286,7 @@ if(BUILD_TESTS)
     )
 
     add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
-    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} m)
+    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM_LIBRARY})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${LIB_CFLAGS}
@@ -294,7 +296,7 @@ if(BUILD_TESTS)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(underflow libsoundio_shared m)
+    target_link_libraries(underflow libsoundio_shared ${LIBM_LIBRARY})
 
     add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
     set_target_properties(backend_disconnect_recover PROPERTIES
