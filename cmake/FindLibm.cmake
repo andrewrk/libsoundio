@@ -14,19 +14,19 @@ set(find_math_program
     }")
 
 set(CMAKE_REQUIRED_FLAGS "")
-set(CMAKE_REQUIRED_LIBRARIES "")
-check_c_source_compiles("${find_math_program}" libm_linked_automatically)
-if(libm_linked_automatically)
-    set(LIBM_FOUND TRUE)
-    set(LIBM_LIBRARY "")
-    return()
-endif()
-
 set(CMAKE_REQUIRED_LIBRARIES "m")
 check_c_source_compiles("${find_math_program}" libm_linked_explicitly)
 if(libm_linked_explicitly)
     set(LIBM_FOUND TRUE)
     set(LIBM_LIBRARY "m")
+    return()
+endif()
+
+set(CMAKE_REQUIRED_LIBRARIES "")
+check_c_source_compiles("${find_math_program}" libm_linked_automatically)
+if(libm_linked_automatically)
+    set(LIBM_FOUND TRUE)
+    set(LIBM_LIBRARY "")
     return()
 endif()
 
