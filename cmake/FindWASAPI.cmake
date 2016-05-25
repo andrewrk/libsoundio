@@ -3,13 +3,13 @@
 # See http://opensource.org/licenses/MIT
 
 # WASAPI_FOUND
-# WASAPI_INCLUDE_DIR
+# AUDIOCLIENT_H
 
 if (WIN32)
-    find_path(WASAPI_INCLUDE_DIR NAMES audioclient.h)
+  include(CheckIncludeFile)
+  check_include_file(audioclient.h AUDIOCLIENT_H)
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(WASAPI DEFAULT_MSG WASAPI_INCLUDE_DIR)
-
-mark_as_advanced(WASAPI_INCLUDE_DIR)
+find_package_handle_standard_args(WASAPI DEFAULT_MSG AUDIOCLIENT_H)
+mark_as_advanced(AUDIOCLIENT_H)
