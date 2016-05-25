@@ -32,7 +32,7 @@ option(ENABLE_ALSA "Enable ALSA backend" ON)
 option(ENABLE_COREAUDIO "Enable CoreAudio backend" ON)
 option(ENABLE_WASAPI "Enable WASAPI backend" ON)
 
-find_package(libm)
+find_package(Libm)
 
 find_package(Threads)
 if(Threads_FOUND)
