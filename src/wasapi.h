@@ -24,8 +24,6 @@
 #include <audiosessiontypes.h>
 #include <audiopolicy.h>
 
-#define E_NOTFOUND 0x80070490
-
 struct SoundIoPrivate;
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
