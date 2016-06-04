@@ -666,40 +666,48 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     if (FAILED(hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(siw->device_enumerator, eRender,
                     eMultimedia, &rd.default_render_device)))
     {
-        deinit_refresh_devices(&rd);
-        return SoundIoErrorOpeningDevice;
+        if(hr != E_NOTFOUND) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
     }
-    if (rd.lpwstr) {
-        CoTaskMemFree(rd.lpwstr);
-        rd.lpwstr = NULL;
-    }
-    if (FAILED(hr = IMMDevice_GetId(rd.default_render_device, &rd.lpwstr))) {
-        deinit_refresh_devices(&rd);
-        return SoundIoErrorOpeningDevice;
-    }
-    if ((err = from_lpwstr(rd.lpwstr, &rd.default_render_id, &rd.default_render_id_len))) {
-        deinit_refresh_devices(&rd);
-        return err;
+    if(rd.default_render_device) {
+        if (rd.lpwstr) {
+            CoTaskMemFree(rd.lpwstr);
+            rd.lpwstr = NULL;
+        }
+        if (FAILED(hr = IMMDevice_GetId(rd.default_render_device, &rd.lpwstr))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        if ((err = from_lpwstr(rd.lpwstr, &rd.default_render_id, &rd.default_render_id_len))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
     }
 
 
     if (FAILED(hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(siw->device_enumerator, eCapture,
                     eMultimedia, &rd.default_capture_device)))
     {
-        deinit_refresh_devices(&rd);
-        return SoundIoErrorOpeningDevice;
+        if(hr != E_NOTFOUND) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
     }
-    if (rd.lpwstr) {
-        CoTaskMemFree(rd.lpwstr);
-        rd.lpwstr = NULL;
-    }
-    if (FAILED(hr = IMMDevice_GetId(rd.default_capture_device, &rd.lpwstr))) {
-        deinit_refresh_devices(&rd);
-        return SoundIoErrorOpeningDevice;
-    }
-    if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
-        deinit_refresh_devices(&rd);
-        return err;
+    if(rd.default_capture_device) {
+        if (rd.lpwstr) {
+            CoTaskMemFree(rd.lpwstr);
+            rd.lpwstr = NULL;
+        }
+        if (FAILED(hr = IMMDevice_GetId(rd.default_capture_device, &rd.lpwstr))) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorOpeningDevice;
+        }
+        if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
+            deinit_refresh_devices(&rd);
+            return err;
+        }
     }
 
 
