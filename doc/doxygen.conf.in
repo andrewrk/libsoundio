@@ -1668,6 +1668,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             =  SOUNDIO_EXTERN_C= \
                           SOUNDIO_EXPORT= \
+                          __LITTLE_ENDIAN__= \
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

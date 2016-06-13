@@ -275,6 +275,10 @@ enum SoundIoFormat {
 
 #elif defined(SOUNDIO_OS_LITTLE_ENDIAN)
 
+/// Note that we build the documentation in Little Endian mode,
+/// so all the "NE" macros in the docs point to "LE" and
+/// "FE" macros point to "BE". On a Big Endian system it is the
+/// other way around.
 #define SoundIoFormatS16NE SoundIoFormatS16LE
 #define SoundIoFormatU16NE SoundIoFormatU16LE
 #define SoundIoFormatS24NE SoundIoFormatS24LE
