@@ -179,7 +179,9 @@ int main(int argc, char **argv) {
         int device_count = soundio_output_device_count(soundio);
         for (int i = 0; i < device_count; i += 1) {
             struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
-            if (strcmp(device->id, device_id) == 0 && device->is_raw == raw) {
+            bool select_this_one = strcmp(device->id, device_id) == 0 && device->is_raw == raw;
+            soundio_device_unref(device);
+            if (select_this_one) {
                 selected_device_index = i;
                 break;
             }
