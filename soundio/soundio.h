@@ -889,6 +889,18 @@ SOUNDIO_EXPORT void soundio_device_ref(struct SoundIoDevice *device);
 /// reference.
 SOUNDIO_EXPORT void soundio_device_unref(struct SoundIoDevice *device);
 
+/// Return `device->id` for programming languages unable to access it.
+SOUNDIO_EXPORT char *soundio_device_get_id(struct SoundIoDevice *device);
+
+/// Return `device->name` for programming languages unable to access it.
+SOUNDIO_EXPORT char *soundio_device_get_name(struct SoundIoDevice *device);
+
+/// Return `device->is_raw` for programming languages unable to access it.
+SOUNDIO_EXPORT bool soundio_device_get_is_raw(struct SoundIoDevice *device);
+
+/// Return `device->probe_error` for programming languages unable to access it.
+SOUNDIO_EXPORT int soundio_device_get_probe_error(struct SoundIoDevice *device);
+
 /// Return `true` if and only if the devices have the same SoundIoDevice::id,
 /// SoundIoDevice::is_raw, and SoundIoDevice::aim are the same.
 SOUNDIO_EXPORT bool soundio_device_equal(

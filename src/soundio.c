@@ -423,6 +423,22 @@ void soundio_device_ref(struct SoundIoDevice *device) {
     device->ref_count += 1;
 }
 
+char *soundio_device_get_id(struct SoundIoDevice *device) {
+    return device->id;
+}
+
+char *soundio_device_get_name(struct SoundIoDevice *device) {
+    return device->name;
+}
+
+bool soundio_device_get_is_raw(struct SoundIoDevice *device) {
+    return device->is_raw;
+}
+
+int soundio_device_get_probe_error(struct SoundIoDevice *device) {
+    return device->probe_error;
+}
+
 void soundio_wait_events(struct SoundIo *soundio) {
     struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
     si->wait_events(si);
