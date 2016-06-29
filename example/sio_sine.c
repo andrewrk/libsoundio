@@ -209,6 +209,11 @@ int main(int argc, char **argv) {
     }
 
     struct SoundIoOutStream *outstream = soundio_outstream_create(device);
+    if (!outstream) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
+
     outstream->write_callback = write_callback;
     outstream->underflow_callback = underflow_callback;
     outstream->name = stream_name;
