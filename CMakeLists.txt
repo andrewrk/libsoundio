@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(libsoundio C)
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${libsoundio_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
     set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "library install dir (lib)")
@@ -135,51 +135,51 @@ endif()
 
 
 set(LIBSOUNDIO_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/soundio.c"
-    "${CMAKE_SOURCE_DIR}/src/util.c"
-    "${CMAKE_SOURCE_DIR}/src/os.c"
-    "${CMAKE_SOURCE_DIR}/src/dummy.c"
-    "${CMAKE_SOURCE_DIR}/src/channel_layout.c"
-    "${CMAKE_SOURCE_DIR}/src/ring_buffer.c"
+    "${libsoundio_SOURCE_DIR}/src/soundio.c"
+    "${libsoundio_SOURCE_DIR}/src/util.c"
+    "${libsoundio_SOURCE_DIR}/src/os.c"
+    "${libsoundio_SOURCE_DIR}/src/dummy.c"
+    "${libsoundio_SOURCE_DIR}/src/channel_layout.c"
+    "${libsoundio_SOURCE_DIR}/src/ring_buffer.c"
 )
 
 set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
-    "${CMAKE_SOURCE_DIR}/soundio/soundio.h"
-    "${CMAKE_SOURCE_DIR}/soundio/endian.h"
+    "${libsoundio_SOURCE_DIR}/soundio/soundio.h"
+    "${libsoundio_SOURCE_DIR}/soundio/endian.h"
 )
 
 if(SOUNDIO_HAVE_JACK)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/jack.c"
+        "${libsoundio_SOURCE_DIR}/src/jack.c"
     )
 endif()
 if(SOUNDIO_HAVE_PULSEAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/pulseaudio.c"
+        "${libsoundio_SOURCE_DIR}/src/pulseaudio.c"
     )
 endif()
 if(SOUNDIO_HAVE_ALSA)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/alsa.c"
+        "${libsoundio_SOURCE_DIR}/src/alsa.c"
     )
 endif()
 if(SOUNDIO_HAVE_COREAUDIO)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/coreaudio.c"
+        "${libsoundio_SOURCE_DIR}/src/coreaudio.c"
     )
 endif()
 if(SOUNDIO_HAVE_WASAPI)
     set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
-        "${CMAKE_SOURCE_DIR}/src/wasapi.c"
+        "${libsoundio_SOURCE_DIR}/src/wasapi.c"
     )
 endif()
 
 include_directories(
-    ${CMAKE_SOURCE_DIR}
+    ${libsoundio_SOURCE_DIR}
     ${CMAKE_BINARY_DIR}
-    "${CMAKE_SOURCE_DIR}/test"
-    "${CMAKE_SOURCE_DIR}/src"
+    "${libsoundio_SOURCE_DIR}/test"
+    "${libsoundio_SOURCE_DIR}/src"
 )
 
 set(LIBSOUNDIO_LIBS
@@ -209,12 +209,12 @@ else()
 endif()
 
 configure_file(
-    "${CMAKE_SOURCE_DIR}/src/config.h.in"
+    "${libsoundio_SOURCE_DIR}/src/config.h.in"
     ${CONFIGURE_OUT_FILE}
 )
 set(DOXYGEN_CONF_FILE "${CMAKE_BINARY_DIR}/doxygen.conf")
 configure_file(
-    "${CMAKE_SOURCE_DIR}/doc/doxygen.conf.in"
+    "${libsoundio_SOURCE_DIR}/doc/doxygen.conf.in"
     ${DOXYGEN_CONF_FILE}
 )
 
@@ -277,7 +277,7 @@ if(BUILD_EXAMPLE_PROGRAMS)
 endif()
 
 if(BUILD_TESTS)
-    add_executable(unit_tests "${CMAKE_SOURCE_DIR}/test/unit_tests.c" ${LIBSOUNDIO_SOURCES})
+    add_executable(unit_tests "${libsoundio_SOURCE_DIR}/test/unit_tests.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
     set_target_properties(unit_tests PROPERTIES
         LINKER_LANGUAGE C
@@ -285,7 +285,7 @@ if(BUILD_TESTS)
         LINK_FLAGS ${TEST_LDFLAGS}
     )
 
-    add_executable(latency "${CMAKE_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
+    add_executable(latency "${libsoundio_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
