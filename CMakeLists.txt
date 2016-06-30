@@ -23,6 +23,10 @@ set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
+if(NOT SOUNDIO_STATIC_LIBNAME)
+    set(SOUNDIO_STATIC_LIBNAME soundio)
+endif()
+
 option(BUILD_STATIC_LIBS "Build static libraries" ON)
 option(BUILD_EXAMPLE_PROGRAMS "Build example programs" ON)
 option(BUILD_TESTS "Build tests" ON)
@@ -233,7 +237,7 @@ install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_static PROPERTIES
-        OUTPUT_NAME soundio
+        OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
         COMPILE_FLAGS ${LIB_CFLAGS}
         LINKER_LANGUAGE C
     )
