@@ -26,7 +26,9 @@
 #include <stdio.h>
 
 // Some HRESULT values are not defined by the windows headers
+#ifndef E_NOTFOUND
 #define E_NOTFOUND 0x80070490
+#endif //E_NOTFOUND
 
 #ifdef __cplusplus
 // In C++ mode, IsEqualGUID() takes its arguments by reference
