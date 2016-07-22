@@ -49,18 +49,18 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
         fprintf(stderr, "  channel layouts:\n");
         for (int i = 0; i < device->layout_count; i += 1) {
             fprintf(stderr, "    ");
-            print_channel_layout(&device->layouts[i]);
+            print_channel_layout(device->layouts[i]);
             fprintf(stderr, "\n");
         }
         if (device->current_layout.channel_count > 0) {
             fprintf(stderr, "  current layout: ");
-            print_channel_layout(&device->current_layout);
+            print_channel_layout(device->current_layout);
             fprintf(stderr, "\n");
         }
 
         fprintf(stderr, "  sample rates:\n");
         for (int i = 0; i < device->sample_rate_count; i += 1) {
-            struct SoundIoSampleRateRange *range = &device->sample_rates[i];
+            struct SoundIoSampleRateRange *range = device->sample_rates[i];
             fprintf(stderr, "    %d - %d\n", range->min, range->max);
 
         }
