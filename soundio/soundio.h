@@ -946,7 +946,6 @@ SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream
 /// * #SoundIoErrorBackendDisconnected
 /// * #SoundIoErrorSystemResources
 /// * #SoundIoErrorNoSuchClient - when JACK returns `JackNoSuchClient`
-/// * #SoundIoErrorOpeningDevice
 /// * #SoundIoErrorIncompatibleBackend - SoundIoOutStream::channel_count is
 ///   greater than the number of channels the backend can handle.
 /// * #SoundIoErrorIncompatibleDevice - stream parameters requested are not
