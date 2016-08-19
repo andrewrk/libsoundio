@@ -1169,7 +1169,7 @@ static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_
         assert(audio_buffer->mNumberChannels == instream->layout.channel_count);
         assert(audio_buffer->mDataByteSize == in_number_frames * instream->bytes_per_frame);
         for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-            isca->areas[ch].ptr = ((char*)audio_buffer->mData) + instream->bytes_per_sample;
+            isca->areas[ch].ptr = ((char*)audio_buffer->mData) + (instream->bytes_per_sample * ch);
             isca->areas[ch].step = instream->bytes_per_frame;
         }
     } else {
