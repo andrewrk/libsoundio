@@ -673,6 +673,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     {
         if(hr != E_NOTFOUND) {
             deinit_refresh_devices(&rd);
+            if(hr == E_OUTOFMEMORY) {
+                return SoundIoErrorNoMem;
+            }
             return SoundIoErrorOpeningDevice;
         }
     }
@@ -683,7 +686,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         }
         if (FAILED(hr = IMMDevice_GetId(rd.default_render_device, &rd.lpwstr))) {
             deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            // MSDN states the IMMDevice_GetId can fail if the device is NULL, or if we're out of memory
+            // We know the device point isn't NULL so we're necessarily out of memory
+            return SoundIoErrorNoMem;
         }
         if ((err = from_lpwstr(rd.lpwstr, &rd.default_render_id, &rd.default_render_id_len))) {
             deinit_refresh_devices(&rd);
@@ -697,6 +702,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     {
         if(hr != E_NOTFOUND) {
             deinit_refresh_devices(&rd);
+            if(hr == E_OUTOFMEMORY) {
+                return SoundIoErrorNoMem;
+            }
             return SoundIoErrorOpeningDevice;
         }
     }
@@ -707,7 +715,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         }
         if (FAILED(hr = IMMDevice_GetId(rd.default_capture_device, &rd.lpwstr))) {
             deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            // MSDN states the IMMDevice_GetId can fail if the device is NULL, or if we're out of memory
+            // We know the device point isn't NULL so we're necessarily out of memory.
+            return SoundIoErrorNoMem;
         }
         if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
             deinit_refresh_devices(&rd);
@@ -720,11 +730,16 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                     eAll, DEVICE_STATE_ACTIVE, &rd.collection)))
     {
         deinit_refresh_devices(&rd);
+        if(hr == E_OUTOFMEMORY) {
+            return SoundIoErrorNoMem;
+        }
         return SoundIoErrorOpeningDevice;
     }
 
     UINT unsigned_count;
     if (FAILED(hr = IMMDeviceCollection_GetCount(rd.collection, &unsigned_count))) {
+        // In theory this shouldn't happen since the only documented failure case is that
+        // rd.collection is NULL, but then EnumAudioEndpoints should have failed.
         deinit_refresh_devices(&rd);
         return SoundIoErrorOpeningDevice;
     }
