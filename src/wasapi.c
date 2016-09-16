@@ -762,16 +762,14 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             rd.mm_device = NULL;
         }
         if (FAILED(hr = IMMDeviceCollection_Item(rd.collection, device_i, &rd.mm_device))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            continue;
         }
         if (rd.lpwstr) {
             CoTaskMemFree(rd.lpwstr);
             rd.lpwstr = NULL;
         }
         if (FAILED(hr = IMMDevice_GetId(rd.mm_device, &rd.lpwstr))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            continue;
         }
 
 
@@ -816,176 +814,29 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             return SoundIoErrorNoMem;
         }
 
-        if (rd.audio_client) {
-            IUnknown_Release(rd.audio_client);
-            rd.audio_client = NULL;
-        }
-        if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAUDIOCLIENT,
-                        CLSCTX_ALL, NULL, (void**)&rd.audio_client)))
-        {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-
-        REFERENCE_TIME default_device_period;
-        REFERENCE_TIME min_device_period;
-        if (FAILED(hr = IAudioClient_GetDevicePeriod(rd.audio_client,
-                        &default_device_period, &min_device_period)))
-        {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        dev_w_shared->period_duration = from_reference_time(default_device_period);
-        rd.device_shared->software_latency_current = dev_w_shared->period_duration;
-
-        dev_w_raw->period_duration = from_reference_time(min_device_period);
-        rd.device_raw->software_latency_min = dev_w_raw->period_duration * 2;
-
-
         if (rd.endpoint) {
             IMMEndpoint_Release(rd.endpoint);
             rd.endpoint = NULL;
         }
         if (FAILED(hr = IMMDevice_QueryInterface(rd.mm_device, IID_IMMENDPOINT, (void**)&rd.endpoint))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
         }
 
         EDataFlow data_flow;
         if (FAILED(hr = IMMEndpoint_GetDataFlow(rd.endpoint, &data_flow))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
         }
 
         rd.device_shared->aim = data_flow_to_aim(data_flow);
         rd.device_raw->aim = rd.device_shared->aim;
-
-        if (rd.prop_store) {
-            IPropertyStore_Release(rd.prop_store);
-            rd.prop_store = NULL;
-        }
-        if (FAILED(hr = IMMDevice_OpenPropertyStore(rd.mm_device, STGM_READ, &rd.prop_store))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-
-        if (rd.prop_variant_value_inited) {
-            PropVariantClear(&rd.prop_variant_value);
-            rd.prop_variant_value_inited = false;
-        }
-        PropVariantInit(&rd.prop_variant_value);
-        rd.prop_variant_value_inited = true;
-        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store,
-                        PKEY_DEVICE_FRIENDLYNAME, &rd.prop_variant_value)))
-        {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        if (!rd.prop_variant_value.pwszVal) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        int device_name_len;
-        if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device_shared->name, &device_name_len))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-
-        rd.device_raw->name = soundio_str_dupe(rd.device_shared->name, device_name_len);
-        if (!rd.device_raw->name) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorNoMem;
-        }
-
-        // Get the format that WASAPI opens the device with for shared streams.
-        // This is guaranteed to work, so we use this to modulate the sample
-        // rate while holding the format constant and vice versa.
-        if (rd.prop_variant_value_inited) {
-            PropVariantClear(&rd.prop_variant_value);
-            rd.prop_variant_value_inited = false;
-        }
-        PropVariantInit(&rd.prop_variant_value);
-        rd.prop_variant_value_inited = true;
-        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store, PKEY_AUDIOENGINE_DEVICEFORMAT,
-                        &rd.prop_variant_value)))
-        {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        WAVEFORMATEXTENSIBLE *valid_wave_format = (WAVEFORMATEXTENSIBLE *)rd.prop_variant_value.blob.pBlobData;
-        if (valid_wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        if ((err = detect_valid_sample_rates(&rd, valid_wave_format, dev_raw,
-                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
-        {
-            deinit_refresh_devices(&rd);
-            return err;
-        }
-        if ((err = detect_valid_formats(&rd, valid_wave_format, dev_raw,
-                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
-        {
-            deinit_refresh_devices(&rd);
-            return err;
-        }
-
-        if (rd.wave_format) {
-            CoTaskMemFree(rd.wave_format);
-            rd.wave_format = NULL;
-        }
-        if (FAILED(hr = IAudioClient_GetMixFormat(rd.audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        if (rd.wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
-            deinit_refresh_devices(&rd);
-            return SoundIoErrorOpeningDevice;
-        }
-        rd.device_shared->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
-        rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
-
-
-        if (rd.device_shared->aim == SoundIoDeviceAimOutput) {
-            // For output streams in shared mode,
-            // WASAPI performs resampling, so any value is valid.
-            // Let's pick some reasonable min and max values.
-            rd.device_shared->sample_rate_count = 1;
-            rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
-            rd.device_shared->sample_rates[0].min = soundio_int_min(SOUNDIO_MIN_SAMPLE_RATE,
-                    rd.device_shared->sample_rate_current);
-            rd.device_shared->sample_rates[0].max = soundio_int_max(SOUNDIO_MAX_SAMPLE_RATE,
-                    rd.device_shared->sample_rate_current);
-        } else {
-            // Shared mode input stream: mix format is all we can do.
-            rd.device_shared->sample_rate_count = 1;
-            rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
-            rd.device_shared->sample_rates[0].min = rd.device_shared->sample_rate_current;
-            rd.device_shared->sample_rates[0].max = rd.device_shared->sample_rate_current;
-        }
-
-        if ((err = detect_valid_formats(&rd, rd.wave_format, dev_shared,
-                        AUDCLNT_SHAREMODE_SHARED)))
-        {
-            deinit_refresh_devices(&rd);
-            return err;
-        }
-
-        from_wave_format_layout(rd.wave_format, &rd.device_shared->current_layout);
-        rd.device_shared->layout_count = 1;
-        rd.device_shared->layouts = &rd.device_shared->current_layout;
-
-        if ((err = detect_valid_layouts(&rd, valid_wave_format, dev_raw,
-                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
-        {
-            deinit_refresh_devices(&rd);
-            return err;
-        }
-
-        IMMDevice_AddRef(rd.mm_device);
-        dev_w_shared->mm_device = rd.mm_device;
-        dev_w_raw->mm_device = rd.mm_device;
-        rd.mm_device = NULL;
 
         struct SoundIoListDevicePtr *device_list;
         if (rd.device_shared->aim == SoundIoDeviceAimOutput) {
@@ -1009,12 +860,192 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             deinit_refresh_devices(&rd);
             return err;
         }
-        rd.device_shared = NULL;
-
         if ((err = SoundIoListDevicePtr_append(device_list, rd.device_raw))) {
             deinit_refresh_devices(&rd);
             return err;
         }
+
+        if (rd.audio_client) {
+            IUnknown_Release(rd.audio_client);
+            rd.audio_client = NULL;
+        }
+        if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAUDIOCLIENT,
+                        CLSCTX_ALL, NULL, (void**)&rd.audio_client)))
+        {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+
+        REFERENCE_TIME default_device_period;
+        REFERENCE_TIME min_device_period;
+        if (FAILED(hr = IAudioClient_GetDevicePeriod(rd.audio_client,
+                        &default_device_period, &min_device_period)))
+        {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+        dev_w_shared->period_duration = from_reference_time(default_device_period);
+        rd.device_shared->software_latency_current = dev_w_shared->period_duration;
+
+        dev_w_raw->period_duration = from_reference_time(min_device_period);
+        rd.device_raw->software_latency_min = dev_w_raw->period_duration * 2;
+
+        if (rd.prop_store) {
+            IPropertyStore_Release(rd.prop_store);
+            rd.prop_store = NULL;
+        }
+        if (FAILED(hr = IMMDevice_OpenPropertyStore(rd.mm_device, STGM_READ, &rd.prop_store))) {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+
+        if (rd.prop_variant_value_inited) {
+            PropVariantClear(&rd.prop_variant_value);
+            rd.prop_variant_value_inited = false;
+        }
+        PropVariantInit(&rd.prop_variant_value);
+        rd.prop_variant_value_inited = true;
+        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store,
+                        PKEY_DEVICE_FRIENDLYNAME, &rd.prop_variant_value)))
+        {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+        if (!rd.prop_variant_value.pwszVal) {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+        int device_name_len;
+        if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device_shared->name, &device_name_len))) {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+
+        rd.device_raw->name = soundio_str_dupe(rd.device_shared->name, device_name_len);
+        if (!rd.device_raw->name) {
+            deinit_refresh_devices(&rd);
+            return SoundIoErrorNoMem;
+        }
+
+        // Get the format that WASAPI opens the device with for shared streams.
+        // This is guaranteed to work, so we use this to modulate the sample
+        // rate while holding the format constant and vice versa.
+        if (rd.prop_variant_value_inited) {
+            PropVariantClear(&rd.prop_variant_value);
+            rd.prop_variant_value_inited = false;
+        }
+        PropVariantInit(&rd.prop_variant_value);
+        rd.prop_variant_value_inited = true;
+        if (FAILED(hr = IPropertyStore_GetValue(rd.prop_store, PKEY_AUDIOENGINE_DEVICEFORMAT,
+                        &rd.prop_variant_value)))
+        {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+        WAVEFORMATEXTENSIBLE *valid_wave_format = (WAVEFORMATEXTENSIBLE *)rd.prop_variant_value.blob.pBlobData;
+        if (valid_wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+            rd.device_raw = NULL;
+            continue;
+        }
+        if ((err = detect_valid_sample_rates(&rd, valid_wave_format, dev_raw,
+                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw = NULL;
+        }
+        if (rd.device_raw && (err = detect_valid_formats(&rd, valid_wave_format, dev_raw,
+                        AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw = NULL;
+        }
+        if (rd.device_raw && (err = detect_valid_layouts(&rd, valid_wave_format, dev_raw,
+            AUDCLNT_SHAREMODE_EXCLUSIVE)))
+        {
+            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw = NULL;
+        }
+
+        if (rd.wave_format) {
+            CoTaskMemFree(rd.wave_format);
+            rd.wave_format = NULL;
+        }
+        if (FAILED(hr = IAudioClient_GetMixFormat(rd.audio_client, (WAVEFORMATEX**)&rd.wave_format))) {
+            // According to MSDN GetMixFormat only applies to shared-mode devices.
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+        }
+        else if(rd.wave_format && (rd.wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE)) {
+            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared = NULL;
+        }
+
+        if(rd.device_shared) {
+            rd.device_shared->sample_rate_current = rd.wave_format->Format.nSamplesPerSec;
+            rd.device_shared->current_format = from_wave_format_format(rd.wave_format);
+
+            if (rd.device_shared->aim == SoundIoDeviceAimOutput) {
+                // For output streams in shared mode,
+                // WASAPI performs resampling, so any value is valid.
+                // Let's pick some reasonable min and max values.
+                rd.device_shared->sample_rate_count = 1;
+                rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
+                rd.device_shared->sample_rates[0].min = soundio_int_min(SOUNDIO_MIN_SAMPLE_RATE,
+                    rd.device_shared->sample_rate_current);
+                rd.device_shared->sample_rates[0].max = soundio_int_max(SOUNDIO_MAX_SAMPLE_RATE,
+                    rd.device_shared->sample_rate_current);
+            }
+            else {
+                // Shared mode input stream: mix format is all we can do.
+                rd.device_shared->sample_rate_count = 1;
+                rd.device_shared->sample_rates = &dev_shared->prealloc_sample_rate_range;
+                rd.device_shared->sample_rates[0].min = rd.device_shared->sample_rate_current;
+                rd.device_shared->sample_rates[0].max = rd.device_shared->sample_rate_current;
+            }
+
+            if ((err = detect_valid_formats(&rd, rd.wave_format, dev_shared,
+                AUDCLNT_SHAREMODE_SHARED)))
+            {
+                rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+                rd.device_shared = NULL;
+            }
+            else {
+                from_wave_format_layout(rd.wave_format, &rd.device_shared->current_layout);
+                rd.device_shared->layout_count = 1;
+                rd.device_shared->layouts = &rd.device_shared->current_layout;
+            }
+        }
+
+        IMMDevice_AddRef(rd.mm_device);
+        dev_w_shared->mm_device = rd.mm_device;
+        dev_w_raw->mm_device = rd.mm_device;
+        rd.mm_device = NULL;
+
+        rd.device_shared = NULL;
         rd.device_raw = NULL;
     }
 
