@@ -716,7 +716,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             if(hr == E_OUTOFMEMORY) {
                 return SoundIoErrorNoMem;
             }
-            return SoundIoErrorNoMem;
+            return SoundIoErrorOpeningDevice;
         }
         if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
             deinit_refresh_devices(&rd);
