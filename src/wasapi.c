@@ -715,8 +715,9 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         }
         if (FAILED(hr = IMMDevice_GetId(rd.default_capture_device, &rd.lpwstr))) {
             deinit_refresh_devices(&rd);
-            // MSDN states the IMMDevice_GetId can fail if the device is NULL, or if we're out of memory
-            // We know the device point isn't NULL so we're necessarily out of memory.
+            if(hr == E_OUTOFMEMORY) {
+                return SoundIoErrorNoMem;
+            }
             return SoundIoErrorNoMem;
         }
         if ((err = from_lpwstr(rd.lpwstr, &rd.default_capture_id, &rd.default_capture_id_len))) {
@@ -934,8 +935,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         }
         int device_name_len;
         if ((err = from_lpwstr(rd.prop_variant_value.pwszVal, &rd.device_shared->name, &device_name_len))) {
-            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
-            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_shared->probe_error = err;
+            rd.device_raw->probe_error = err;
             rd.device_shared = NULL;
             rd.device_raw = NULL;
             continue;
@@ -976,19 +977,19 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         if ((err = detect_valid_sample_rates(&rd, valid_wave_format, dev_raw,
                         AUDCLNT_SHAREMODE_EXCLUSIVE)))
         {
-            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = err;
             rd.device_raw = NULL;
         }
         if (rd.device_raw && (err = detect_valid_formats(&rd, valid_wave_format, dev_raw,
                         AUDCLNT_SHAREMODE_EXCLUSIVE)))
         {
-            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = err;
             rd.device_raw = NULL;
         }
         if (rd.device_raw && (err = detect_valid_layouts(&rd, valid_wave_format, dev_raw,
             AUDCLNT_SHAREMODE_EXCLUSIVE)))
         {
-            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+            rd.device_raw->probe_error = err;
             rd.device_raw = NULL;
         }
 
@@ -1032,7 +1033,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             if ((err = detect_valid_formats(&rd, rd.wave_format, dev_shared,
                 AUDCLNT_SHAREMODE_SHARED)))
             {
-                rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+                rd.device_shared->probe_error = err;
                 rd.device_shared = NULL;
             }
             else {
