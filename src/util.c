@@ -33,7 +33,10 @@ char *soundio_alloc_sprintf(int *len, const char *format, ...) {
     if (!mem)
         return NULL;
 
-    int len2 = vsnprintf(mem, required_size, format, ap2);
+#ifndef NDEBUG
+    int len2 =
+#endif
+		vsnprintf(mem, required_size, format, ap2);
     assert(len2 == len1);
 
     va_end(ap2);

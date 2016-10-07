@@ -100,6 +100,7 @@ static int list_devices(struct SoundIo *soundio) {
     fprintf(stderr, "\n--------Output Devices--------\n\n");
     for (int i = 0; i < output_count; i += 1) {
         struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
+printf("device index: %i\n", i);
         print_device(device, default_output == i);
         soundio_device_unref(device);
     }
