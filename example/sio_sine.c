@@ -242,7 +242,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    fprintf(stderr, "Software latency: %i\n", outstream->layout);
     fprintf(stderr, "Software latency: %f\n", outstream->software_latency);
     fprintf(stderr,
             "'p\\n' - pause\n"
