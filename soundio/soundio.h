@@ -1163,11 +1163,12 @@ SOUNDIO_EXPORT int soundio_instream_get_latency(struct SoundIoInStream *instream
         double *out_latency);
 
 
+struct SoundIoRingBuffer;
+
 /// A ring buffer is a single-reader single-writer lock-free fixed-size queue.
 /// libsoundio ring buffers use memory mapping techniques to enable a
 /// contiguous buffer when reading or writing across the boundary of the ring
 /// buffer's capacity.
-struct SoundIoRingBuffer;
 /// `requested_capacity` in bytes.
 /// Returns `NULL` if and only if memory could not be allocated.
 /// Use ::soundio_ring_buffer_capacity to get the actual capacity, which might
