@@ -90,7 +90,7 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
         int frame_count = frames_left;
 
         if ((err = soundio_instream_begin_read(instream, &areas, &frame_count)))
-            panic("begin read error: %s", soundio_strerror(err));
+            panic("begin read error: %s", soundio_error_name(err));
 
         if (!frame_count)
             break;
@@ -98,7 +98,7 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
         seconds_offset += seconds_per_frame * frame_count;
 
         if ((err = soundio_instream_end_read(instream)))
-            panic("end read error: %s", soundio_strerror(err));
+            panic("end read error: %s", soundio_error_name(err));
 
         frames_left -= frame_count;
         if (frames_left <= 0)
@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err)
-        panic("error connecting: %s", soundio_strerror(err));
+        panic("error connecting: %s", soundio_error_name(err));
 
     soundio_flush_events(soundio);
 
@@ -210,12 +210,12 @@ int main(int argc, char **argv) {
     instream->overflow_callback = overflow_callback;
 
     if ((err = soundio_instream_open(instream)))
-        panic("unable to open device: %s", soundio_strerror(err));
+        panic("unable to open device: %s", soundio_error_name(err));
 
-    fprintf(stderr, "OK format: %s\n", soundio_format_string(instream->format));
+    fprintf(stderr, "OK format: %s\n", soundio_format_name(instream->format));
 
     if ((err = soundio_instream_start(instream)))
-        panic("unable to start device: %s", soundio_strerror(err));
+        panic("unable to start device: %s", soundio_error_name(err));
 
     while (seconds_offset < seconds_end)
         soundio_wait_events(soundio);

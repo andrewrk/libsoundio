@@ -68,7 +68,7 @@
  * Demonstrates recovering from a backend disconnecting.
  */
 
-/// See also ::soundio_strerror
+/// See also ::soundio_error_name
 enum SoundIoError {
     SoundIoErrorNone,
     /// Out of memory.
@@ -729,7 +729,7 @@ SOUNDIO_EXPORT enum SoundIoError soundio_connect_backend(struct SoundIo *soundio
 SOUNDIO_EXPORT void soundio_disconnect(struct SoundIo *soundio);
 
 /// Get a string representation of a #SoundIoError
-SOUNDIO_EXPORT const char *soundio_strerror(enum SoundIoError error);
+SOUNDIO_EXPORT const char *soundio_error_name(enum SoundIoError error);
 /// Get a string representation of a #SoundIoBackend
 SOUNDIO_EXPORT const char *soundio_backend_name(enum SoundIoBackend backend);
 
@@ -853,7 +853,7 @@ static inline int soundio_get_bytes_per_second(enum SoundIoFormat format,
 }
 
 /// Returns string representation of `format`.
-SOUNDIO_EXPORT const char * soundio_format_string(enum SoundIoFormat format);
+SOUNDIO_EXPORT const char * soundio_format_name(enum SoundIoFormat format);
 
 
 

@@ -39,7 +39,7 @@ static enum SoundIoBackend backend = SoundIoBackendNone;
 static bool severed = false;
 
 static void on_backend_disconnect(struct SoundIo *soundio, enum SoundIoError err) {
-    fprintf(stderr, "OK backend disconnected with '%s'.\n", soundio_strerror(err));
+    fprintf(stderr, "OK backend disconnected with '%s'.\n", soundio_error_name(err));
     severed = true;
 }
 
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err)
-        panic("error connecting: %s", soundio_strerror(err));
+        panic("error connecting: %s", soundio_error_name(err));
 
     soundio->on_backend_disconnect = on_backend_disconnect;
 
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err)
-        panic("error reconnecting: %s", soundio_strerror(err));
+        panic("error reconnecting: %s", soundio_error_name(err));
 
     fprintf(stderr, "OK reconnected successfully to %s\n", soundio_backend_name(soundio->current_backend));
 

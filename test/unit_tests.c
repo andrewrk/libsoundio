@@ -12,7 +12,7 @@
 
 static inline void ok_or_panic(int err) {
     if (err)
-        soundio_panic("%s", soundio_strerror(err));
+        soundio_panic("%s", soundio_error_name(err));
 }
 
 static void test_os_get_time(void) {

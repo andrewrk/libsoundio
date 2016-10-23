@@ -57,7 +57,7 @@ static void write_time(struct SoundIoOutStream *outstream, double extra) {
     double latency;
     int err;
     if ((err = soundio_outstream_get_latency(outstream, &latency))) {
-        soundio_panic("getting latency: %s", soundio_strerror(err));
+        soundio_panic("getting latency: %s", soundio_error_name(err));
     }
     double now = soundio_os_get_time();
     double audible_time = now + latency + extra;
@@ -78,7 +78,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         int frame_count = frames_left;
 
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
-            soundio_panic("begin write: %s", soundio_strerror(err));
+            soundio_panic("begin write: %s", soundio_error_name(err));
 
         if (!frame_count)
             break;
@@ -116,7 +116,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         seconds_offset += seconds_per_frame * frame_count;
 
         if ((err = soundio_outstream_end_write(outstream)))
-            soundio_panic("end write: %s", soundio_strerror(err));
+            soundio_panic("end write: %s", soundio_error_name(err));
 
         frames_left -= frame_count;
     }
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err)
-        soundio_panic("error connecting: %s", soundio_strerror(err));
+        soundio_panic("error connecting: %s", soundio_error_name(err));
 
     soundio_flush_events(soundio);
 
@@ -208,16 +208,16 @@ int main(int argc, char **argv) {
     }
 
     if ((err = soundio_ring_buffer_init(&pulse_rb, 1024)))
-        soundio_panic("ring buffer init: %s", soundio_strerror(err));
+        soundio_panic("ring buffer init: %s", soundio_error_name(err));
 
     if ((err = soundio_outstream_open(outstream)))
-        soundio_panic("unable to open device: %s", soundio_strerror(err));
+        soundio_panic("unable to open device: %s", soundio_error_name(err));
 
     if (outstream->layout_error)
-        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_error_name(outstream->layout_error));
 
     if ((err = soundio_outstream_start(outstream)))
-        soundio_panic("unable to start device: %s", soundio_strerror(err));
+        soundio_panic("unable to start device: %s", soundio_error_name(err));
 
     bool beep_on = true;
     int count = 0;

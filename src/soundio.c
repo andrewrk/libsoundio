@@ -73,7 +73,7 @@ static backend_init_t backend_init_fns[] = {
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoDevice*, SoundIoListDevicePtr, SOUNDIO_LIST_NOT_STATIC)
 SOUNDIO_MAKE_LIST_DEF(struct SoundIoSampleRateRange, SoundIoListSampleRateRange, SOUNDIO_LIST_NOT_STATIC)
 
-const char *soundio_strerror(enum SoundIoError error) {
+const char *soundio_error_name(enum SoundIoError error) {
     switch (error) {
         case SoundIoErrorNone: return "(no error)";
         case SoundIoErrorNoMem: return "out of memory";
@@ -125,7 +125,7 @@ int soundio_get_bytes_per_sample(enum SoundIoFormat format) {
     return -1;
 }
 
-const char * soundio_format_string(enum SoundIoFormat format) {
+const char * soundio_format_name(enum SoundIoFormat format) {
     switch (format) {
     case SoundIoFormatS8:          return "signed 8-bit";
     case SoundIoFormatU8:          return "unsigned 8-bit";
@@ -182,7 +182,7 @@ static void do_nothing_cb(struct SoundIo *soundio) { }
 static void default_msg_callback(const char *msg) { }
 
 static void default_backend_disconnect_cb(struct SoundIo *soundio, enum SoundIoError err) {
-    soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
+    soundio_panic("libsoundio: backend disconnected: %s", soundio_error_name(err));
 }
 
 static struct SoundIoAtomicFlag rtprio_seen = SOUNDIO_ATOMIC_FLAG_INIT;
@@ -465,7 +465,7 @@ enum SoundIoError soundio_outstream_end_write(struct SoundIoOutStream *outstream
 }
 
 static void default_outstream_error_callback(struct SoundIoOutStream *os, enum SoundIoError err) {
-    soundio_panic("libsoundio: %s", soundio_strerror(err));
+    soundio_panic("libsoundio: %s", soundio_error_name(err));
 }
 
 static void default_underflow_callback(struct SoundIoOutStream *outstream) { }
@@ -569,7 +569,7 @@ enum SoundIoError soundio_outstream_get_latency(struct SoundIoOutStream *outstre
 }
 
 static void default_instream_error_callback(struct SoundIoInStream *is, enum SoundIoError err) {
-    soundio_panic("libsoundio: %s", soundio_strerror(err));
+    soundio_panic("libsoundio: %s", soundio_error_name(err));
 }
 
 static void default_overflow_callback(struct SoundIoInStream *instream) { }

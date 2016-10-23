@@ -77,7 +77,7 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
         int frame_count = frames_left;
 
         if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
-            fprintf(stderr, "begin read error: %s", soundio_strerror(err));
+            fprintf(stderr, "begin read error: %s", soundio_error_name(err));
             exit(1);
         }
 
@@ -99,7 +99,7 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
         }
 
         if ((err = soundio_instream_end_read(instream))) {
-            fprintf(stderr, "end read error: %s", soundio_strerror(err));
+            fprintf(stderr, "end read error: %s", soundio_error_name(err));
             exit(1);
         }
 
@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
     int err = (backend == SoundIoBackendNone) ?
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
     if (err) {
-        fprintf(stderr, "error connecting: %s", soundio_strerror(err));
+        fprintf(stderr, "error connecting: %s", soundio_error_name(err));
         return 1;
     }
 
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Device: %s\n", selected_device->name);
 
     if (selected_device->probe_error) {
-        fprintf(stderr, "Unable to probe device: %s\n", soundio_strerror(selected_device->probe_error));
+        fprintf(stderr, "Unable to probe device: %s\n", soundio_error_name(selected_device->probe_error));
         return 1;
     }
 
@@ -261,12 +261,12 @@ int main(int argc, char **argv) {
     instream->userdata = &rc;
 
     if ((err = soundio_instream_open(instream))) {
-        fprintf(stderr, "unable to open input stream: %s", soundio_strerror(err));
+        fprintf(stderr, "unable to open input stream: %s", soundio_error_name(err));
         return 1;
     }
 
     fprintf(stderr, "%s %dHz %s interleaved\n",
-            instream->layout.name, sample_rate, soundio_format_string(fmt));
+            instream->layout.name, sample_rate, soundio_format_name(fmt));
 
     const int ring_buffer_duration_seconds = 30;
     int capacity = ring_buffer_duration_seconds * instream->sample_rate * instream->bytes_per_frame;
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
     }
 
     if ((err = soundio_instream_start(instream))) {
-        fprintf(stderr, "unable to start input device: %s", soundio_strerror(err));
+        fprintf(stderr, "unable to start input device: %s", soundio_error_name(err));
         return 1;
     }
 

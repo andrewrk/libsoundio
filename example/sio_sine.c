@@ -65,7 +65,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
     for (;;) {
         int frame_count = frames_left;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
-            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
+            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_error_name(err));
             exit(1);
         }
 
@@ -88,7 +88,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
-            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
+            fprintf(stderr, "unrecoverable stream error: %s\n", soundio_error_name(err));
             exit(1);
         }
 
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err) {
-        fprintf(stderr, "Unable to connect to backend: %s\n", soundio_strerror(err));
+        fprintf(stderr, "Unable to connect to backend: %s\n", soundio_error_name(err));
         return 1;
     }
 
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Output device: %s\n", device->name);
 
     if (device->probe_error) {
-        fprintf(stderr, "Cannot probe device: %s\n", soundio_strerror(device->probe_error));
+        fprintf(stderr, "Cannot probe device: %s\n", soundio_error_name(device->probe_error));
         return 1;
     }
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
     }
 
     if ((err = soundio_outstream_open(outstream))) {
-        fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
+        fprintf(stderr, "unable to open device: %s", soundio_error_name(err));
         return 1;
     }
 
@@ -251,10 +251,10 @@ int main(int argc, char **argv) {
             "'q\\n' - quit\n");
 
     if (outstream->layout_error)
-        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_error_name(outstream->layout_error));
 
     if ((err = soundio_outstream_start(outstream))) {
-        fprintf(stderr, "unable to start device: %s\n", soundio_strerror(err));
+        fprintf(stderr, "unable to start device: %s\n", soundio_error_name(err));
         return 1;
     }
 
@@ -263,16 +263,16 @@ int main(int argc, char **argv) {
         int c = getc(stdin);
         if (c == 'p') {
             fprintf(stderr, "pausing result: %s\n",
-                    soundio_strerror(soundio_outstream_pause(outstream, true)));
+                    soundio_error_name(soundio_outstream_pause(outstream, true)));
         } else if (c == 'P') {
             want_pause = true;
         } else if (c == 'u') {
             want_pause = false;
             fprintf(stderr, "unpausing result: %s\n",
-                    soundio_strerror(soundio_outstream_pause(outstream, false)));
+                    soundio_error_name(soundio_outstream_pause(outstream, false)));
         } else if (c == 'c') {
             fprintf(stderr, "clear buffer result: %s\n",
-                    soundio_strerror(soundio_outstream_clear_buffer(outstream)));
+                    soundio_error_name(soundio_outstream_clear_buffer(outstream)));
         } else if (c == 'q') {
             break;
         } else if (c == '\r' || c == '\n') {

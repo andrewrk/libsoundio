@@ -44,7 +44,7 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
     fprintf(stderr, "  id: %s\n", device->id);
 
     if (device->probe_error) {
-        fprintf(stderr, "  probe error: %s\n", soundio_strerror(device->probe_error));
+        fprintf(stderr, "  probe error: %s\n", soundio_error_name(device->probe_error));
     } else {
         fprintf(stderr, "  channel layouts:\n");
         for (int i = 0; i < device->layout_count; i += 1) {
@@ -69,11 +69,11 @@ static void print_device(struct SoundIoDevice *device, bool is_default) {
         fprintf(stderr, "  formats: ");
         for (int i = 0; i < device->format_count; i += 1) {
             const char *comma = (i == device->format_count - 1) ? "" : ", ";
-            fprintf(stderr, "%s%s", soundio_format_string(device->formats[i]), comma);
+            fprintf(stderr, "%s%s", soundio_format_name(device->formats[i]), comma);
         }
         fprintf(stderr, "\n");
         if (device->current_format != SoundIoFormatInvalid)
-            fprintf(stderr, "  current format: %s\n", soundio_format_string(device->current_format));
+            fprintf(stderr, "  current format: %s\n", soundio_format_name(device->current_format));
 
         fprintf(stderr, "  min software latency: %0.8f sec\n", device->software_latency_min);
         fprintf(stderr, "  max software latency: %0.8f sec\n", device->software_latency_max);
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err) {
-        fprintf(stderr, "%s\n", soundio_strerror(err));
+        fprintf(stderr, "%s\n", soundio_error_name(err));
         return err;
     }
 

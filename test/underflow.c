@@ -90,7 +90,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
     for (;;) {
         int frame_count = frames_left;
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
-            panic("%s", soundio_strerror(err));
+            panic("%s", soundio_error_name(err));
 
         if (!frame_count)
             break;
@@ -111,7 +111,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)
                 return;
-            panic("%s", soundio_strerror(err));
+            panic("%s", soundio_error_name(err));
         }
 
         frames_left -= frame_count;
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
         soundio_connect(soundio) : soundio_connect_backend(soundio, backend);
 
     if (err)
-        panic("error connecting: %s", soundio_strerror(err));
+        panic("error connecting: %s", soundio_error_name(err));
 
     soundio_flush_events(soundio);
 
@@ -233,13 +233,13 @@ int main(int argc, char **argv) {
     }
 
     if ((err = soundio_outstream_open(outstream)))
-        panic("unable to open device: %s", soundio_strerror(err));
+        panic("unable to open device: %s", soundio_error_name(err));
 
     if (outstream->layout_error)
-        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_error_name(outstream->layout_error));
 
     if ((err = soundio_outstream_start(outstream)))
-        panic("unable to start device: %s", soundio_strerror(err));
+        panic("unable to start device: %s", soundio_error_name(err));
 
     while (seconds_offset < seconds_end)
         soundio_wait_events(soundio);
