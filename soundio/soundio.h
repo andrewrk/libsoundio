@@ -722,10 +722,10 @@ SOUNDIO_EXPORT const char *soundio_strerror(int error);
 SOUNDIO_EXPORT const char *soundio_backend_name(enum SoundIoBackend backend);
 
 /// Returns the number of available backends.
-SOUNDIO_EXPORT int soundio_backend_count(struct SoundIo *soundio);
+SOUNDIO_EXPORT int soundio_backend_count(void);
 /// get the available backend at the specified index
 /// (0 <= index < ::soundio_backend_count)
-SOUNDIO_EXPORT enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index);
+SOUNDIO_EXPORT enum SoundIoBackend soundio_get_backend(int index);
 
 /// Returns whether libsoundio was compiled with backend.
 SOUNDIO_EXPORT bool soundio_have_backend(enum SoundIoBackend backend);

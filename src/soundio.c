@@ -693,11 +693,11 @@ bool soundio_have_backend(enum SoundIoBackend backend) {
     return backend_init_fns[backend];
 }
 
-int soundio_backend_count(struct SoundIo *soundio) {
+int soundio_backend_count(void) {
     return ARRAY_LENGTH(available_backends);
 }
 
-enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index) {
+enum SoundIoBackend soundio_get_backend(int index) {
     return available_backends[index];
 }
 
