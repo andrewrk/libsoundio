@@ -97,24 +97,28 @@ const char *soundio_strerror(int error) {
 
 int soundio_get_bytes_per_sample(enum SoundIoFormat format) {
     switch (format) {
-    case SoundIoFormatU8:         return 1;
-    case SoundIoFormatS8:         return 1;
-    case SoundIoFormatS16LE:      return 2;
-    case SoundIoFormatS16BE:      return 2;
-    case SoundIoFormatU16LE:      return 2;
-    case SoundIoFormatU16BE:      return 2;
-    case SoundIoFormatS24LE:      return 4;
-    case SoundIoFormatS24BE:      return 4;
-    case SoundIoFormatU24LE:      return 4;
-    case SoundIoFormatU24BE:      return 4;
-    case SoundIoFormatS32LE:      return 4;
-    case SoundIoFormatS32BE:      return 4;
-    case SoundIoFormatU32LE:      return 4;
-    case SoundIoFormatU32BE:      return 4;
-    case SoundIoFormatFloat32LE:  return 4;
-    case SoundIoFormatFloat32BE:  return 4;
-    case SoundIoFormatFloat64LE:  return 8;
-    case SoundIoFormatFloat64BE:  return 8;
+    case SoundIoFormatU8:          return 1;
+    case SoundIoFormatS8:          return 1;
+    case SoundIoFormatS16LE:       return 2;
+    case SoundIoFormatS16BE:       return 2;
+    case SoundIoFormatU16LE:       return 2;
+    case SoundIoFormatU16BE:       return 2;
+    case SoundIoFormatS24LE:       return 4;
+    case SoundIoFormatS24BE:       return 4;
+    case SoundIoFormatU24LE:       return 4;
+    case SoundIoFormatU24BE:       return 4;
+    case SoundIoFormatS24PackedLE: return 3;
+    case SoundIoFormatS24PackedBE: return 3;
+    case SoundIoFormatU24PackedLE: return 3;
+    case SoundIoFormatU24PackedBE: return 3;
+    case SoundIoFormatS32LE:       return 4;
+    case SoundIoFormatS32BE:       return 4;
+    case SoundIoFormatU32LE:       return 4;
+    case SoundIoFormatU32BE:       return 4;
+    case SoundIoFormatFloat32LE:   return 4;
+    case SoundIoFormatFloat32BE:   return 4;
+    case SoundIoFormatFloat64LE:   return 8;
+    case SoundIoFormatFloat64BE:   return 8;
 
     case SoundIoFormatInvalid:    return -1;
     }
@@ -123,24 +127,28 @@ int soundio_get_bytes_per_sample(enum SoundIoFormat format) {
 
 const char * soundio_format_string(enum SoundIoFormat format) {
     switch (format) {
-    case SoundIoFormatS8:         return "signed 8-bit";
-    case SoundIoFormatU8:         return "unsigned 8-bit";
-    case SoundIoFormatS16LE:      return "signed 16-bit LE";
-    case SoundIoFormatS16BE:      return "signed 16-bit BE";
-    case SoundIoFormatU16LE:      return "unsigned 16-bit LE";
-    case SoundIoFormatU16BE:      return "unsigned 16-bit LE";
-    case SoundIoFormatS24LE:      return "signed 24-bit LE";
-    case SoundIoFormatS24BE:      return "signed 24-bit BE";
-    case SoundIoFormatU24LE:      return "unsigned 24-bit LE";
-    case SoundIoFormatU24BE:      return "unsigned 24-bit BE";
-    case SoundIoFormatS32LE:      return "signed 32-bit LE";
-    case SoundIoFormatS32BE:      return "signed 32-bit BE";
-    case SoundIoFormatU32LE:      return "unsigned 32-bit LE";
-    case SoundIoFormatU32BE:      return "unsigned 32-bit BE";
-    case SoundIoFormatFloat32LE:  return "float 32-bit LE";
-    case SoundIoFormatFloat32BE:  return "float 32-bit BE";
-    case SoundIoFormatFloat64LE:  return "float 64-bit LE";
-    case SoundIoFormatFloat64BE:  return "float 64-bit BE";
+    case SoundIoFormatS8:          return "signed 8-bit";
+    case SoundIoFormatU8:          return "unsigned 8-bit";
+    case SoundIoFormatS16LE:       return "signed 16-bit LE";
+    case SoundIoFormatS16BE:       return "signed 16-bit BE";
+    case SoundIoFormatU16LE:       return "unsigned 16-bit LE";
+    case SoundIoFormatU16BE:       return "unsigned 16-bit LE";
+    case SoundIoFormatS24LE:       return "signed 24-bit LE";
+    case SoundIoFormatS24BE:       return "signed 24-bit BE";
+    case SoundIoFormatU24LE:       return "unsigned 24-bit LE";
+    case SoundIoFormatU24BE:       return "unsigned 24-bit BE";
+    case SoundIoFormatS24PackedLE: return "signed 24-bit packed LE";
+    case SoundIoFormatS24PackedBE: return "signed 24-bit packed BE";
+    case SoundIoFormatU24PackedLE: return "unsigned 24-bit packed LE";
+    case SoundIoFormatU24PackedBE: return "unsigned 24-bit packed BE";
+    case SoundIoFormatS32LE:       return "signed 32-bit LE";
+    case SoundIoFormatS32BE:       return "signed 32-bit BE";
+    case SoundIoFormatU32LE:       return "unsigned 32-bit LE";
+    case SoundIoFormatU32BE:       return "unsigned 32-bit BE";
+    case SoundIoFormatFloat32LE:   return "float 32-bit LE";
+    case SoundIoFormatFloat32BE:   return "float 32-bit BE";
+    case SoundIoFormatFloat64LE:   return "float 64-bit LE";
+    case SoundIoFormatFloat64BE:   return "float 64-bit BE";
 
     case SoundIoFormatInvalid:
         return "(invalid sample format)";

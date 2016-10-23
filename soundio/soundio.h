@@ -234,24 +234,28 @@ enum SoundIoDeviceAim {
 /// which point to the respective SoundIoFormat values.
 enum SoundIoFormat {
     SoundIoFormatInvalid,
-    SoundIoFormatS8,        ///< Signed 8 bit
-    SoundIoFormatU8,        ///< Unsigned 8 bit
-    SoundIoFormatS16LE,     ///< Signed 16 bit Little Endian
-    SoundIoFormatS16BE,     ///< Signed 16 bit Big Endian
-    SoundIoFormatU16LE,     ///< Unsigned 16 bit Little Endian
-    SoundIoFormatU16BE,     ///< Unsigned 16 bit Little Endian
-    SoundIoFormatS24LE,     ///< Signed 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoFormatS24BE,     ///< Signed 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoFormatU24LE,     ///< Unsigned 24 bit Little Endian using low three bytes in 32-bit word
-    SoundIoFormatU24BE,     ///< Unsigned 24 bit Big Endian using low three bytes in 32-bit word
-    SoundIoFormatS32LE,     ///< Signed 32 bit Little Endian
-    SoundIoFormatS32BE,     ///< Signed 32 bit Big Endian
-    SoundIoFormatU32LE,     ///< Unsigned 32 bit Little Endian
-    SoundIoFormatU32BE,     ///< Unsigned 32 bit Big Endian
-    SoundIoFormatFloat32LE, ///< Float 32 bit Little Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat32BE, ///< Float 32 bit Big Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat64LE, ///< Float 64 bit Little Endian, Range -1.0 to 1.0
-    SoundIoFormatFloat64BE, ///< Float 64 bit Big Endian, Range -1.0 to 1.0
+    SoundIoFormatS8,          ///< Signed 8 bit
+    SoundIoFormatU8,          ///< Unsigned 8 bit
+    SoundIoFormatS16LE,       ///< Signed 16 bit Little Endian
+    SoundIoFormatS16BE,       ///< Signed 16 bit Big Endian
+    SoundIoFormatU16LE,       ///< Unsigned 16 bit Little Endian
+    SoundIoFormatU16BE,       ///< Unsigned 16 bit Little Endian
+    SoundIoFormatS24LE,       ///< Signed 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatS24BE,       ///< Signed 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatU24LE,       ///< Unsigned 24 bit Little Endian using low three bytes in 32-bit word
+    SoundIoFormatU24BE,       ///< Unsigned 24 bit Big Endian using low three bytes in 32-bit word
+    SoundIoFormatS24PackedLE, ///< Signed 24 bit Little Endian using three bytes
+    SoundIoFormatS24PackedBE, ///< Signed 24 bit Big Endian using three bytes
+    SoundIoFormatU24PackedLE, ///< Unsigned 24 bit Little Endian using three bytes
+    SoundIoFormatU24PackedBE, ///< Unsigned 24 bit Big Endian using three bytes
+    SoundIoFormatS32LE,       ///< Signed 32 bit Little Endian
+    SoundIoFormatS32BE,       ///< Signed 32 bit Big Endian
+    SoundIoFormatU32LE,       ///< Unsigned 32 bit Little Endian
+    SoundIoFormatU32BE,       ///< Unsigned 32 bit Big Endian
+    SoundIoFormatFloat32LE,   ///< Float 32 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat32BE,   ///< Float 32 bit Big Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64LE,   ///< Float 64 bit Little Endian, Range -1.0 to 1.0
+    SoundIoFormatFloat64BE,   ///< Float 64 bit Big Endian, Range -1.0 to 1.0
 };
 
 #if defined(SOUNDIO_OS_BIG_ENDIAN)
@@ -259,6 +263,8 @@ enum SoundIoFormat {
 #define SoundIoFormatU16NE SoundIoFormatU16BE
 #define SoundIoFormatS24NE SoundIoFormatS24BE
 #define SoundIoFormatU24NE SoundIoFormatU24BE
+#define SoundIoFormatS24PackedNE SoundIoFormatS24PackedBE
+#define SoundIoFormatU24PackedNE SoundIoFormatU24PackedBE
 #define SoundIoFormatS32NE SoundIoFormatS32BE
 #define SoundIoFormatU32NE SoundIoFormatU32BE
 #define SoundIoFormatFloat32NE SoundIoFormatFloat32BE
@@ -268,6 +274,8 @@ enum SoundIoFormat {
 #define SoundIoFormatU16FE SoundIoFormatU16LE
 #define SoundIoFormatS24FE SoundIoFormatS24LE
 #define SoundIoFormatU24FE SoundIoFormatU24LE
+#define SoundIoFormatS24PackedFE SoundIoFormatS24PackedLE
+#define SoundIoFormatU24PackedFE SoundIoFormatU24PackedLE
 #define SoundIoFormatS32FE SoundIoFormatS32LE
 #define SoundIoFormatU32FE SoundIoFormatU32LE
 #define SoundIoFormatFloat32FE SoundIoFormatFloat32LE
@@ -283,6 +291,8 @@ enum SoundIoFormat {
 #define SoundIoFormatU16NE SoundIoFormatU16LE
 #define SoundIoFormatS24NE SoundIoFormatS24LE
 #define SoundIoFormatU24NE SoundIoFormatU24LE
+#define SoundIoFormatS24PackedNE SoundIoFormatS24PackedLE
+#define SoundIoFormatU24PackedNE SoundIoFormatU24PackedLE
 #define SoundIoFormatS32NE SoundIoFormatS32LE
 #define SoundIoFormatU32NE SoundIoFormatU32LE
 #define SoundIoFormatFloat32NE SoundIoFormatFloat32LE
@@ -292,6 +302,8 @@ enum SoundIoFormat {
 #define SoundIoFormatU16FE SoundIoFormatU16BE
 #define SoundIoFormatS24FE SoundIoFormatS24BE
 #define SoundIoFormatU24FE SoundIoFormatU24BE
+#define SoundIoFormatS24PackedFE SoundIoFormatS24PackedBE
+#define SoundIoFormatU24PackedFE SoundIoFormatU24PackedBE
 #define SoundIoFormatS32FE SoundIoFormatS32BE
 #define SoundIoFormatU32FE SoundIoFormatU32BE
 #define SoundIoFormatFloat32FE SoundIoFormatFloat32BE
@@ -946,7 +958,6 @@ SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream
 /// * #SoundIoErrorBackendDisconnected
 /// * #SoundIoErrorSystemResources
 /// * #SoundIoErrorNoSuchClient - when JACK returns `JackNoSuchClient`
-/// * #SoundIoErrorOpeningDevice
 /// * #SoundIoErrorIncompatibleBackend - SoundIoOutStream::channel_count is
 ///   greater than the number of channels the backend can handle.
 /// * #SoundIoErrorIncompatibleDevice - stream parameters requested are not

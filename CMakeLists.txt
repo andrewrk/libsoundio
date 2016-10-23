@@ -23,7 +23,12 @@ set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
+if(NOT SOUNDIO_STATIC_LIBNAME)
+    set(SOUNDIO_STATIC_LIBNAME soundio)
+endif()
+
 option(BUILD_STATIC_LIBS "Build static libraries" ON)
+option(BUILD_DYNAMIC_LIBS "Build dynamic libraries" ON)
 option(BUILD_EXAMPLE_PROGRAMS "Build example programs" ON)
 option(BUILD_TESTS "Build tests" ON)
 option(ENABLE_JACK "Enable JACK backend" ON)
@@ -218,22 +223,23 @@ configure_file(
     ${DOXYGEN_CONF_FILE}
 )
 
-add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
-set_target_properties(libsoundio_shared PROPERTIES
-    OUTPUT_NAME soundio
-    SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
-    VERSION ${LIBSOUNDIO_VERSION}
-    COMPILE_FLAGS ${LIB_CFLAGS}
-    LINKER_LANGUAGE C
-)
-target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
-install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
+if(BUILD_DYNAMIC_LIBS)
+    add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
+    set_target_properties(libsoundio_shared PROPERTIES
+        OUTPUT_NAME soundio
+        SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
+        VERSION ${LIBSOUNDIO_VERSION}
+        COMPILE_FLAGS ${LIB_CFLAGS}
+        LINKER_LANGUAGE C
+    )
+    target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
+    install(TARGETS libsoundio_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
 
 if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_static PROPERTIES
-        OUTPUT_NAME soundio
+        OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
         COMPILE_FLAGS ${LIB_CFLAGS}
         LINKER_LANGUAGE C
     )
