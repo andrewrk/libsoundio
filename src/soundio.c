@@ -186,7 +186,7 @@ static void default_backend_disconnect_cb(struct SoundIo *soundio, enum SoundIoE
 }
 
 static struct SoundIoAtomicFlag rtprio_seen = SOUNDIO_ATOMIC_FLAG_INIT;
-static void default_emit_rtprio_warning(void) {
+static void default_emit_rtprio_warning(struct SoundIo *soundio) {
     if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(rtprio_seen)) {
         fprintf(stderr, "warning: unable to set high priority thread: Operation not permitted\n");
         fprintf(stderr, "See "

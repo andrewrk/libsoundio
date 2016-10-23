@@ -19,10 +19,11 @@ int soundio_os_init(void);
 double soundio_os_get_time(void);
 
 struct SoundIoOsThread;
+struct SoundIo;
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
-        void (*emit_rtprio_warning)(void),
-        struct SoundIoOsThread ** out_thread);
+        struct SoundIo *soundio, // pass NULL to disable real time priority
+        struct SoundIoOsThread **out_thread);
 
 void soundio_os_thread_destroy(struct SoundIoOsThread *thread);
 

@@ -219,10 +219,8 @@ static enum SoundIoError outstream_start_dummy(struct SoundIoPrivate *si, struct
     struct SoundIo *soundio = &si->pub;
     assert(!osd->thread);
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osd->abort_flag);
-    int err;
-    if ((err = soundio_os_thread_create(playback_thread_run, os,
-                    soundio->emit_rtprio_warning, &osd->thread)))
-    {
+    enum SoundIoError err;
+    if ((err = soundio_os_thread_create(playback_thread_run, os, soundio, &osd->thread))) {
         return err;
     }
     return SoundIoErrorNone;
@@ -334,10 +332,8 @@ static enum SoundIoError instream_start_dummy(struct SoundIoPrivate *si, struct 
     struct SoundIo *soundio = &si->pub;
     assert(!isd->thread);
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isd->abort_flag);
-    int err;
-    if ((err = soundio_os_thread_create(capture_thread_run, is,
-                    soundio->emit_rtprio_warning, &isd->thread)))
-    {
+    enum SoundIoError err;
+    if ((err = soundio_os_thread_create(capture_thread_run, is, soundio, &isd->thread))) {
         return err;
     }
     return 0;

@@ -1447,7 +1447,7 @@ static enum SoundIoError outstream_start_alsa(struct SoundIoPrivate *si, struct 
 
     enum SoundIoError err;
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag);
-    if ((err = soundio_os_thread_create(outstream_thread_run, os, soundio->emit_rtprio_warning, &osa->thread)))
+    if ((err = soundio_os_thread_create(outstream_thread_run, os, soundio, &osa->thread)))
         return err;
 
     return 0;
@@ -1749,7 +1749,7 @@ static enum SoundIoError instream_start_alsa(struct SoundIoPrivate *si, struct S
 
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isa->thread_exit_flag);
     enum SoundIoError err;
-    if ((err = soundio_os_thread_create(instream_thread_run, is, soundio->emit_rtprio_warning, &isa->thread))) {
+    if ((err = soundio_os_thread_create(instream_thread_run, is, soundio, &isa->thread))) {
         instream_destroy_alsa(si, is);
         return err;
     }

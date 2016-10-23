@@ -381,7 +381,7 @@ struct SoundIo {
     /// a message instructing the user how to configure their system to allow
     /// real-time priority threads. This must be set to a function not NULL.
     /// To silence the warning, assign this to a function that does nothing.
-    void (*emit_rtprio_warning)(void);
+    void (*emit_rtprio_warning)(struct SoundIo *);
 
     /// Optional: JACK info callback.
     /// By default, libsoundio sets this to an empty function in order to
@@ -389,6 +389,9 @@ struct SoundIo {
     /// setting this to `NULL` or providing your own function. This is
     /// registered with JACK regardless of whether ::soundio_connect_backend
     /// succeeds.
+    /// These functions are called globally from JACK and there is not a way
+    /// to provide access to the SoundIo instance. For more details, see
+    /// https://github.com/jackaudio/jack2/issues/235
     void (*jack_info_callback)(const char *msg);
     /// Optional: JACK error callback.
     /// See SoundIo::jack_info_callback

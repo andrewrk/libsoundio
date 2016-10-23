@@ -186,8 +186,8 @@ static void *run_pthread(void *userdata) {
 
 int soundio_os_thread_create(
         void (*run)(void *arg), void *arg,
-        void (*emit_rtprio_warning)(void),
-        struct SoundIoOsThread ** out_thread)
+        struct SoundIo *soundio,
+        struct SoundIoOsThread **out_thread)
 {
     *out_thread = NULL;
 
@@ -206,9 +206,9 @@ int soundio_os_thread_create(
         soundio_os_thread_destroy(thread);
         return SoundIoErrorSystemResources;
     }
-    if (emit_rtprio_warning) {
+    if (soundio) {
         if (!SetThreadPriority(thread->handle, THREAD_PRIORITY_TIME_CRITICAL)) {
-            emit_rtprio_warning();
+            soundio->emit_rtprio_warning(soundio);
         }
     }
 #else
@@ -219,7 +219,7 @@ int soundio_os_thread_create(
     }
     thread->attr_init = true;
     
-    if (emit_rtprio_warning) {
+    if (soundio) {
         int max_priority = sched_get_priority_max(SCHED_FIFO);
         if (max_priority == -1) {
             soundio_os_thread_destroy(thread);
@@ -241,8 +241,8 @@ int soundio_os_thread_create(
     }
 
     if ((err = pthread_create(&thread->id, &thread->attr, run_pthread, thread))) {
-        if (err == EPERM && emit_rtprio_warning) {
-            emit_rtprio_warning();
+        if (err == EPERM && soundio) {
+            soundio->emit_rtprio_warning(soundio);
             err = pthread_create(&thread->id, NULL, run_pthread, thread);
         }
         if (err) {
