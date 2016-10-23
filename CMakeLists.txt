@@ -257,28 +257,44 @@ if(BUILD_EXAMPLE_PROGRAMS)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_sine libsoundio_shared ${LIBM})
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(sio_sine libsoundio_shared ${LIBM})
+    else()
+        target_link_libraries(sio_sine libsoundio_static ${LIBSOUNDIO_LIBS} ${LIBM})
+    endif()
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_list_devices example/sio_list_devices.c)
     set_target_properties(sio_list_devices PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_list_devices libsoundio_shared)
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(sio_list_devices libsoundio_shared)
+    else()
+        target_link_libraries(sio_list_devices libsoundio_static ${LIBSOUNDIO_LIBS})
+    endif()
     install(TARGETS sio_list_devices DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_microphone example/sio_microphone.c)
     set_target_properties(sio_microphone PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_microphone libsoundio_shared)
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(sio_microphone libsoundio_shared)
+    else()
+        target_link_libraries(sio_microphone libsoundio_static ${LIBSOUNDIO_LIBS})
+    endif()
     install(TARGETS sio_microphone DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     add_executable(sio_record example/sio_record.c)
     set_target_properties(sio_record PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_record libsoundio_shared)
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(sio_record libsoundio_shared)
+    else()
+        target_link_libraries(sio_record libsoundio_static ${LIBSOUNDIO_LIBS})
+    endif()
     install(TARGETS sio_record DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
@@ -302,19 +318,31 @@ if(BUILD_TESTS)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(underflow libsoundio_shared ${LIBM})
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(underflow libsoundio_shared ${LIBM})
+    else()
+        target_link_libraries(underflow libsoundio_static ${LIBSOUNDIO_LIBS} ${LIBM})
+    endif()
 
     add_executable(backend_disconnect_recover test/backend_disconnect_recover.c)
     set_target_properties(backend_disconnect_recover PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(backend_disconnect_recover libsoundio_shared)
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(backend_disconnect_recover libsoundio_shared)
+    else()
+        target_link_libraries(backend_disconnect_recover libsoundio_static ${LIBSOUNDIO_LIBS})
+    endif()
 
     add_executable(overflow test/overflow.c)
     set_target_properties(overflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(overflow libsoundio_shared)
+    if(BUILD_DYNAMIC_LIBS)
+        target_link_libraries(overflow libsoundio_shared)
+    else()
+        target_link_libraries(overflow libsoundio_static ${LIBSOUNDIO_LIBS})
+    endif()
 
 
 
