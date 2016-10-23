@@ -77,13 +77,13 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
         double pitch = 440.0;
         double radians_per_second = pitch * 2.0 * PI;
         for (int frame = 0; frame < frame_count; frame += 1) {
-            double sample = sinf((seconds_offset + frame * seconds_per_frame) * radians_per_second);
+            double sample = sin((seconds_offset + frame * seconds_per_frame) * radians_per_second);
             for (int channel = 0; channel < layout->channel_count; channel += 1) {
                 write_sample(areas[channel].ptr, sample);
                 areas[channel].ptr += areas[channel].step;
             }
         }
-        seconds_offset += seconds_per_frame * frame_count;
+        seconds_offset = fmod(seconds_offset + seconds_per_frame * frame_count, 1.0);
 
         if ((err = soundio_outstream_end_write(outstream))) {
             if (err == SoundIoErrorUnderflow)

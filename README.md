@@ -95,7 +95,8 @@ static void write_callback(struct SoundIoOutStream *outstream,
                 *ptr = sample;
             }
         }
-        seconds_offset += seconds_per_frame * frame_count;
+        seconds_offset = fmodf(seconds_offset +
+            seconds_per_frame * frame_count, 1.0f);
 
         if ((err = soundio_outstream_end_write(outstream))) {
             fprintf(stderr, "%s\n", soundio_strerror(err));
