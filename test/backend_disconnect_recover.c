@@ -38,7 +38,7 @@ static enum SoundIoBackend backend = SoundIoBackendNone;
 
 static bool severed = false;
 
-static void on_backend_disconnect(struct SoundIo *soundio, int err) {
+static void on_backend_disconnect(struct SoundIo *soundio, enum SoundIoError err) {
     fprintf(stderr, "OK backend disconnected with '%s'.\n", soundio_strerror(err));
     severed = true;
 }

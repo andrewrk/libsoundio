@@ -20,7 +20,7 @@
 #pragma GCC diagnostic pop
 
 struct SoundIoPrivate;
-int soundio_jack_init(struct SoundIoPrivate *si);
+enum SoundIoError soundio_jack_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceJackPort {
     char *full_name;

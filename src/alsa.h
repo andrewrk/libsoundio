@@ -16,7 +16,7 @@
 #include <alsa/asoundlib.h>
 
 struct SoundIoPrivate;
-int soundio_alsa_init(struct SoundIoPrivate *si);
+enum SoundIoError soundio_alsa_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceAlsa { int make_the_struct_not_empty; };
 

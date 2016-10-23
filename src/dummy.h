@@ -14,7 +14,7 @@
 #include "atomics.h"
 
 struct SoundIoPrivate;
-int soundio_dummy_init(struct SoundIoPrivate *si);
+enum SoundIoError soundio_dummy_init(struct SoundIoPrivate *si);
 
 struct SoundIoDummy {
     struct SoundIoOsMutex *mutex;

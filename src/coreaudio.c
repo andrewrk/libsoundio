@@ -946,7 +946,7 @@ static int set_ca_desc(enum SoundIoFormat fmt, AudioStreamBasicDescription *desc
     return 0;
 }
 
-static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoDevice *device = outstream->device;
@@ -1046,7 +1046,7 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     return 0;
 }
 
-static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+static enum SoundIoError outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     OSStatus os_err;
     if (pause) {
@@ -1062,11 +1062,11 @@ static int outstream_pause_ca(struct SoundIoPrivate *si, struct SoundIoOutStream
     return 0;
 }
 
-static int outstream_start_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_start_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     return outstream_pause_ca(si, os, false);
 }
 
-static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoOutStream *outstream = &os->pub;
@@ -1091,7 +1091,7 @@ static int outstream_begin_write_ca(struct SoundIoPrivate *si, struct SoundIoOut
     return 0;
 }
 
-static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     osca->buffer_index += 1;
     osca->frames_left -= osca->write_frame_count;
@@ -1099,11 +1099,11 @@ static int outstream_end_write_ca(struct SoundIoPrivate *si, struct SoundIoOutSt
     return 0;
 }
 
-static int outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_clear_buffer_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     return SoundIoErrorIncompatibleBackend;
 }
 
-static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
@@ -1188,7 +1188,7 @@ static OSStatus read_callback_ca(void *userdata, AudioUnitRenderActionFlags *io_
     return noErr;
 }
 
-static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoDevice *device = instream->device;
@@ -1332,7 +1332,7 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     return 0;
 }
 
-static int instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+static enum SoundIoError instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     struct SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
     OSStatus os_err;
     if (pause) {
@@ -1348,11 +1348,11 @@ static int instream_pause_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPr
     return 0;
 }
 
-static int instream_start_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_start_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     return instream_pause_ca(si, is, false);
 }
 
-static int instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+static enum SoundIoError instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
@@ -1365,13 +1365,13 @@ static int instream_begin_read_ca(struct SoundIoPrivate *si, struct SoundIoInStr
     return 0;
 }
 
-static int instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_end_read_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
     isca->frames_left = 0;
     return 0;
 }
 
-static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+static enum SoundIoError instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
     struct SoundIoInStreamCoreAudio *isca = &is->backend_data.coreaudio;
@@ -1380,7 +1380,7 @@ static int instream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoInSt
 }
 
 
-int soundio_coreaudio_init(struct SoundIoPrivate *si) {
+enum SoundIoError soundio_coreaudio_init(struct SoundIoPrivate *si) {
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     int err;
 

@@ -17,7 +17,7 @@
 #include <AudioUnit/AudioUnit.h>
 
 struct SoundIoPrivate;
-int soundio_coreaudio_init(struct SoundIoPrivate *si);
+enum SoundIoError soundio_coreaudio_init(struct SoundIoPrivate *si);
 
 struct SoundIoDeviceCoreAudio {
     AudioDeviceID device_id;

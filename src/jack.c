@@ -425,7 +425,7 @@ static inline jack_nframes_t nframes_max(jack_nframes_t a, jack_nframes_t b) {
     return (a >= b) ? a : b;
 }
 
-static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoJack *sij = &si->backend_data.jack;
     struct SoundIoOutStreamJack *osj = &os->backend_data.jack;
     struct SoundIoOutStream *outstream = &os->pub;
@@ -454,7 +454,7 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
         return SoundIoErrorOpeningDevice;
     }
 
-    int err;
+    enum SoundIoError err;
     if ((err = jack_set_process_callback(osj->client, outstream_process_callback, os))) {
         outstream_destroy_jack(si, os);
         return SoundIoErrorOpeningDevice;
@@ -521,7 +521,7 @@ static int outstream_open_jack(struct SoundIoPrivate *si, struct SoundIoOutStrea
     return 0;
 }
 
-static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+static enum SoundIoError outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     struct SoundIoJack *sij = &si->backend_data.jack;
 
     if (sij->is_shutdown)
@@ -530,11 +530,11 @@ static int outstream_pause_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
     return SoundIoErrorIncompatibleBackend;
 }
 
-static int outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamJack *osj = &os->backend_data.jack;
     struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoJack *sij = &si->backend_data.jack;
-    int err;
+    enum SoundIoError err;
 
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
@@ -556,7 +556,7 @@ static int outstream_start_jack(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
-static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoOutStreamJack *osj = &os->backend_data.jack;
@@ -569,17 +569,17 @@ static int outstream_begin_write_jack(struct SoundIoPrivate *si, struct SoundIoO
     return 0;
 }
 
-static int outstream_end_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_end_write_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamJack *osj = &os->backend_data.jack;
     osj->frames_left = 0;
     return 0;
 }
 
-static int outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_clear_buffer_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     return SoundIoErrorIncompatibleBackend;
 }
 
-static int outstream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
     struct SoundIoOutStreamJack *osj = &os->backend_data.jack;
@@ -646,7 +646,7 @@ static int instream_process_callback(jack_nframes_t nframes, void *arg) {
     return 0;
 }
 
-static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
     struct SoundIoJack *sij = &si->backend_data.jack;
@@ -675,7 +675,7 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
         return SoundIoErrorOpeningDevice;
     }
 
-    int err;
+    enum SoundIoError err;
     if ((err = jack_set_process_callback(isj->client, instream_process_callback, is))) {
         instream_destroy_jack(si, is);
         return SoundIoErrorOpeningDevice;
@@ -741,7 +741,7 @@ static int instream_open_jack(struct SoundIoPrivate *si, struct SoundIoInStreamP
     return 0;
 }
 
-static int instream_pause_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+static enum SoundIoError instream_pause_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     struct SoundIoJack *sij = &si->backend_data.jack;
 
     if (sij->is_shutdown)
@@ -750,11 +750,11 @@ static int instream_pause_jack(struct SoundIoPrivate *si, struct SoundIoInStream
     return SoundIoErrorIncompatibleBackend;
 }
 
-static int instream_start_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_start_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoJack *sij = &si->backend_data.jack;
-    int err;
+    enum SoundIoError err;
 
     if (sij->is_shutdown)
         return SoundIoErrorBackendDisconnected;
@@ -776,7 +776,7 @@ static int instream_start_jack(struct SoundIoPrivate *si, struct SoundIoInStream
     return 0;
 }
 
-static int instream_begin_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+static enum SoundIoError instream_begin_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
@@ -789,13 +789,13 @@ static int instream_begin_read_jack(struct SoundIoPrivate *si, struct SoundIoInS
     return 0;
 }
 
-static int instream_end_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_end_read_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
     isj->frames_left = 0;
     return 0;
 }
 
-static int instream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+static enum SoundIoError instream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
@@ -865,7 +865,7 @@ static void destroy_jack(struct SoundIoPrivate *si) {
         soundio_os_mutex_destroy(sij->mutex);
 }
 
-int soundio_jack_init(struct SoundIoPrivate *si) {
+enum SoundIoError soundio_jack_init(struct SoundIoPrivate *si) {
     struct SoundIoJack *sij = &si->backend_data.jack;
     struct SoundIo *soundio = &si->pub;
 

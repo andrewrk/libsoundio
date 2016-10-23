@@ -14,7 +14,7 @@
 #include <pulse/pulseaudio.h>
 
 struct SoundIoPrivate;
-int soundio_pulseaudio_init(struct SoundIoPrivate *si);
+enum SoundIoError soundio_pulseaudio_init(struct SoundIoPrivate *si);
 
 struct SoundIoDevicePulseAudio { int make_the_struct_not_empty; };
 

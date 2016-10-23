@@ -143,25 +143,25 @@ struct SoundIoPrivate {
     void (*wakeup)(struct SoundIoPrivate *);
     void (*force_device_scan)(struct SoundIoPrivate *);
 
-    int (*outstream_open)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    enum SoundIoError (*outstream_open)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
     void (*outstream_destroy)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_start)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
+    enum SoundIoError (*outstream_start)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    enum SoundIoError (*outstream_begin_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *,
             struct SoundIoChannelArea **out_areas, int *out_frame_count);
-    int (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
-    int (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
-    int (*outstream_get_latency)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, double *out_latency);
+    enum SoundIoError (*outstream_end_write)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    enum SoundIoError (*outstream_clear_buffer)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *);
+    enum SoundIoError (*outstream_pause)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, bool pause);
+    enum SoundIoError (*outstream_get_latency)(struct SoundIoPrivate *, struct SoundIoOutStreamPrivate *, double *out_latency);
 
 
-    int (*instream_open)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    enum SoundIoError (*instream_open)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
     void (*instream_destroy)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_start)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_begin_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
+    enum SoundIoError (*instream_start)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    enum SoundIoError (*instream_begin_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *,
             struct SoundIoChannelArea **out_areas, int *out_frame_count);
-    int (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
-    int (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
-    int (*instream_get_latency)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, double *out_latency);
+    enum SoundIoError (*instream_end_read)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *);
+    enum SoundIoError (*instream_pause)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, bool pause);
+    enum SoundIoError (*instream_get_latency)(struct SoundIoPrivate *, struct SoundIoInStreamPrivate *, double *out_latency);
 
     union SoundIoBackendData backend_data;
 };

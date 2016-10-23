@@ -661,7 +661,7 @@ static void timing_update_callback(pa_stream *stream, int success, void *userdat
     pa_threaded_mainloop_signal(sipa->main_loop, 0);
 }
 
-static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     struct SoundIoOutStream *outstream = &os->pub;
 
@@ -737,7 +737,7 @@ static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     return 0;
 }
 
-static int outstream_start_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_start_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
@@ -763,7 +763,7 @@ static int outstream_start_pa(struct SoundIoPrivate *si, struct SoundIoOutStream
     return 0;
 }
 
-static int outstream_begin_write_pa(struct SoundIoPrivate *si,
+static enum SoundIoError outstream_begin_write_pa(struct SoundIoPrivate *si,
         struct SoundIoOutStreamPrivate *os, struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoOutStream *outstream = &os->pub;
@@ -785,7 +785,7 @@ static int outstream_begin_write_pa(struct SoundIoPrivate *si,
     return 0;
 }
 
-static int outstream_end_write_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_end_write_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     pa_stream *stream = ospa->stream;
 
@@ -796,7 +796,7 @@ static int outstream_end_write_pa(struct SoundIoPrivate *si, struct SoundIoOutSt
     return 0;
 }
 
-static int outstream_clear_buffer_pa(struct SoundIoPrivate *si,
+static enum SoundIoError outstream_clear_buffer_pa(struct SoundIoPrivate *si,
         struct SoundIoOutStreamPrivate *os)
 {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
@@ -804,7 +804,7 @@ static int outstream_clear_buffer_pa(struct SoundIoPrivate *si,
     return 0;
 }
 
-static int outstream_pause_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+static enum SoundIoError outstream_pause_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
@@ -828,7 +828,7 @@ static int outstream_pause_pa(struct SoundIoPrivate *si, struct SoundIoOutStream
     return 0;
 }
 
-static int outstream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, double *out_latency) {
+static enum SoundIoError outstream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, double *out_latency) {
     struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
 
     int err;
@@ -890,7 +890,7 @@ static void instream_destroy_pa(struct SoundIoPrivate *si, struct SoundIoInStrea
     }
 }
 
-static int instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     struct SoundIoInStream *instream = &is->pub;
 
@@ -941,7 +941,7 @@ static int instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     return 0;
 }
 
-static int instream_start_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_start_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
@@ -971,7 +971,7 @@ static int instream_start_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPr
     return 0;
 }
 
-static int instream_begin_read_pa(struct SoundIoPrivate *si,
+static enum SoundIoError instream_begin_read_pa(struct SoundIoPrivate *si,
         struct SoundIoInStreamPrivate *is, struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     struct SoundIoInStream *instream = &is->pub;
@@ -1007,7 +1007,7 @@ static int instream_begin_read_pa(struct SoundIoPrivate *si,
     return 0;
 }
 
-static int instream_end_read_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_end_read_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     pa_stream *stream = ispa->stream;
@@ -1032,7 +1032,7 @@ static int instream_end_read_pa(struct SoundIoPrivate *si, struct SoundIoInStrea
     return 0;
 }
 
-static int instream_pause_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+static enum SoundIoError instream_pause_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 
@@ -1054,7 +1054,7 @@ static int instream_pause_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPr
     return 0;
 }
 
-static int instream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, double *out_latency) {
+static enum SoundIoError instream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, double *out_latency) {
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
 
     int err;
@@ -1067,7 +1067,7 @@ static int instream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoInSt
     return 0;
 }
 
-int soundio_pulseaudio_init(struct SoundIoPrivate *si) {
+enum SoundIoError soundio_pulseaudio_init(struct SoundIoPrivate *si) {
     struct SoundIo *soundio = &si->pub;
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
 

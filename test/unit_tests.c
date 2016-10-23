@@ -26,7 +26,7 @@ static void test_os_get_time(void) {
 }
 
 static void write_callback(struct SoundIoOutStream *device, int frame_count_min, int frame_count_max) { }
-static void error_callback(struct SoundIoOutStream *device, int err) { }
+static void error_callback(struct SoundIoOutStream *device, enum SoundIoError err) { }
 
 static void test_create_outstream(void) {
     struct SoundIo *soundio = soundio_create();

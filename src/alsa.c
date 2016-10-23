@@ -1276,7 +1276,7 @@ static void instream_thread_run(void *arg) {
     }
 }
 
-static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoDevice *device = outstream->device;
@@ -1439,13 +1439,13 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
     return 0;
 }
 
-static int outstream_start_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_start_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     struct SoundIo *soundio = &si->pub;
 
     assert(!osa->thread);
 
-    int err;
+    enum SoundIoError err;
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osa->thread_exit_flag);
     if ((err = soundio_os_thread_create(outstream_thread_run, os, soundio->emit_rtprio_warning, &osa->thread)))
         return err;
@@ -1453,7 +1453,7 @@ static int outstream_start_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
-static int outstream_begin_write_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_begin_write_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     *out_areas = NULL;
@@ -1504,7 +1504,7 @@ static int outstream_begin_write_alsa(struct SoundIoPrivate *si, struct SoundIoO
     return 0;
 }
 
-static int outstream_end_write_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
+static enum SoundIoError outstream_end_write_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
     struct SoundIoOutStream *outstream = &os->pub;
 
@@ -1531,7 +1531,7 @@ static int outstream_end_write_alsa(struct SoundIoPrivate *si, struct SoundIoOut
     return 0;
 }
 
-static int outstream_clear_buffer_alsa(struct SoundIoPrivate *si,
+static enum SoundIoError outstream_clear_buffer_alsa(struct SoundIoPrivate *si,
         struct SoundIoOutStreamPrivate *os)
 {
     struct SoundIoOutStreamAlsa *osa = &os->backend_data.alsa;
@@ -1539,7 +1539,7 @@ static int outstream_clear_buffer_alsa(struct SoundIoPrivate *si,
     return 0;
 }
 
-static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
+static enum SoundIoError outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     if (!si)
         return SoundIoErrorInvalid;
 
@@ -1560,7 +1560,7 @@ static int outstream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoOutStre
     return 0;
 }
 
-static int outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
+static enum SoundIoError outstream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os,
         double *out_latency)
 {
     struct SoundIoOutStream *outstream = &os->pub;
@@ -1600,7 +1600,7 @@ static void instream_destroy_alsa(struct SoundIoPrivate *si, struct SoundIoInStr
     isa->sample_buffer = NULL;
 }
 
-static int instream_open_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_open_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
     struct SoundIoInStream *instream = &is->pub;
     struct SoundIoDevice *device = instream->device;
@@ -1741,14 +1741,14 @@ static int instream_open_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamP
     return 0;
 }
 
-static int instream_start_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_start_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
     struct SoundIo *soundio = &si->pub;
 
     assert(!isa->thread);
 
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(isa->thread_exit_flag);
-    int err;
+    enum SoundIoError err;
     if ((err = soundio_os_thread_create(instream_thread_run, is, soundio->emit_rtprio_warning, &isa->thread))) {
         instream_destroy_alsa(si, is);
         return err;
@@ -1757,7 +1757,7 @@ static int instream_start_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
     return 0;
 }
 
-static int instream_begin_read_alsa(struct SoundIoPrivate *si,
+static enum SoundIoError instream_begin_read_alsa(struct SoundIoPrivate *si,
         struct SoundIoInStreamPrivate *is, struct SoundIoChannelArea **out_areas, int *frame_count)
 {
     *out_areas = NULL;
@@ -1822,7 +1822,7 @@ static int instream_begin_read_alsa(struct SoundIoPrivate *si,
     return 0;
 }
 
-static int instream_end_read_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
+static enum SoundIoError instream_end_read_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
 
     if (isa->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
@@ -1841,7 +1841,7 @@ static int instream_end_read_alsa(struct SoundIoPrivate *si, struct SoundIoInStr
     return 0;
 }
 
-static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
+static enum SoundIoError instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is, bool pause) {
     struct SoundIoInStreamAlsa *isa = &is->backend_data.alsa;
 
     if (isa->is_paused == pause)
@@ -1855,7 +1855,7 @@ static int instream_pause_alsa(struct SoundIoPrivate *si, struct SoundIoInStream
     return 0;
 }
 
-static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
+static enum SoundIoError instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is,
         double *out_latency)
 {
     struct SoundIoInStream *instream = &is->pub;
@@ -1871,7 +1871,7 @@ static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoIn
     return 0;
 }
 
-int soundio_alsa_init(struct SoundIoPrivate *si) {
+enum SoundIoError soundio_alsa_init(struct SoundIoPrivate *si) {
     struct SoundIoAlsa *sia = &si->backend_data.alsa;
     int err;
 
