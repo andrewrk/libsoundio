@@ -148,7 +148,7 @@ set(LIBSOUNDIO_SOURCES
     "${libsoundio_SOURCE_DIR}/src/ring_buffer.c"
 )
 
-set(CONFIGURE_OUT_FILE "${CMAKE_BINARY_DIR}/config.h")
+set(CONFIGURE_OUT_FILE "${libsoundio_BINARY_DIR}/config.h")
 set(LIBSOUNDIO_HEADERS
     "${libsoundio_SOURCE_DIR}/soundio/soundio.h"
     "${libsoundio_SOURCE_DIR}/soundio/endian.h"
@@ -182,7 +182,7 @@ endif()
 
 include_directories(
     ${libsoundio_SOURCE_DIR}
-    ${CMAKE_BINARY_DIR}
+    ${libsoundio_BINARY_DIR}
     "${libsoundio_SOURCE_DIR}/test"
     "${libsoundio_SOURCE_DIR}/src"
 )
@@ -217,7 +217,7 @@ configure_file(
     "${libsoundio_SOURCE_DIR}/src/config.h.in"
     ${CONFIGURE_OUT_FILE}
 )
-set(DOXYGEN_CONF_FILE "${CMAKE_BINARY_DIR}/doxygen.conf")
+set(DOXYGEN_CONF_FILE "${libsoundio_BINARY_DIR}/doxygen.conf")
 configure_file(
     "${libsoundio_SOURCE_DIR}/doc/doxygen.conf.in"
     ${DOXYGEN_CONF_FILE}
@@ -348,7 +348,7 @@ if(BUILD_TESTS)
 
     add_custom_target(coverage
         DEPENDS unit_tests
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${libsoundio_BINARY_DIR}
         COMMAND lcov --directory . --zerocounters --rc lcov_branch_coverage=1
         COMMAND ./unit_tests
         COMMAND lcov --directory . --capture --output-file coverage.info --rc lcov_branch_coverage=1
@@ -360,7 +360,7 @@ endif()
 
 
 add_custom_target(doc
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${libsoundio_BINARY_DIR}
     COMMAND doxygen ${DOXYGEN_CONF_FILE}
 )
 
