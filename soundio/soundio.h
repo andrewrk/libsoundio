@@ -223,6 +223,7 @@ enum SoundIoBackend {
     SoundIoBackendAlsa,
     SoundIoBackendCoreAudio,
     SoundIoBackendWasapi,
+    SoundIoBackendAndroid
 };
 
 enum SoundIoDeviceAim {

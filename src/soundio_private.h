@@ -32,6 +32,10 @@
 #include "wasapi.h"
 #endif
 
+#ifdef SOUNDIO_HAVE_ANDROID
+#include "android.h"
+#endif
+
 #include "dummy.h"
 
 union SoundIoBackendData {

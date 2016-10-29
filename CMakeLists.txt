@@ -36,6 +36,7 @@ option(ENABLE_PULSEAUDIO "Enable PulseAudio backend" ON)
 option(ENABLE_ALSA "Enable ALSA backend" ON)
 option(ENABLE_COREAUDIO "Enable CoreAudio backend" ON)
 option(ENABLE_WASAPI "Enable WASAPI backend" ON)
+option(ENABLE_ANDROID "Enable Android OpenSL ES backend" ON)
 
 find_package(Threads)
 if(Threads_FOUND)
@@ -138,6 +139,21 @@ else()
     set(SOUNDIO_HAVE_WASAPI false)
 endif()
 
+if(ENABLE_ANDROID)
+    find_package(AndroidOpenSLES)
+    if(ANDROID_OPENSLES_FOUND)
+        set(STATUS_ANDROID "OK")
+        set(SOUNDIO_HAVE_ANDROID true)
+    else()
+        set(STATUS_ANDROID "not found")
+        set(SOUNDIO_HAVE_ANDROID false)
+        set(ANDROID_OPENSLES_LIBRARY "")
+    endif()
+else()
+    set(STATUS_ANDROID "disabled")
+    set(SOUNDIO_HAVE_ANDROID false)
+    set(ANDROID_OPENSLES_LIBRARY "")
+endif()
 
 set(LIBSOUNDIO_SOURCES
     "${libsoundio_SOURCE_DIR}/src/soundio.c"
@@ -179,6 +195,11 @@ if(SOUNDIO_HAVE_WASAPI)
         "${libsoundio_SOURCE_DIR}/src/wasapi.c"
     )
 endif()
+if(SOUNDIO_HAVE_ANDROID)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${libsoundio_SOURCE_DIR}/src/android.c"
+    )
+endif()
 
 include_directories(
     ${libsoundio_SOURCE_DIR}
@@ -195,6 +216,7 @@ set(LIBSOUNDIO_LIBS
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${ANDROID_OPENSLES_LIBRARY}
 )
 
 if(MSVC)
@@ -380,9 +402,10 @@ message(
     "System Dependencies\n"
     "-------------------\n"
     "* threads                      : ${STATUS_THREADS}\n"
-    "* JACK       (optional)        : ${STATUS_JACK}\n"
-    "* PulseAudio (optional)        : ${STATUS_PULSEAUDIO}\n"
-    "* ALSA       (optional)        : ${STATUS_ALSA}\n"
-    "* CoreAudio  (optional)        : ${STATUS_COREAUDIO}\n"
-    "* WASAPI     (optional)        : ${STATUS_WASAPI}\n"
+    "* JACK              (optional) : ${STATUS_JACK}\n"
+    "* PulseAudio        (optional) : ${STATUS_PULSEAUDIO}\n"
+    "* ALSA              (optional) : ${STATUS_ALSA}\n"
+    "* CoreAudio         (optional) : ${STATUS_COREAUDIO}\n"
+    "* WASAPI            (optional) : ${STATUS_WASAPI}\n"
+    "* Android OpenSL ES (optional) : ${STATUS_ANDROID}\n"
 )
