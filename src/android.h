@@ -8,6 +8,8 @@
 #ifndef SOUNDIO_ANDROID_H
 #define SOUNDIO_ANDROID_H
 
+#include <SLES/OpenSLES.h>
+
 #include "os.h"
 #include "soundio_internal.h"
 
@@ -17,6 +19,9 @@ enum SoundIoError soundio_android_init(struct SoundIoPrivate *si);
 struct SoundIoAndroid {
     struct SoundIoOsCond *cond;
     bool devices_emitted;
+
+    SLObjectItf engineObject;
+    SLEngineItf engineEngine;
 };
 
 #endif

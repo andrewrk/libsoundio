@@ -14,6 +14,8 @@ static void destroy_android(struct SoundIoPrivate *si) {
     if (sia->cond)
         soundio_os_cond_destroy(sia->cond);
 
+    if (sia->engineObject)
+        (*sia->engineObject)->Destroy(sia->engineObject);
 }
 
 static void flush_events_android(struct SoundIoPrivate *si) {
@@ -43,6 +45,21 @@ static void force_device_scan_android(struct SoundIoPrivate *si) {
 enum SoundIoError soundio_android_init(struct SoundIoPrivate *si) {
     struct SoundIo *soundio = &si->pub;
     struct SoundIoAndroid *sia = &si->backend_data.android;
+
+    if (slCreateEngine(&sia->engineObject, 0, NULL, 0, NULL, NULL) != SL_RESULT_SUCCESS)
+        return SoundIoErrorInitAudioBackend;
+
+    if ((*sia->engineObject)->Realize(sia->engineObject, SL_BOOLEAN_FALSE) != SL_RESULT_SUCCESS)
+    {
+        destroy_android(si);
+        return SoundIoErrorInitAudioBackend;
+    }
+
+    if ((*sia->engineObject)->GetInterface(sia->engineObject, SL_IID_ENGINE, &sia->engineEngine) != SL_RESULT_SUCCESS)
+    {
+        destroy_android(si);
+        return SoundIoErrorInitAudioBackend;
+    }
 
     sia->cond = soundio_os_cond_create();
     if (!sia->cond) {
