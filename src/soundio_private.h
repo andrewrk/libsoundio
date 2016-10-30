@@ -54,6 +54,9 @@ union SoundIoBackendData {
 #ifdef SOUNDIO_HAVE_WASAPI
     struct SoundIoWasapi wasapi;
 #endif
+#ifdef SOUNDIO_HAVE_ANDROID
+    struct SoundIoAndroid android;
+#endif
     struct SoundIoDummy dummy;
 };
 
