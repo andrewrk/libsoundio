@@ -9,7 +9,9 @@
 #define SOUNDIO_ANDROID_H
 
 #include <SLES/OpenSLES.h>
+#include <SLES/OpenSLES_Android.h>
 
+#include "soundio_internal.h"
 #include "os.h"
 #include "soundio_internal.h"
 
@@ -22,6 +24,19 @@ struct SoundIoAndroid {
 
     SLObjectItf engineObject;
     SLEngineItf engineEngine;
+};
+
+struct SoundIoOutStreamAndroid {
+    SLObjectItf outputMixObject;
+    SLObjectItf playerObject;
+    SLPlayItf playerPlay;
+    SLAndroidSimpleBufferQueueItf playerBufferQueue;
+
+    int curBuffer;
+    size_t write_frame_count;
+    size_t bytes_per_buffer;
+    char *buffers[2];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
 #endif
