@@ -117,6 +117,9 @@ union SoundIoInStreamBackendData {
 #ifdef SOUNDIO_HAVE_WASAPI
     struct SoundIoInStreamWasapi wasapi;
 #endif
+#ifdef SOUNDIO_HAVE_ANDROID
+    struct SoundIoInStreamAndroid android;
+#endif
     struct SoundIoInStreamDummy dummy;
 };
 

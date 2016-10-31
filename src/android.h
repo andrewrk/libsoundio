@@ -39,4 +39,15 @@ struct SoundIoOutStreamAndroid {
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
+struct SoundIoInStreamAndroid {
+    SLObjectItf audioRecorderObject;
+    SLRecordItf recorderRecord;
+    SLAndroidSimpleBufferQueueItf recorderBufferQueue;
+
+    int curBuffer;
+    size_t bytes_per_buffer;
+    char *buffers[2];
+    struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+};
+
 #endif
