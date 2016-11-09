@@ -251,7 +251,7 @@ if(BUILD_DYNAMIC_LIBS)
         OUTPUT_NAME soundio
         SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
         VERSION ${LIBSOUNDIO_VERSION}
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
         LINKER_LANGUAGE C
     )
     target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
@@ -262,7 +262,7 @@ if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_static PROPERTIES
         OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
         LINKER_LANGUAGE C
     )
     install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -325,21 +325,21 @@ if(BUILD_TESTS)
     target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
     set_target_properties(unit_tests PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${TEST_CFLAGS}
-        LINK_FLAGS ${TEST_LDFLAGS}
+        COMPILE_FLAGS "${TEST_CFLAGS}"
+        LINK_FLAGS "${TEST_LDFLAGS}"
     )
 
     add_executable(latency "${libsoundio_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
     )
 
     add_executable(underflow test/underflow.c)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+        COMPILE_FLAGS "${EXAMPLE_CFLAGS}")
     if(BUILD_DYNAMIC_LIBS)
         target_link_libraries(underflow libsoundio_shared ${LIBM})
     else()
