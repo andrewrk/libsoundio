@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(libsoundio C)
 set(CMAKE_MODULE_PATH ${libsoundio_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+include(CheckCCompilerFlag)
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
     set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "library install dir (lib)")
@@ -230,8 +231,13 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
     set(EXAMPLE_CFLAGS "-std=c99 -Wall")
-    set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
-    set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
+
+    set(PROFILING_FLAGS "-fprofile-arcs -ftest-coverage")
+    check_c_compiler_flag("${PROFILING_FLAGS}" PROFILING_FLAGS_SUPPORTED)
+    if(PROFILING_FLAGS_SUPPORTED)
+        set(TEST_CFLAGS "${LIB_CFLAGS} ${PROFILING_FLAGS}")
+        set(TEST_LDFLAGS "${PROFILING_FLAGS}")
+    endif()
     set(LIBM "m")
 endif()
 
