@@ -593,6 +593,12 @@ struct SoundIoOutStream {
     /// to an error code. Possible error codes are:
     /// * #SoundIoErrorIncompatibleDevice
     int layout_error;
+
+    /// Optional: Whether to leave the software outputs unconnected.
+    /// If this is set to `true`, JACK will not immediately connect the output
+    /// of this stream to the output ports of the sound card.
+    /// Defaults to `false`.
+    bool unconnected;
 };
 
 /// The size of this struct is not part of the API or ABI.
@@ -675,6 +681,12 @@ struct SoundIoInStream {
     /// If setting the channel layout fails for some reason, this field is set
     /// to an error code. Possible error codes are: #SoundIoErrorIncompatibleDevice
     int layout_error;
+
+    /// Optional: Whether to leave the software inputs unconnected.
+    /// If this is set to `true`, JACK will not immediately connect the input
+    /// of this stream to the input ports of the sound card.
+    /// Defaults to `false`.
+    bool unconnected;
 };
 
 /// See also ::soundio_version_major, ::soundio_version_minor, ::soundio_version_patch
