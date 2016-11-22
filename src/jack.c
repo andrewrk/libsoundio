@@ -542,15 +542,17 @@ static enum SoundIoError outstream_start_jack(struct SoundIoPrivate *si, struct 
     if ((err = jack_activate(osj->client)))
         return SoundIoErrorStreaming;
 
-    for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
-        struct SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
-        const char *dest_port_name = osjp->dest_port_name;
-        // allow unconnected ports
-        if (!dest_port_name)
-            continue;
-        const char *source_port_name = jack_port_name(osjp->source_port);
-        if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
-            return SoundIoErrorStreaming;
+    if (!outstream->unconnected) {
+        for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+            struct SoundIoOutStreamJackPort *osjp = &osj->ports[ch];
+            const char *dest_port_name = osjp->dest_port_name;
+            // allow unconnected ports
+            if (!dest_port_name)
+                continue;
+            const char *source_port_name = jack_port_name(osjp->source_port);
+            if ((err = jack_connect(osj->client, source_port_name, dest_port_name)))
+                return SoundIoErrorStreaming;
+        }
     }
 
     return 0;
@@ -762,15 +764,17 @@ static enum SoundIoError instream_start_jack(struct SoundIoPrivate *si, struct S
     if ((err = jack_activate(isj->client)))
         return SoundIoErrorStreaming;
 
-    for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-        struct SoundIoInStreamJackPort *isjp = &isj->ports[ch];
-        const char *source_port_name = isjp->source_port_name;
-        // allow unconnected ports
-        if (!source_port_name)
-            continue;
-        const char *dest_port_name = jack_port_name(isjp->dest_port);
-        if ((err = jack_connect(isj->client, source_port_name, dest_port_name)))
-            return SoundIoErrorStreaming;
+    if (!instream->unconnected) {
+        for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+            struct SoundIoInStreamJackPort *isjp = &isj->ports[ch];
+            const char *source_port_name = isjp->source_port_name;
+            // allow unconnected ports
+            if (!source_port_name)
+                continue;
+            const char *dest_port_name = jack_port_name(isjp->dest_port);
+            if ((err = jack_connect(isj->client, source_port_name, dest_port_name)))
+                return SoundIoErrorStreaming;
+        }
     }
 
     return 0;
