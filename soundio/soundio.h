@@ -613,6 +613,7 @@ struct SoundIoOutStream {
     /// If this is set to `true`, JACK will not immediately connect the output
     /// of this stream to the output ports of the sound card.
     /// Defaults to `false`.
+    /// For backends other than JACK, this does nothing.
     bool unconnected;
 };
 
@@ -701,6 +702,7 @@ struct SoundIoInStream {
     /// If this is set to `true`, JACK will not immediately connect the input
     /// of this stream to the input ports of the sound card.
     /// Defaults to `false`.
+    /// For backends other than JACK, this does nothing.
     bool unconnected;
 };
 
