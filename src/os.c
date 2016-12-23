@@ -78,6 +78,12 @@
 #include <mach/mach.h>
 #endif
 
+#ifdef __ANDROID__
+#include <fcntl.h>
+#include <linux/ashmem.h>
+#include <sys/ioctl.h>
+#endif
+
 struct SoundIoOsThread {
 #if defined(SOUNDIO_OS_WINDOWS)
     HANDLE handle;
@@ -670,11 +676,24 @@ int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t 
         break;
     }
 #else
+
+    int fd;
+#ifdef __ANDROID__
+    fd = open("/dev/ashmem", O_RDWR);
+    if (fd < 0)
+        return SoundIoErrorSystemResources;
+
+    int ret = ioctl(fd, ASHMEM_SET_SIZE, actual_capacity);
+    if (ret < 0) {
+        close(fd);
+        return SoundIoErrorSystemResources;
+    }
+#else
     char shm_path[] = "/dev/shm/soundio-XXXXXX";
     char tmp_path[] = "/tmp/soundio-XXXXXX";
     char *chosen_path;
 
-    int fd = mkstemp(shm_path);
+    fd = mkstemp(shm_path);
     if (fd < 0) {
         fd = mkstemp(tmp_path);
         if (fd < 0) {
@@ -695,6 +714,7 @@ int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t 
         close(fd);
         return SoundIoErrorSystemResources;
     }
+#endif
 
     char *address = (char*)mmap(NULL, actual_capacity * 2, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (address == MAP_FAILED) {

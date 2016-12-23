@@ -1,0 +1,16 @@
+# Copyright (c) 2016 libsoundio
+# This file is MIT licensed.
+# See http://opensource.org/licenses/MIT
+
+# ANDROID_OPENSLES_FOUND
+# ANDROID_OPENSLES_INCLUDE_DIR
+# ANDROID_OPENSLES_LIBRARY
+
+find_path(ANDROID_OPENSLES_INCLUDE_DIR NAMES SLES/OpenSLES_Android.h)
+
+find_library(ANDROID_OPENSLES_LIBRARY NAMES OpenSLES)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(ANDROID_OPENSLES DEFAULT_MSG ANDROID_OPENSLES_LIBRARY ANDROID_OPENSLES_INCLUDE_DIR)
+
+mark_as_advanced(ANDROID_OPENSLES_INCLUDE_DIR ANDROID_OPENSLES_LIBRARY)

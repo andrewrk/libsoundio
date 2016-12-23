@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(libsoundio C)
 set(CMAKE_MODULE_PATH ${libsoundio_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+include(CheckCCompilerFlag)
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
     set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "library install dir (lib)")
@@ -36,6 +37,7 @@ option(ENABLE_PULSEAUDIO "Enable PulseAudio backend" ON)
 option(ENABLE_ALSA "Enable ALSA backend" ON)
 option(ENABLE_COREAUDIO "Enable CoreAudio backend" ON)
 option(ENABLE_WASAPI "Enable WASAPI backend" ON)
+option(ENABLE_ANDROID "Enable Android OpenSL ES backend" ON)
 
 find_package(Threads)
 if(Threads_FOUND)
@@ -138,6 +140,21 @@ else()
     set(SOUNDIO_HAVE_WASAPI false)
 endif()
 
+if(ENABLE_ANDROID)
+    find_package(AndroidOpenSLES)
+    if(ANDROID_OPENSLES_FOUND)
+        set(STATUS_ANDROID "OK")
+        set(SOUNDIO_HAVE_ANDROID true)
+    else()
+        set(STATUS_ANDROID "not found")
+        set(SOUNDIO_HAVE_ANDROID false)
+        set(ANDROID_OPENSLES_LIBRARY "")
+    endif()
+else()
+    set(STATUS_ANDROID "disabled")
+    set(SOUNDIO_HAVE_ANDROID false)
+    set(ANDROID_OPENSLES_LIBRARY "")
+endif()
 
 set(LIBSOUNDIO_SOURCES
     "${libsoundio_SOURCE_DIR}/src/soundio.c"
@@ -179,6 +196,11 @@ if(SOUNDIO_HAVE_WASAPI)
         "${libsoundio_SOURCE_DIR}/src/wasapi.c"
     )
 endif()
+if(SOUNDIO_HAVE_ANDROID)
+    set(LIBSOUNDIO_SOURCES ${LIBSOUNDIO_SOURCES}
+        "${libsoundio_SOURCE_DIR}/src/android.c"
+    )
+endif()
 
 include_directories(
     ${libsoundio_SOURCE_DIR}
@@ -195,6 +217,7 @@ set(LIBSOUNDIO_LIBS
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${ANDROID_OPENSLES_LIBRARY}
 )
 
 if(MSVC)
@@ -208,8 +231,13 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
     set(EXAMPLE_CFLAGS "-std=c99 -Wall")
-    set(TEST_CFLAGS "${LIB_CFLAGS} -fprofile-arcs -ftest-coverage")
-    set(TEST_LDFLAGS "-fprofile-arcs -ftest-coverage")
+
+    set(PROFILING_FLAGS "-fprofile-arcs -ftest-coverage")
+    check_c_compiler_flag("${PROFILING_FLAGS}" PROFILING_FLAGS_SUPPORTED)
+    if(PROFILING_FLAGS_SUPPORTED)
+        set(TEST_CFLAGS "${LIB_CFLAGS} ${PROFILING_FLAGS}")
+        set(TEST_LDFLAGS "${PROFILING_FLAGS}")
+    endif()
     set(LIBM "m")
 endif()
 
@@ -229,7 +257,7 @@ if(BUILD_DYNAMIC_LIBS)
         OUTPUT_NAME soundio
         SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
         VERSION ${LIBSOUNDIO_VERSION}
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
         LINKER_LANGUAGE C
     )
     target_link_libraries(libsoundio_shared LINK_PUBLIC ${LIBSOUNDIO_LIBS})
@@ -240,7 +268,7 @@ if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_static PROPERTIES
         OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
         LINKER_LANGUAGE C
     )
     install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -303,21 +331,21 @@ if(BUILD_TESTS)
     target_link_libraries(unit_tests LINK_PUBLIC ${LIBSOUNDIO_LIBS})
     set_target_properties(unit_tests PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${TEST_CFLAGS}
-        LINK_FLAGS ${TEST_LDFLAGS}
+        COMPILE_FLAGS "${TEST_CFLAGS}"
+        LINK_FLAGS "${TEST_LDFLAGS}"
     )
 
     add_executable(latency "${libsoundio_SOURCE_DIR}/test/latency.c" ${LIBSOUNDIO_SOURCES})
     target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS}"
     )
 
     add_executable(underflow test/underflow.c)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
-        COMPILE_FLAGS ${EXAMPLE_CFLAGS})
+        COMPILE_FLAGS "${EXAMPLE_CFLAGS}")
     if(BUILD_DYNAMIC_LIBS)
         target_link_libraries(underflow libsoundio_shared ${LIBM})
     else()
@@ -380,9 +408,10 @@ message(
     "System Dependencies\n"
     "-------------------\n"
     "* threads                      : ${STATUS_THREADS}\n"
-    "* JACK       (optional)        : ${STATUS_JACK}\n"
-    "* PulseAudio (optional)        : ${STATUS_PULSEAUDIO}\n"
-    "* ALSA       (optional)        : ${STATUS_ALSA}\n"
-    "* CoreAudio  (optional)        : ${STATUS_COREAUDIO}\n"
-    "* WASAPI     (optional)        : ${STATUS_WASAPI}\n"
+    "* JACK              (optional) : ${STATUS_JACK}\n"
+    "* PulseAudio        (optional) : ${STATUS_PULSEAUDIO}\n"
+    "* ALSA              (optional) : ${STATUS_ALSA}\n"
+    "* CoreAudio         (optional) : ${STATUS_COREAUDIO}\n"
+    "* WASAPI            (optional) : ${STATUS_WASAPI}\n"
+    "* Android OpenSL ES (optional) : ${STATUS_ANDROID}\n"
 )

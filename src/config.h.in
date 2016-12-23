@@ -18,5 +18,6 @@
 #cmakedefine SOUNDIO_HAVE_ALSA
 #cmakedefine SOUNDIO_HAVE_COREAUDIO
 #cmakedefine SOUNDIO_HAVE_WASAPI
+#cmakedefine SOUNDIO_HAVE_ANDROID
 
 #endif

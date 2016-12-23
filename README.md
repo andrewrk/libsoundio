@@ -228,6 +228,24 @@ cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/mxe/usr/x86_64-w64-mingw32.static/share
 make
 ```
 
+### Building for Android
+
+Install the dependencies:
+
+ * cmake
+ * Android NDK
+
+The Android NDK provides a CMake toolchain file for cross-compilation starting in version r13. Run the following, where "ANDROID_NDK_HOME" is the root folder of the NDK:
+
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" -DANDROID_PLATFORM=android-21
+make
+```
+
+If you are compiling for an emulator, you probably also want to add the CMake variable `-DANDROID_ARCH=x86`. Further variables are documented in the toolchain file.
+
 ### Testing
 
 For each backend, do the following:
@@ -253,6 +271,12 @@ For each backend, do the following:
     it prints.
  0. Run `./latency` and make sure the printed beeps line up with the beeps that
     you hear.
+
+### Testing for Android
+
+Currently when run from the command-line, input streams always fail at
+`soundio_instream_open` due to the Android permissions model. Input devices will
+only work in full-featured Android apps.
 
 ### Building the Documentation
 
