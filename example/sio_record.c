@@ -114,7 +114,7 @@ static void overflow_callback(struct SoundIoInStream *instream) {
 }
 
 static int usage(char *exe) {
-    fprintf(stderr, "Usage: %s [options] outfile.wav\n"
+    fprintf(stderr, "Usage: %s [options] outfile\n"
             "Options:\n"
             "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
             "  [--device id]\n"
