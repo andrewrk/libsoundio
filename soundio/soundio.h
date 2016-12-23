@@ -217,13 +217,13 @@ enum SoundIoChannelLayoutId {
 
 enum SoundIoBackend {
     SoundIoBackendNone,
-    SoundIoBackendDummy,
     SoundIoBackendJack,
     SoundIoBackendPulseAudio,
     SoundIoBackendAlsa,
     SoundIoBackendCoreAudio,
     SoundIoBackendWasapi,
-    SoundIoBackendAndroid
+    SoundIoBackendAndroid,
+    SoundIoBackendDummy,
 };
 
 enum SoundIoDeviceAim {
