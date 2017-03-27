@@ -113,6 +113,7 @@ static void read_callback(struct SoundIoInStream *instream, int frame_count_min,
 
 static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     struct SoundIoChannelArea *areas;
+    int frames_left;
     int frame_count;
     int err;
 
@@ -122,7 +123,11 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
 
     if (frame_count_min > fill_count) {
         // Ring buffer does not have enough data, fill with zeroes.
+        frames_left = frame_count_min;
         for (;;) {
+            frame_count = frames_left;
+            if (frame_count <= 0)
+              return;
             if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count)))
                 panic("begin write error: %s", soundio_strerror(err));
             if (frame_count <= 0)
@@ -135,11 +140,12 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
             }
             if ((err = soundio_outstream_end_write(outstream)))
                 panic("end write error: %s", soundio_strerror(err));
+            frames_left -= frame_count;
         }
     }
 
     int read_count = min_int(frame_count_max, fill_count);
-    int frames_left = read_count;
+    frames_left = read_count;
 
     while (frames_left > 0) {
         int frame_count = frames_left;
