@@ -236,6 +236,10 @@ static snd_pcm_format_t to_alsa_fmt(enum SoundIoFormat fmt) {
     case SoundIoFormatS24BE:        return SND_PCM_FORMAT_S24_BE;
     case SoundIoFormatU24LE:        return SND_PCM_FORMAT_U24_LE;
     case SoundIoFormatU24BE:        return SND_PCM_FORMAT_U24_BE;
+    case SoundIoFormatS24PackedLE:  return SND_PCM_FORMAT_S24_3LE;
+    case SoundIoFormatS24PackedBE:  return SND_PCM_FORMAT_S24_3BE;
+    case SoundIoFormatU24PackedLE:  return SND_PCM_FORMAT_U24_3LE;
+    case SoundIoFormatU24PackedBE:  return SND_PCM_FORMAT_U24_3BE;
     case SoundIoFormatS32LE:        return SND_PCM_FORMAT_S32_LE;
     case SoundIoFormatS32BE:        return SND_PCM_FORMAT_S32_BE;
     case SoundIoFormatU32LE:        return SND_PCM_FORMAT_U32_LE;
@@ -350,6 +354,10 @@ static int probe_open_device(struct SoundIoDevice *device, snd_pcm_t *handle, in
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_S24_BE);
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_U24_LE);
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_U24_BE);
+    snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_S24_3LE);
+    snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_S24_3BE);
+    snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_U24_3LE);
+    snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_U24_3BE);
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_S32_LE);
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_S32_BE);
     snd_pcm_format_mask_set(fmt_mask, SND_PCM_FORMAT_U32_LE);
@@ -364,7 +372,7 @@ static int probe_open_device(struct SoundIoDevice *device, snd_pcm_t *handle, in
 
     if (!device->formats) {
         snd_pcm_hw_params_get_format_mask(hwparams, fmt_mask);
-        device->formats = ALLOCATE(enum SoundIoFormat, 18);
+        device->formats = ALLOCATE(enum SoundIoFormat, 22);
         if (!device->formats)
             return SoundIoErrorNoMem;
 
@@ -379,6 +387,10 @@ static int probe_open_device(struct SoundIoDevice *device, snd_pcm_t *handle, in
         test_fmt_mask(device, fmt_mask, SoundIoFormatS24BE);
         test_fmt_mask(device, fmt_mask, SoundIoFormatU24LE);
         test_fmt_mask(device, fmt_mask, SoundIoFormatU24BE);
+        test_fmt_mask(device, fmt_mask, SoundIoFormatS24PackedLE);
+        test_fmt_mask(device, fmt_mask, SoundIoFormatS24PackedBE);
+        test_fmt_mask(device, fmt_mask, SoundIoFormatU24PackedLE);
+        test_fmt_mask(device, fmt_mask, SoundIoFormatU24PackedBE);
         test_fmt_mask(device, fmt_mask, SoundIoFormatS32LE);
         test_fmt_mask(device, fmt_mask, SoundIoFormatS32BE);
         test_fmt_mask(device, fmt_mask, SoundIoFormatU32LE);

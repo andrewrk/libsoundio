@@ -101,13 +101,13 @@ static enum SoundIoFormat from_pulseaudio_format(pa_sample_spec sample_spec) {
     case PA_SAMPLE_S32BE:       return SoundIoFormatS32BE;
     case PA_SAMPLE_S24_32LE:    return SoundIoFormatS24LE;
     case PA_SAMPLE_S24_32BE:    return SoundIoFormatS24BE;
+    case PA_SAMPLE_S24LE:       return SoundIoFormatS24PackedLE;
+    case PA_SAMPLE_S24BE:       return SoundIoFormatS24PackedBE;
 
     case PA_SAMPLE_MAX:
     case PA_SAMPLE_INVALID:
     case PA_SAMPLE_ALAW:
     case PA_SAMPLE_ULAW:
-    case PA_SAMPLE_S24LE:
-    case PA_SAMPLE_S24BE:
         return SoundIoFormatInvalid;
     }
     return SoundIoFormatInvalid;
@@ -183,7 +183,7 @@ static int set_all_device_channel_layouts(struct SoundIoDevice *device) {
 }
 
 static int set_all_device_formats(struct SoundIoDevice *device) {
-    device->format_count = 9;
+    device->format_count = 11;
     device->formats = ALLOCATE(enum SoundIoFormat, device->format_count);
     if (!device->formats)
         return SoundIoErrorNoMem;
@@ -196,6 +196,8 @@ static int set_all_device_formats(struct SoundIoDevice *device) {
     device->formats[6] = SoundIoFormatS32BE;
     device->formats[7] = SoundIoFormatS24LE;
     device->formats[8] = SoundIoFormatS24BE;
+    device->formats[9] = SoundIoFormatS24PackedLE;
+    device->formats[10] = SoundIoFormatS24PackedBE;
     return 0;
 }
 
@@ -513,15 +515,17 @@ static void force_device_scan_pa(struct SoundIoPrivate *si) {
 
 static pa_sample_format_t to_pulseaudio_format(enum SoundIoFormat format) {
     switch (format) {
-    case SoundIoFormatU8:         return PA_SAMPLE_U8;
-    case SoundIoFormatS16LE:      return PA_SAMPLE_S16LE;
-    case SoundIoFormatS16BE:      return PA_SAMPLE_S16BE;
-    case SoundIoFormatS24LE:      return PA_SAMPLE_S24_32LE;
-    case SoundIoFormatS24BE:      return PA_SAMPLE_S24_32BE;
-    case SoundIoFormatS32LE:      return PA_SAMPLE_S32LE;
-    case SoundIoFormatS32BE:      return PA_SAMPLE_S32BE;
-    case SoundIoFormatFloat32LE:  return PA_SAMPLE_FLOAT32LE;
-    case SoundIoFormatFloat32BE:  return PA_SAMPLE_FLOAT32BE;
+    case SoundIoFormatU8:          return PA_SAMPLE_U8;
+    case SoundIoFormatS16LE:       return PA_SAMPLE_S16LE;
+    case SoundIoFormatS16BE:       return PA_SAMPLE_S16BE;
+    case SoundIoFormatS24LE:       return PA_SAMPLE_S24_32LE;
+    case SoundIoFormatS24BE:       return PA_SAMPLE_S24_32BE;
+    case SoundIoFormatS24PackedLE: return PA_SAMPLE_S24LE;
+    case SoundIoFormatS24PackedBE: return PA_SAMPLE_S24BE;
+    case SoundIoFormatS32LE:       return PA_SAMPLE_S32LE;
+    case SoundIoFormatS32BE:       return PA_SAMPLE_S32BE;
+    case SoundIoFormatFloat32LE:   return PA_SAMPLE_FLOAT32LE;
+    case SoundIoFormatFloat32BE:   return PA_SAMPLE_FLOAT32BE;
 
     case SoundIoFormatInvalid:
     case SoundIoFormatS8:
@@ -529,6 +533,8 @@ static pa_sample_format_t to_pulseaudio_format(enum SoundIoFormat format) {
     case SoundIoFormatU16BE:
     case SoundIoFormatU24LE:
     case SoundIoFormatU24BE:
+    case SoundIoFormatU24PackedLE:
+    case SoundIoFormatU24PackedBE:
     case SoundIoFormatU32LE:
     case SoundIoFormatU32BE:
     case SoundIoFormatFloat64LE:
