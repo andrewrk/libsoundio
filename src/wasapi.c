@@ -2084,7 +2084,9 @@ static int instream_begin_read_wasapi(struct SoundIoPrivate *si, struct SoundIoI
         {
             return SoundIoErrorStreaming;
         }
-        isw->read_buf_frames_left = frames_to_read;
+		isw->opened_buf_frames = frames_to_read;
+		isw->read_buf_frames_left = frames_to_read;
+
         if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
             isw->read_buf = NULL;
     }
@@ -2096,6 +2098,8 @@ static int instream_begin_read_wasapi(struct SoundIoPrivate *si, struct SoundIoI
         for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
             isw->areas[ch].ptr = isw->read_buf + ch * instream->bytes_per_sample;
             isw->areas[ch].step = instream->bytes_per_frame;
+
+			isw->areas[ch].ptr += instream->bytes_per_frame * (isw->opened_buf_frames - isw->read_buf_frames_left);
         }
 
         *out_areas = isw->areas;
@@ -2109,10 +2113,15 @@ static int instream_begin_read_wasapi(struct SoundIoPrivate *si, struct SoundIoI
 static int instream_end_read_wasapi(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamWasapi *isw = &is->backend_data.wasapi;
     HRESULT hr;
-    if (FAILED(hr = IAudioCaptureClient_ReleaseBuffer(isw->audio_capture_client, isw->read_frame_count))) {
-        return SoundIoErrorStreaming;
-    }
-    isw->read_buf_frames_left -= isw->read_frame_count;
+
+	isw->read_buf_frames_left -= isw->read_frame_count;
+
+	if (isw->read_buf_frames_left <= 0) {
+		if (FAILED(hr = IAudioCaptureClient_ReleaseBuffer(isw->audio_capture_client, isw->opened_buf_frames))) {
+			return SoundIoErrorStreaming;
+		}
+	}
+
     return 0;
 }
 
