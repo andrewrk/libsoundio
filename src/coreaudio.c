@@ -940,6 +940,10 @@ static int set_ca_desc(enum SoundIoFormat fmt, AudioStreamBasicDescription *desc
         desc->mFormatFlags = kAudioFormatFlagIsSignedInteger;
         desc->mBitsPerChannel = 16;
         break;
+	case SoundIoFormatS24LE:
+		desc->mFormatFlags = kAudioFormatFlagIsSignedInteger;
+		desc->mBitsPerChannel = 24;
+		break;
     default:
         return SoundIoErrorIncompatibleDevice;
     }
