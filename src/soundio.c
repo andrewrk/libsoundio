@@ -272,6 +272,7 @@ void soundio_disconnect(struct SoundIo *soundio) {
     si->outstream_clear_buffer = NULL;
     si->outstream_pause = NULL;
     si->outstream_get_latency = NULL;
+    si->outstream_set_volume = NULL;
 
     si->instream_open = NULL;
     si->instream_destroy = NULL;
@@ -558,6 +559,13 @@ int soundio_outstream_get_latency(struct SoundIoOutStream *outstream, double *ou
     struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
     struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)outstream;
     return si->outstream_get_latency(si, os, out_latency);
+}
+
+int soundio_outstream_set_volume(struct SoundIoOutStream *outstream, double volume) {
+    struct SoundIo *soundio = outstream->device->soundio;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
+    struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)outstream;
+    return si->outstream_set_volume(si, os, volume);
 }
 
 static void default_instream_error_callback(struct SoundIoInStream *is, int err) {

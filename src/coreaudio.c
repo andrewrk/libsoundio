@@ -1045,6 +1045,11 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
+	if ((os_err = AudioUnitGetParameter (osca->instance, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, &outstream->volume))) {
+		outstream_destroy_ca(si, os);
+		return SoundIoErrorOpeningDevice;
+	}
+
     osca->hardware_latency = dca->latency_frames / (double)outstream->sample_rate;
 
     return 0;
@@ -1112,6 +1117,18 @@ static int outstream_get_latency_ca(struct SoundIoPrivate *si, struct SoundIoOut
 {
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
     *out_latency = osca->hardware_latency;
+    return 0;
+}
+
+static int outstream_set_volume_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume) {
+    struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    struct SoundIoOutStream *outstream = &os->pub;
+
+    OSStatus os_err;
+    if ((os_err = AudioUnitSetParameter (osca->instance, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, volume, 0))) {
+        return SoundIoErrorIncompatibleDevice;
+    }
+    outstream->volume = volume;
     return 0;
 }
 
@@ -1456,6 +1473,7 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si) {
     si->outstream_clear_buffer = outstream_clear_buffer_ca;
     si->outstream_pause = outstream_pause_ca;
     si->outstream_get_latency = outstream_get_latency_ca;
+    si->outstream_set_volume = outstream_set_volume_ca;
 
     si->instream_open = instream_open_ca;
     si->instream_destroy = instream_destroy_ca;

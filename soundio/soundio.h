@@ -536,7 +536,8 @@ struct SoundIoOutStream {
     /// For JACK, this value is always equal to
     /// SoundIoDevice::software_latency_current of the device.
     double software_latency;
-
+    /// Core Audio and WASAPI only: current output Audio Unit volume. Float, 0.0-1.0.
+    float volume;
     /// Defaults to NULL. Put whatever you want here.
     void *userdata;
     /// In this callback, you call ::soundio_outstream_begin_write and
@@ -1056,6 +1057,9 @@ SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, b
 /// * #SoundIoErrorStreaming
 SOUNDIO_EXPORT int soundio_outstream_get_latency(struct SoundIoOutStream *outstream,
         double *out_latency);
+
+SOUNDIO_EXPORT int soundio_outstream_set_volume(struct SoundIoOutStream *outstream,
+        double volume);
 
 
 

@@ -56,6 +56,7 @@ struct SoundIoOutStreamWasapi {
     IAudioClockAdjustment *audio_clock_adjustment;
     IAudioRenderClient *audio_render_client;
     IAudioSessionControl *audio_session_control;
+    ISimpleAudioVolume *audio_volume_control;
     LPWSTR stream_name;
     bool need_resample;
     struct SoundIoOsThread *thread;
@@ -76,6 +77,7 @@ struct SoundIoOutStreamWasapi {
     int open_err;
     bool started;
     UINT32 min_padding_frames;
+    float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 

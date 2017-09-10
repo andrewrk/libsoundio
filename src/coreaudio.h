@@ -52,6 +52,7 @@ struct SoundIoOutStreamCoreAudio {
     int frames_left;
     int write_frame_count;
     double hardware_latency;
+    float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
 };
 
