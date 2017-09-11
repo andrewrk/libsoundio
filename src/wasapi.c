@@ -1181,6 +1181,8 @@ static void force_device_scan_wasapi(struct SoundIoPrivate *si) {
 static void outstream_thread_deinit(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
+    if (osw->audio_volume_control)
+        IUnknown_Release(osw->audio_volume_control);
     if (osw->audio_render_client)
         IUnknown_Release(osw->audio_render_client);
     if (osw->audio_session_control)
@@ -1374,6 +1376,17 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
 
     if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIORENDERCLIENT,
                     (void **)&osw->audio_render_client)))
+    {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_ISimpleAudioVolume,
+                    (void **)&osw->audio_volume_control)))
+    {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if (FAILED(hr = osw->audio_volume_control->GetMasterVolume(&volume)))
     {
         return SoundIoErrorOpeningDevice;
     }
@@ -1703,6 +1716,21 @@ static int outstream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundI
     }
 
     *out_latency = frames_used / (double)outstream->sample_rate;
+    return 0;
+}
+
+static int outstream_set_volume_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume)
+{
+    struct SoundIoOutStream *outstream = &os->pub;
+    struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
+
+    HRESULT hr;
+    if (FAILED(hr = osw->audio_volume_control->SetMasterVolume(&volume)))
+    {
+        return SoundIoErrorIncompatibleDevice;
+    }
+
+    outstream->volume = volume;
     return 0;
 }
 
@@ -2295,6 +2323,7 @@ int soundio_wasapi_init(struct SoundIoPrivate *si) {
     si->outstream_clear_buffer = outstream_clear_buffer_wasapi;
     si->outstream_pause = outstream_pause_wasapi;
     si->outstream_get_latency = outstream_get_latency_wasapi;
+    si->outstream_set_volume = outstream_set_volume_wasapi;
 
     si->instream_open = instream_open_wasapi;
     si->instream_destroy = instream_destroy_wasapi;
