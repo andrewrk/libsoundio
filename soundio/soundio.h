@@ -423,7 +423,9 @@ struct SoundIoDevice {
     /// provided by a software mixing service such as dmix or PulseAudio (see
     /// SoundIoDevice::is_raw). If it is a raw device,
     /// current_format is meaningless;
-    /// the device has no current format until you open it. On the other hand,
+    /// the device has no current format until you open it (with the
+    /// exclusion of Core Audio on macOS where the device will always
+    /// be set to a valid format). On the other hand,
     /// if it is a virtual device, current_format describes the
     /// destination sample format that your audio will be converted to. Or,
     /// if you're the lucky first application to open the device, you might
@@ -585,6 +587,14 @@ struct SoundIoOutStream {
     /// stream. Defaults to `false`.
     bool non_terminal_hint;
 
+    /// On macOS, even in raw mode the hardware format may not always match the
+    /// virtual format that the device accepts IO in. If the virtual and physical
+    /// formats for this stream match (usually only true for integer formats)
+    /// this flag will be true. Otherwise the output is typically 32 bit float
+    /// converted to integer by the kernel device driver (NOT Core Audio). Integer
+    /// virtual formats (required for "bit-perfect" playback) are typically only supported
+    /// by external USB DACs.
+    bool physical_format_match;
 
     /// computed automatically when you call ::soundio_outstream_open
     int bytes_per_frame;
