@@ -558,7 +558,7 @@ static int get_stream_formats_for_device (AudioDeviceID device_id, enum SoundIoD
     }
 
     int stream_format_count = 0;
-    struct StreamFormat *stream_formats = (struct StreamFormat *)ALLOCATE_NONZERO(struct StreamFormat, virtual_asrd_count);
+    struct StreamFormat *stream_formats = (struct StreamFormat *)ALLOCATE(struct StreamFormat, virtual_asrd_count);
 
     int stream_asrd_count;
     struct StreamFormat *stream_format;
@@ -594,8 +594,6 @@ static int get_stream_formats_for_device (AudioDeviceID device_id, enum SoundIoD
         physical_asrd_counts[i] = get_asrd_count_for_stream(stream_id, false);
     }
 
-    fprintf(stderr, "%i - physical\n", device_id);
-
     AudioStreamRangedDescription *physical_asrd;
     for (int i = 0; i < stream_count; i++) {
         stream_id = stream_ids[i];
@@ -621,92 +619,9 @@ static int get_stream_formats_for_device (AudioDeviceID device_id, enum SoundIoD
         }
         free(physical_asrds);
     }
-    fprintf(stderr, "\n");
 
-    fprintf(stderr, "%i - integer\n", device_id);
-    for (int i = 0; i < stream_format_count; i++) {
-        stream_format = &stream_formats[i];
-        if (stream_format->physical_integer_match) {
-            STREAM_FORMAT_MSG(stream_format->stream_id, stream_format->asrd.mFormat);
-        }
-    }
-    fprintf(stderr, "\n");
-
-
-    /*
-
-        int unique_sample_rates_count = 0;
-                    AudioValueRange *unique_sample_rates = ALLOCATE(AudioValueRange, asrd_count);
-
-        int unique_formats_count = 0;
-        enum SoundIoFormat *unique_formats = ALLOCATE(enum SoundIoFormat, asrd_count);
-
-        bool is_unique;
-        fprintf(stderr, "%s\n", dev_raw->pub.name);
-            for (int j = 0; j < asrd_count; j++)
-            {
-                AudioStreamRangedDescription asrd = asrds[j];
-                STREAM_FORMAT_MSG(asrd.mFormat);
-                is_unique = true;
-
-                for (int k = 0; k < unique_sample_rates_count; k++) {
-                    if (unique_sample_rates[k].mMinimum == asrd.mSampleRateRange.mMinimum &&
-                        unique_sample_rates[k].mMaximum == asrd.mSampleRateRange.mMaximum)
-                    {
-                        is_unique = false;
-                        break;
-                    }
-                }
-                if (is_unique)
-                {
-                    unique_sample_rates[unique_sample_rates_count++] = asrd.mSampleRateRange;
-                }
-
-                        enum SoundIoFormat asrd_format = from_ca_asbd(&asrd.mFormat);
-                        is_unique = true;
-
-                        for (int k = 0; k < unique_formats_count; k++) {
-                            if (unique_formats[k] == asrd_format)
-                            {
-                                is_unique = false;
-                                break;
-                            }
-                        }
-
-                        if (is_unique)
-                        {
-                            unique_formats[unique_formats_count++] = asrd_format;
-                        }
-                    }
-                    free(asrds);
-
-                    if (unique_sample_rates_count == 1) {
-                        rd.device_raw->sample_rate_count = 1;
-                        rd.device_raw->sample_rates = &dev_raw->prealloc_sample_rate_range;
-                        rd.device_raw->sample_rates[0].min = ceil_dbl_to_int(unique_sample_rates[0].mMinimum);
-                        rd.device_raw->sample_rates[0].max = (int)(unique_sample_rates[0].mMaximum);
-                    } else {
-                        rd.device_raw->sample_rate_count = unique_sample_rates_count;
-                        rd.device_raw->sample_rates = ALLOCATE(struct SoundIoSampleRateRange, unique_sample_rates_count);
-                        if (!rd.device_raw->sample_rates) {
-                            deinit_refresh_devices(&rd);
-                            return SoundIoErrorNoMem;
-                        }
-                        for (int i = 0; i < unique_sample_rates_count; i += 1) {
-                            AudioValueRange *avr = &unique_sample_rates[i];
-                            int min_val = ceil_dbl_to_int(avr->mMinimum);
-                            int max_val = (int)(avr->mMaximum);
-                            rd.device_raw->sample_rates[i].min = min_val;
-                            rd.device_raw->sample_rates[i].max = max_val;
-                        }
-                    }
-
-                    rd.device_raw->format_count = unique_formats_count;
-                    rd.device_raw->formats = unique_formats;
-                }
-                free(hardware_stream_ids);
-*/
-    return 0;
+    *result = stream_formats;
+    return stream_format_count;
 }
 
 static int refresh_devices(struct SoundIoPrivate *si) {
@@ -1047,11 +962,75 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             // raw
             struct StreamFormat *stream_formats;
-            UInt32 stream_count = get_stream_formats_for_device(device_id, aim, &stream_formats);
+            UInt32 stream_format_count = get_stream_formats_for_device(device_id, aim, &stream_formats);
 
-            for (int i = 0; i < stream_count; i++) {
+            int unique_sample_rates_count = 0;
+            AudioValueRange *unique_sample_rates = ALLOCATE(AudioValueRange, stream_format_count);
 
+            int unique_formats_count = 0;
+            enum SoundIoFormat *unique_formats = ALLOCATE(enum SoundIoFormat, stream_format_count);
+
+            fprintf(stderr, "%s\n", dev_raw->pub.name);
+            bool is_unique;
+
+            AudioStreamRangedDescription asrd;
+
+            for (int i = 0; i < stream_format_count; i++) {
+
+                asrd = stream_formats[i].asrd;
+                STREAM_FORMAT_MSG(stream_formats[i].stream_id, asrd.mFormat);                    is_unique = true;
+
+                for (int j = 0; j < unique_sample_rates_count; j++) {
+                    if (unique_sample_rates[j].mMinimum == asrd.mSampleRateRange.mMinimum &&
+                        unique_sample_rates[j].mMaximum == asrd.mSampleRateRange.mMaximum) {
+                        is_unique = false;
+                        break;
+                    }
+                }
+                if (is_unique) {
+                    unique_sample_rates[unique_sample_rates_count++] = asrd.mSampleRateRange;
+                }
+
+                enum SoundIoFormat asrd_format = from_ca_asbd(&asrd.mFormat);
+                is_unique = true;
+
+                for (int j = 0; j < unique_formats_count; j++) {
+                    if (unique_formats[j] == asrd_format) {
+                        is_unique = false;
+                        break;
+                    }
+                }
+
+                if (is_unique) {
+                    unique_formats[unique_formats_count++] = asrd_format;
+                }
             }
+
+            free(stream_formats);
+
+            if (unique_sample_rates_count == 1) {
+                rd.device_raw->sample_rate_count = 1;
+                rd.device_raw->sample_rates = &dev_raw->prealloc_sample_rate_range;
+                rd.device_raw->sample_rates[0].min = ceil_dbl_to_int(unique_sample_rates[0].mMinimum);
+                rd.device_raw->sample_rates[0].max = (int)(unique_sample_rates[0].mMaximum);
+            } else {
+                rd.device_raw->sample_rate_count = unique_sample_rates_count;
+                rd.device_raw->sample_rates = ALLOCATE(struct SoundIoSampleRateRange, unique_sample_rates_count);
+                if (!rd.device_raw->sample_rates) {
+                    deinit_refresh_devices(&rd);
+                    return SoundIoErrorNoMem;
+                }
+
+                for (int i = 0; i < unique_sample_rates_count; i += 1) {
+                    AudioValueRange *avr = &unique_sample_rates[i];
+                    int min_val = ceil_dbl_to_int(avr->mMinimum);
+                    int max_val = (int)(avr->mMaximum);
+                    rd.device_raw->sample_rates[i].min = min_val;
+                    rd.device_raw->sample_rates[i].max = max_val;
+                }
+            }
+            rd.device_raw->format_count = unique_formats_count;
+            rd.device_raw->formats = unique_formats;
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
             prop_address.mScope = aim_to_scope(aim);
