@@ -581,12 +581,6 @@ static int get_stream_formats_for_device (AudioDeviceID device_id, enum SoundIoD
     }
     assert(stream_format_count == virtual_asrd_count);
 
-    fprintf(stderr, "%i - virtual\n", device_id);
-    for (int i = 0; i < stream_format_count; i++) {
-        STREAM_FORMAT_MSG(stream_formats[i].stream_id, stream_formats[i].asrd.mFormat);
-    }
-    fprintf(stderr, "\n");
-
     int *physical_asrd_counts = (int *)ALLOCATE_NONZERO(int, stream_count);
 
     for (int i = 0; i < stream_count; i++) {
@@ -603,7 +597,6 @@ static int get_stream_formats_for_device (AudioDeviceID device_id, enum SoundIoD
 
         for (int j = 0; j < stream_asrd_count; j++) {
             physical_asrd = &physical_asrds[j];
-            STREAM_FORMAT_MSG(stream_id, physical_asrd->mFormat);
 
             for (int k = 0; k < stream_format_count; k++) {
             // check for integer match
@@ -970,7 +963,6 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             int unique_formats_count = 0;
             enum SoundIoFormat *unique_formats = ALLOCATE(enum SoundIoFormat, stream_format_count);
 
-            fprintf(stderr, "%s\n", dev_raw->pub.name);
             bool is_unique;
 
             AudioStreamRangedDescription asrd;
@@ -978,7 +970,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             for (int i = 0; i < stream_format_count; i++) {
 
                 asrd = stream_formats[i].asrd;
-                STREAM_FORMAT_MSG(stream_formats[i].stream_id, asrd.mFormat);                    is_unique = true;
+                is_unique = true;
 
                 for (int j = 0; j < unique_sample_rates_count; j++) {
                     if (unique_sample_rates[j].mMinimum == asrd.mSampleRateRange.mMinimum &&
@@ -1614,6 +1606,16 @@ static int outstream_open_ca_raw(struct SoundIoPrivate *si, struct SoundIoOutStr
 
     osca->hardware_latency = dca->latency_frames / (double)outstream->sample_rate;
 
+    prop_address.mSelector = kAudioDevicePropertyVolumeScalar;
+    prop_address.mScope = aim_to_scope(device->aim);
+    prop_address.mElement = kAudioObjectPropertyElementMaster;
+
+    io_size = sizeof(float);
+    if ((os_err = AudioObjectGetPropertyData(dca->device_id, &prop_address, 0, NULL, &io_size, &outstream->volume)))
+    {
+        return SoundIoErrorIncompatibleDevice;
+    }
+
     return 0;
 }
 
@@ -1821,9 +1823,29 @@ static int outstream_set_volume_ca(struct SoundIoPrivate *si, struct SoundIoOutS
     struct SoundIoOutStream *outstream = &os->pub;
 
     OSStatus os_err;
-    if ((os_err = AudioUnitSetParameter (osca->instance, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, volume, 0))) {
-        return SoundIoErrorIncompatibleDevice;
+
+    if (osca->instance) {
+        if ((os_err = AudioUnitSetParameter(osca->instance, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, volume, 0))) {
+            return SoundIoErrorIncompatibleDevice;
+        }
     }
+
+    else if (osca->io_proc_id) {
+
+        struct SoundIoDevice *device = outstream->device;
+        struct SoundIoDevicePrivate *dev = (struct SoundIoDevicePrivate *)device;
+        struct SoundIoDeviceCoreAudio *dca = &dev->backend_data.coreaudio;
+
+        AudioObjectPropertyAddress prop_address;
+        prop_address.mSelector = kAudioDevicePropertyVolumeScalar;
+        prop_address.mScope = aim_to_scope(device->aim);
+        prop_address.mElement = kAudioObjectPropertyElementMaster;
+
+        if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address, 0, NULL, sizeof(float), &volume))) {
+            return SoundIoErrorIncompatibleDevice;
+        }
+    }
+
     outstream->volume = volume;
     return 0;
 }
