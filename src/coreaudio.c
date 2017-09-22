@@ -1197,12 +1197,16 @@ static void device_thread_run(void *arg) {
     }
 }
 
+static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os);
+
 static OSStatus on_physical_format_changed(AudioObjectID in_object_id, UInt32 in_number_addresses,
     const AudioObjectPropertyAddress in_addresses[], void *in_client_data)
 {
     struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)in_client_data;
-    //struct SoundIoOutStream *outstream = &os->pub;
     struct SoundIoOutStreamCoreAudio *osca = &os->backend_data.coreaudio;
+    struct SoundIoOutStream *outstream = &os->pub;
+    struct SoundIoDevice *device = outstream->device;
+    struct SoundIoPrivate *si = (struct SoundIoPrivate *)device->soundio;
 
 
     for (int i = 0; i < in_number_addresses; i++)
@@ -1218,9 +1222,10 @@ static OSStatus on_physical_format_changed(AudioObjectID in_object_id, UInt32 in
                 return os_err;
             }
 
-            if (SOUNDIO_ATOMIC_LOAD(osca->output_format_match) == false)
-            {
-                SOUNDIO_ATOMIC_STORE(osca->output_format_match, asbd_equal(&new_hardware_format, &osca->hardware_format));
+            SOUNDIO_ATOMIC_STORE(osca->output_format_match, asbd_equal(&new_hardware_format, &osca->hardware_format));
+            if (SOUNDIO_ATOMIC_LOAD(osca->output_format_match) == false) {
+                outstream_destroy_ca(si, os);
+                return SoundIoErrorOpeningDevice;
             }
         }
     }
