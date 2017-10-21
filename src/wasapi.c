@@ -1386,7 +1386,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
-    if (FAILED(hr = osw->audio_volume_control->GetMasterVolume(&volume)))
+    if (FAILED(hr = osw->audio_volume_control->lpVtbl->GetMasterVolume(osw->audio_volume_control, &outstream->volume)))
     {
         return SoundIoErrorOpeningDevice;
     }
@@ -1725,7 +1725,7 @@ static int outstream_set_volume_wasapi(struct SoundIoPrivate *si, struct SoundIo
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
     HRESULT hr;
-    if (FAILED(hr = osw->audio_volume_control->SetMasterVolume(&volume)))
+    if (FAILED(hr = osw->audio_volume_control->lpVtbl->SetMasterVolume(osw->audio_volume_control, volume, NULL)))
     {
         return SoundIoErrorIncompatibleDevice;
     }
