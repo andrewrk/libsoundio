@@ -43,6 +43,7 @@
 #define IID_IAUDIORENDERCLIENT                (IID_IAudioRenderClient)
 #define IID_IMMDEVICEENUMERATOR               (IID_IMMDeviceEnumerator)
 #define IID_IAUDIOCAPTURECLIENT               (IID_IAudioCaptureClient)
+#define IID_ISIMPLEAUDIOVOLUME                (IID_ISimpleAudioVolume)
 #define CLSID_MMDEVICEENUMERATOR              (CLSID_MMDeviceEnumerator)
 #define PKEY_DEVICE_FRIENDLYNAME              (PKEY_Device_FriendlyName)
 #define PKEY_AUDIOENGINE_DEVICEFORMAT         (PKEY_AudioEngine_DeviceFormat)
@@ -85,6 +86,10 @@ static const IID IID_IAudioCaptureClient = {
     //MIDL_INTERFACE("C8ADBD64-E71E-48a0-A4DE-185C395CD317")
     0xc8adbd64, 0xe71e, 0x48a0, {0xa4, 0xde, 0x18, 0x5c, 0x39, 0x5c, 0xd3, 0x17}
 };
+static const IID IID_ISimpleAudioVolume = {
+    //MIDL_INTERFACE("87ce5498-68d6-44e5-9215-6da47ef883d8")
+    0x87ce5498, 0x68d6, 0x44e5,{ 0x92, 0x15, 0x6d, 0xa4, 0x7e, 0xf8, 0x83, 0xd8 }
+};
 
 #else
 #define IS_EQUAL_GUID(a, b) IsEqualGUID((a), (b))
@@ -100,6 +105,7 @@ static const IID IID_IAudioCaptureClient = {
 #define IID_IAUDIORENDERCLIENT (&IID_IAudioRenderClient)
 #define IID_IMMDEVICEENUMERATOR (&IID_IMMDeviceEnumerator)
 #define IID_IAUDIOCAPTURECLIENT (&IID_IAudioCaptureClient)
+#define IID_ISIMPLEAUDIOVOLUME (&IID_ISimpleAudioVolume)
 #endif
 
 // Attempting to use the Windows-supplied versions of these constants resulted
