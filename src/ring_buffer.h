@@ -13,8 +13,8 @@
 
 struct SoundIoRingBuffer {
     struct SoundIoOsMirroredMemory mem;
-    struct SoundIoAtomicLong write_offset;
-    struct SoundIoAtomicLong read_offset;
+    struct SoundIoAtomicULong write_offset;
+    struct SoundIoAtomicULong read_offset;
     int capacity;
 };
 
