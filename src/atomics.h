@@ -31,6 +31,10 @@ struct SoundIoAtomicFlag {
     std::atomic_flag x;
 };
 
+struct SoundIoAtomicULong {
+    std::atomic<unsigned long> x;
+};
+
 #define SOUNDIO_ATOMIC_LOAD(a) (a.x.load())
 #define SOUNDIO_ATOMIC_FETCH_ADD(a, delta) (a.x.fetch_add(delta))
 #define SOUNDIO_ATOMIC_STORE(a, value) (a.x.store(value))
@@ -57,6 +61,10 @@ struct SoundIoAtomicBool {
 
 struct SoundIoAtomicFlag {
     atomic_flag x;
+};
+
+struct SoundIoAtomicULong {
+    atomic_ulong x;
 };
 
 #define SOUNDIO_ATOMIC_LOAD(a) atomic_load(&a.x)
