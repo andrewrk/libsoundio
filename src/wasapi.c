@@ -37,6 +37,8 @@
 
 // And some constants are passed by reference
 #define IID_IAUDIOCLIENT                      (IID_IAudioClient)
+#define IID_IAUDIOCLIENT2                     (IID_IAudioClient2)
+#define IID_IAUDIOCLIENT3                     (IID_IAudioClient3)
 #define IID_IMMENDPOINT                       (IID_IMMEndpoint)
 #define IID_IAUDIOCLOCKADJUSTMENT             (IID_IAudioClockAdjustment)
 #define IID_IAUDIOSESSIONCONTROL              (IID_IAudioSessionControl)
@@ -61,6 +63,14 @@ static const IID   IID_IMMNotificationClient = {
 static const IID   IID_IAudioClient = {
     //MIDL_INTERFACE("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2")
     0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}
+};
+static const IID   IID_IAudioClient2 = {
+    //MIDL_INTERFACE("726778CD-F60A-4eda-82DE-E47610CD78AA")
+    0x726778cd, 0xf60a, 0x4eda, {0x82, 0xde, 0xe4, 0x76, 0x10, 0xcd, 0x78, 0xaa}
+};
+static const IID   IID_IAudioClient3 = {
+    //MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+    0x7ed4ee07, 0x8e67, 0x4cd4, {0x8c, 0x1a, 0x2b, 0x7a, 0x59, 0x87, 0xad, 0x42}
 };
 static const IID   IID_IAudioRenderClient    = {
     //MIDL_INTERFACE("F294ACFC-3146-4483-A7BF-ADDCA7C260E2")
@@ -96,6 +106,8 @@ static const IID IID_ISimpleAudioVolume = {
 #define IS_EQUAL_IID(a, b) IsEqualIID((a), (b))
 
 #define IID_IAUDIOCLIENT (&IID_IAudioClient)
+#define IID_IAUDIOCLIENT2 (&IID_IAudioClient2)
+#define IID_IAUDIOCLIENT3 (&IID_IAudioClient3)
 #define IID_IMMENDPOINT (&IID_IMMEndpoint)
 #define PKEY_DEVICE_FRIENDLYNAME (&PKEY_Device_FriendlyName)
 #define PKEY_AUDIOENGINE_DEVICEFORMAT (&PKEY_AudioEngine_DeviceFormat)
