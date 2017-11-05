@@ -195,6 +195,27 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (raw && !device_id) {
+        struct SoundIoDevice *device_shared = soundio_get_output_device(soundio, selected_device_index);
+        selected_device_index = -1;
+        int device_count = soundio_output_device_count(soundio);
+        for (int i = 0; i < device_count; i += 1) {
+            struct SoundIoDevice *device = soundio_get_output_device(soundio, i);
+            bool select_this_one = strcmp(device->id, device_shared->id) == 0 && device->is_raw == raw;
+            soundio_device_unref(device);
+            if (select_this_one) {
+                selected_device_index = i;
+                break;
+            }
+        }
+        soundio_device_unref(device_shared);
+
+        if (selected_device_index < 0) {
+            fprintf(stderr, "Raw output device not found\n");
+            return 1;
+        }
+    }
+
     struct SoundIoDevice *device = soundio_get_output_device(soundio, selected_device_index);
     if (!device) {
         fprintf(stderr, "out of memory\n");
