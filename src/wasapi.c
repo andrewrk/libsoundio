@@ -1623,6 +1623,9 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
 static int outstream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, bool pause) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
+    if (SOUNDIO_ATOMIC_LOAD(osw->desired_pause_state) == pause)
+        return 0;
+
     SOUNDIO_ATOMIC_STORE(osw->desired_pause_state, pause);
     SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
     if (osw->h_event) {
