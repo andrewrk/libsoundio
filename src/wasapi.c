@@ -912,10 +912,11 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             continue;
         }
         dev_w_shared->period_duration = from_reference_time(default_device_period);
-        rd.device_shared->software_latency_current = dev_w_shared->period_duration;
+        rd.device_shared->software_latency_min = dev_w_shared->period_duration * 2;
 
         dev_w_raw->period_duration = from_reference_time(min_device_period);
-        rd.device_raw->software_latency_min = dev_w_raw->period_duration * 2;
+        rd.device_raw->software_latency_current = dev_w_raw->period_duration * 2;
+        rd.device_raw->software_latency_min = dev_w_raw->period_duration;
 
         if (rd.prop_store) {
             IPropertyStore_Release(rd.prop_store);
