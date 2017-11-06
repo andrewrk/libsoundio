@@ -1261,6 +1261,11 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
+    if (outstream->software_latency == 0.0)
+        outstream->software_latency = 1.0;
+
+    outstream->software_latency = soundio_double_clamp(device->software_latency_min,
+        outstream->software_latency, device->software_latency_max);
 
     AUDCLNT_SHAREMODE share_mode;
     DWORD flags;
@@ -1273,7 +1278,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         wave_format.Format.nSamplesPerSec = outstream->sample_rate;
         flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
-        periodicity = to_reference_time(dw->period_duration);
+        periodicity = to_reference_time(outstream->software_latency);
         buffer_duration = periodicity;
     } else {
         WAVEFORMATEXTENSIBLE *mix_format;
@@ -1287,7 +1292,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
         share_mode = AUDCLNT_SHAREMODE_SHARED;
         periodicity = 0;
-        buffer_duration = to_reference_time(4.0);
+        buffer_duration = to_reference_time(outstream->software_latency);
     }
     to_wave_format_layout(&outstream->layout, &wave_format);
     to_wave_format_format(outstream->format, &wave_format);
