@@ -1386,7 +1386,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
-    if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_ISimpleAudioVolume,
+    if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_ISIMPLEAUDIOVOLUME,
                     (void **)&osw->audio_volume_control)))
     {
         return SoundIoErrorOpeningDevice;
