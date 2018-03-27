@@ -12,7 +12,11 @@
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 struct RecordContext {
     struct SoundIoRingBuffer *ring_buffer;
