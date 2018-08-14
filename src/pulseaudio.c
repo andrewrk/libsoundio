@@ -704,7 +704,7 @@ static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     }
 
     pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_START_CORKED | PA_STREAM_AUTO_TIMING_UPDATE |
-            PA_STREAM_INTERPOLATE_TIMING);
+            PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_ADJUST_LATENCY);
 
     int err = pa_stream_connect_playback(ospa->stream,
             outstream->device->id, &ospa->buffer_attr,
@@ -941,7 +941,7 @@ static int instream_start_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPr
     struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING);
+    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_ADJUST_LATENCY);
 
     int err = pa_stream_connect_record(ispa->stream,
             instream->device->id,
