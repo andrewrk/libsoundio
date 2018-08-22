@@ -239,7 +239,7 @@ enum SoundIoFormat {
     SoundIoFormatS16LE,     ///< Signed 16 bit Little Endian
     SoundIoFormatS16BE,     ///< Signed 16 bit Big Endian
     SoundIoFormatU16LE,     ///< Unsigned 16 bit Little Endian
-    SoundIoFormatU16BE,     ///< Unsigned 16 bit Little Endian
+    SoundIoFormatU16BE,     ///< Unsigned 16 bit Big Endian
     SoundIoFormatS24LE,     ///< Signed 24 bit Little Endian using low three bytes in 32-bit word
     SoundIoFormatS24BE,     ///< Signed 24 bit Big Endian using low three bytes in 32-bit word
     SoundIoFormatU24LE,     ///< Unsigned 24 bit Little Endian using low three bytes in 32-bit word
