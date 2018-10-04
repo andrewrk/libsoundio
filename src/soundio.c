@@ -733,8 +733,8 @@ const struct SoundIoChannelLayout *soundio_best_matching_channel_layout(
 }
 
 static int compare_layouts(const void *a, const void *b) {
-    const struct SoundIoChannelLayout *layout_a = *((struct SoundIoChannelLayout **)a);
-    const struct SoundIoChannelLayout *layout_b = *((struct SoundIoChannelLayout **)b);
+    const struct SoundIoChannelLayout *layout_a = (const struct SoundIoChannelLayout *)a;
+    const struct SoundIoChannelLayout *layout_b = (const struct SoundIoChannelLayout *)b;
     if (layout_a->channel_count > layout_b->channel_count)
         return -1;
     else if (layout_a->channel_count < layout_b->channel_count)
