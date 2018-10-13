@@ -179,7 +179,7 @@ static int from_cf_string(CFStringRef string_ref, char **out_str, int *out_str_l
     assert(string_ref);
 
     CFIndex length = CFStringGetLength(string_ref);
-    CFIndex max_size = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8);
+    CFIndex max_size = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
     char *buf = ALLOCATE_NONZERO(char, max_size);
     if (!buf)
         return SoundIoErrorNoMem;
