@@ -1268,11 +1268,11 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
             return SoundIoErrorOpeningDevice;
         }
-        wave_format.Format.nSamplesPerSec = mix_format->Format.nSamplesPerSec;
+        wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
+        osw->need_resample = (mix_format->Format.nSamplesPerSec != wave_format.Format.nSamplesPerSec);
         CoTaskMemFree(mix_format);
         mix_format = NULL;
-        osw->need_resample = (wave_format.Format.nSamplesPerSec != (DWORD)outstream->sample_rate);
-        flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_RATEADJUST : 0;
+        flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
         share_mode = AUDCLNT_SHAREMODE_SHARED;
         periodicity = 0;
         buffer_duration = to_reference_time(4.0);
@@ -1300,11 +1300,11 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
                 if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
                     return SoundIoErrorOpeningDevice;
                 }
-                wave_format.Format.nSamplesPerSec = mix_format->Format.nSamplesPerSec;
+                wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
+                osw->need_resample = (mix_format->Format.nSamplesPerSec != wave_format.Format.nSamplesPerSec);
                 CoTaskMemFree(mix_format);
                 mix_format = NULL;
-                osw->need_resample = (wave_format.Format.nSamplesPerSec != (DWORD)outstream->sample_rate);
-                flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_RATEADJUST : 0;
+                flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
                 to_wave_format_layout(&outstream->layout, &wave_format);
                 to_wave_format_format(outstream->format, &wave_format);
                 complete_wave_format_data(&wave_format);
@@ -1347,17 +1347,6 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
 
     if (osw->is_raw) {
         if (FAILED(hr = IAudioClient_SetEventHandle(osw->audio_client, osw->h_event))) {
-            return SoundIoErrorOpeningDevice;
-        }
-    } else if (osw->need_resample) {
-        if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIOCLOCKADJUSTMENT,
-                        (void**)&osw->audio_clock_adjustment)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
-        if (FAILED(hr = IAudioClockAdjustment_SetSampleRate(osw->audio_clock_adjustment,
-                        outstream->sample_rate)))
-        {
             return SoundIoErrorOpeningDevice;
         }
     }
