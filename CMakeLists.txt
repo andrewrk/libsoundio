@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 2.8.5)
-project(libsoundio C)
+cmake_policy(SET CMP0048 NEW)
+set(PROJECT_VERSION_MAJOR 1)
+set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_PATCH 0)
+set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+project(libsoundio VERSION "${PROJECT_VERSION}" LANGUAGES C)
 set(CMAKE_MODULE_PATH ${libsoundio_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)
@@ -17,11 +22,7 @@ if(NOT CMAKE_BUILD_TYPE)
       "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
 
-set(LIBSOUNDIO_VERSION_MAJOR 1)
-set(LIBSOUNDIO_VERSION_MINOR 1)
-set(LIBSOUNDIO_VERSION_PATCH 0)
-set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
-message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
+message("Configuring libsoundio version ${PROJECT_VERSION}")
 
 if(NOT SOUNDIO_STATIC_LIBNAME)
     set(SOUNDIO_STATIC_LIBNAME soundio)
@@ -227,8 +228,8 @@ if(BUILD_DYNAMIC_LIBS)
     add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_shared PROPERTIES
         OUTPUT_NAME soundio
-        SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
-        VERSION ${LIBSOUNDIO_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR}
+        VERSION ${PROJECT_VERSION}
         COMPILE_FLAGS ${LIB_CFLAGS}
         LINKER_LANGUAGE C
     )
