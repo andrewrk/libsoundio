@@ -24,6 +24,14 @@
 #include <audiosessiontypes.h>
 #include <audiopolicy.h>
 
+#ifndef AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+#define AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM 0x80000000
+#endif
+
+#ifndef AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY
+#define AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY 0x08000000
+#endif
+
 struct SoundIoPrivate;
 int soundio_wasapi_init(struct SoundIoPrivate *si);
 
