@@ -7,12 +7,20 @@
 
 #include <soundio/soundio.h>
 
+#ifdef _WIN32
+#include <windows.h>
+inline unsigned int sleep(unsigned int seconds) {
+    Sleep(seconds * 1000);
+    return 0;
+}
+#else
+#include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <errno.h>
-#include <unistd.h>
 
 struct RecordContext {
     struct SoundIoRingBuffer *ring_buffer;

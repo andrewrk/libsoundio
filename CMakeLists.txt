@@ -198,12 +198,29 @@ set(LIBSOUNDIO_LIBS
 )
 
 if(MSVC)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Wall")
-    set(LIB_CFLAGS "/TP /W4")
-    set(EXAMPLE_CFLAGS "/W4")
+    # Remove any current warning levels (set by default to /W3 with CMake)
+    # Without this removal we'll get a warning from cl.exe about /W4 overriding
+    # /W3
+    if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
+        string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    endif()
+
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /W4")                         # Default to /W4
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4100")                     # Disable "unreferenced formal parameter" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4456")                     # Disable "declaration of 'identifier' hides previous local declaration" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4244")                     # Disable "conversion from 'type1' to 'type2', possible loss of data" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4267")                     # Disable "conversion from 'size_t' to 'type', possible loss of data" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4706")                     # Disable "assignment within conditional expression" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /wd4702")                     # Disable "unreachable code" warning
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /D_CRT_NONSTDC_NO_DEPRECATE") # Allow C standard functions which do not start with an underscore
+    set(MSVC_WARNING_FLAGS "${MSVC_WARNING_FLAGS} /D_CRT_SECURE_NO_WARNINGS")   # Allow calling "non-secure" warnings
+
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${MSVC_WARNING_FLAGS} /WX")
+    set(LIB_CFLAGS "/TP ${MSVC_WARNING_FLAGS}")
+    set(EXAMPLE_CFLAGS "${MSVC_WARNING_FLAGS}")
     set(TEST_CFLAGS "${LIB_CFLAGS}")
-    set(TEST_LDFLAGS " ")
-    set(LIBM " ")
+    set(TEST_LDFLAGS "")
+    set(LIBM "")
 else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")

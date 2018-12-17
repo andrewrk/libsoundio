@@ -7,12 +7,20 @@
 
 #include <soundio/soundio.h>
 
+#ifdef _WIN32
+#include <windows.h>
+inline unsigned int sleep(unsigned int seconds) {
+    Sleep(seconds * 1000);
+    return 0;
+}
+#else
+#include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <unistd.h>
 
 static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatFloat32NE,
@@ -36,9 +44,13 @@ static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatInvalid,
 };
 
-__attribute__ ((cold))
-__attribute__ ((noreturn))
-__attribute__ ((format (printf, 1, 2)))
+#ifdef _MSC_VER
+__declspec(noreturn)
+#else
+__attribute__((cold))
+__attribute__((noreturn))
+__attribute__((format(printf, 1, 2)))
+#endif
 static void panic(const char *format, ...) {
     va_list ap;
     va_start(ap, format);
