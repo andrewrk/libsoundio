@@ -1279,6 +1279,9 @@ static int outstream_open_alsa(struct SoundIoPrivate *si, struct SoundIoOutStrea
         outstream->software_latency = 1.0;
     outstream->software_latency = soundio_double_clamp(device->software_latency_min, outstream->software_latency, device->software_latency_max);
 
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
     int ch_count = outstream->layout.channel_count;
 
     osa->chmap_size = sizeof(int) + sizeof(int) * ch_count;
