@@ -1604,6 +1604,9 @@ static int instream_open_alsa(struct SoundIoPrivate *si, struct SoundIoInStreamP
         instream->software_latency = 1.0;
     instream->software_latency = soundio_double_clamp(device->software_latency_min, instream->software_latency, device->software_latency_max);
 
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
+
     int ch_count = instream->layout.channel_count;
 
     isa->chmap_size = sizeof(int) + sizeof(int) * ch_count;

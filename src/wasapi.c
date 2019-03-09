@@ -1887,22 +1887,23 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
         }
     }
 
-    if (instream->name) {
-        if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOSESSIONCONTROL,
-                        (void **)&isw->audio_session_control)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
-        int err;
-        if ((err = to_lpwstr(instream->name, strlen(instream->name), &isw->stream_name))) {
-            return err;
-        }
-        if (FAILED(hr = IAudioSessionControl_SetDisplayName(isw->audio_session_control,
-                        isw->stream_name, NULL)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOSESSIONCONTROL,
+                    (void **)&isw->audio_session_control)))
+    {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    int err;
+    if ((err = to_lpwstr(instream->name, strlen(instream->name), &isw->stream_name))) {
+        return err;
+    }
+    if (FAILED(hr = IAudioSessionControl_SetDisplayName(isw->audio_session_control,
+                    isw->stream_name, NULL)))
+    {
+        return SoundIoErrorOpeningDevice;
     }
 
     if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOCAPTURECLIENT,

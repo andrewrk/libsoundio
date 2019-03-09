@@ -301,6 +301,9 @@ static int instream_open_dummy(struct SoundIoPrivate *si, struct SoundIoInStream
                 device->software_latency_min, 1.0, device->software_latency_max);
     }
 
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
+
     isd->period_duration = instream->software_latency;
 
     double target_buffer_duration = isd->period_duration * 4.0;
