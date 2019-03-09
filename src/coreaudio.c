@@ -960,13 +960,13 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     if (outstream->software_latency == 0.0)
         outstream->software_latency = device->software_latency_current;
 
-    if (!outstream->name)
-        outstream->name = "SoundIoOutStream";
-
     outstream->software_latency = soundio_double_clamp(
             device->software_latency_min,
             outstream->software_latency,
             device->software_latency_max);
+
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
 
     AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
