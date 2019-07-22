@@ -5,6 +5,10 @@
  * See http://opensource.org/licenses/MIT
  */
 
+#ifdef _MSC_VER
+#define __attribute__(x)
+#endif
+
 #ifndef SOUNDIO_SOUNDIO_H
 #define SOUNDIO_SOUNDIO_H
 
