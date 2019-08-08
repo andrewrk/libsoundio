@@ -240,7 +240,7 @@ if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_static PROPERTIES
         OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
-        COMPILE_FLAGS ${LIB_CFLAGS}
+        COMPILE_FLAGS "${LIB_CFLAGS} -DSOUNDIO_STATIC_LIBRARY"
         LINKER_LANGUAGE C
     )
     install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
