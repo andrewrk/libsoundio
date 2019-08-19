@@ -271,6 +271,12 @@ static int outstream_get_latency_dummy(struct SoundIoPrivate *si, struct SoundIo
     return 0;
 }
 
+static int outstream_set_volume_dummy(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume) {
+    struct SoundIoOutStream *outstream = &os->pub;
+    outstream->volume = volume;
+    return 0;
+}
+
 static void instream_destroy_dummy(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamDummy *isd = &is->backend_data.dummy;
 
@@ -557,6 +563,7 @@ int soundio_dummy_init(struct SoundIoPrivate *si) {
     si->outstream_clear_buffer = outstream_clear_buffer_dummy;
     si->outstream_pause = outstream_pause_dummy;
     si->outstream_get_latency = outstream_get_latency_dummy;
+    si->outstream_set_volume = outstream_set_volume_dummy;
 
     si->instream_open = instream_open_dummy;
     si->instream_destroy = instream_destroy_dummy;
