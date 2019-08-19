@@ -836,7 +836,34 @@ static int outstream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoOut
 }
 
 static int outstream_set_volume_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
     struct SoundIoOutStream *outstream = &os->pub;
+
+    pa_cvolume v;
+#ifdef PA_CHECK_VERSION
+    pa_cvolume_init(&v);
+#endif
+
+    int channels, ch;
+    double vol;
+    pa_operation *op;
+
+    channels = (unsigned)outstream->layout.channel_count;
+    v.channels = channels;
+    vol = PA_VOLUME_NORM * (volume > 1.0f ? 1.0f : volume);
+    for (ch = 0; ch < channels; ch++) {
+        v.values[ch] = vol;
+    }
+
+    op = pa_context_set_sink_input_volume(sipa->pulse_context,
+        pa_stream_get_index(ospa->stream),
+        &v, NULL, NULL);
+    if (!op) {
+        return SoundIoErrorStreaming;
+    } else {
+        pa_operation_unref(op);
+    }
     outstream->volume = volume;
     return 0;
 }
