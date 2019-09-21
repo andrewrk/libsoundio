@@ -12,11 +12,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef _WIN32
+#include <windows.h>
+#define sleep(n) Sleep(n * 1000)
+#else
 #include <unistd.h>
+#endif
 
+#ifdef _MSC_VER
+__declspec (noreturn)
+#else
 __attribute__ ((cold))
 __attribute__ ((noreturn))
 __attribute__ ((format (printf, 1, 2)))
+#endif
 static void panic(const char *format, ...) {
     va_list ap;
     va_start(ap, format);
