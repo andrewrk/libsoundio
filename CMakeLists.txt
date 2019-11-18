@@ -203,7 +203,7 @@ if(MSVC)
     set(EXAMPLE_CFLAGS "/W4")
     set(TEST_CFLAGS "${LIB_CFLAGS}")
     set(TEST_LDFLAGS " ")
-    set(LIBM " ")
+    set(LIBM "")
 else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
@@ -243,6 +243,7 @@ if(BUILD_STATIC_LIBS)
         COMPILE_FLAGS ${LIB_CFLAGS}
         LINKER_LANGUAGE C
     )
+    target_compile_definitions(libsoundio_static PUBLIC SOUNDIO_STATIC_LIBRARY=1)
     install(TARGETS libsoundio_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
