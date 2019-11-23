@@ -15,6 +15,13 @@
 static const int OUTPUT_ELEMENT = 0;
 static const int INPUT_ELEMENT = 1;
 
+#define STREAM_FORMAT_MSG(sfm) \
+fprintf(stderr, "[%i][%4.4s][%i][%i][%i][%i][%i][%i]\n", \
+(UInt32)sfm.mSampleRate, (char *)&sfm.mFormatID, \
+sfm.mFormatFlags, sfm.mBytesPerPacket, \
+sfm.mFramesPerPacket, sfm.mBytesPerFrame, \
+sfm.mChannelsPerFrame, sfm.mBitsPerChannel)
+
 static AudioObjectPropertyAddress device_listen_props[] = {
     {
         kAudioDevicePropertyDeviceHasChanged,
@@ -870,9 +877,11 @@ static int refresh_devices(struct SoundIoPrivate *si) {
                 enum SoundIoFormat *unique_formats = ALLOCATE(enum SoundIoFormat, asrd_count);
 
                 bool is_unique;
+				fprintf(stderr, "%s\n", dev_raw->pub.name);
                 for (int j = 0; j < asrd_count; j++)
                 {
                     AudioStreamRangedDescription asrd = asrds[j];
+                    STREAM_FORMAT_MSG(asrd.mFormat);
                     is_unique = true;
 
                     for (int k = 0; k < unique_sample_rates_count; k++) {
@@ -1415,6 +1424,29 @@ static int outstream_open_ca_raw(struct SoundIoPrivate *si, struct SoundIoOutStr
     {
         outstream_destroy_ca(si, os);
         return SoundIoErrorOpeningDevice;
+    }
+
+    // check buffer size is acceptable
+    prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
+    prop_address.mScope = kAudioObjectPropertyScopeGlobal;
+    prop_address.mElement = kAudioObjectPropertyElementMaster;
+
+    io_size = sizeof(UInt32);
+    UInt32 buffer_frame_size;
+    if ((os_err = AudioObjectGetPropertyData(dca->device_id, &prop_address, 0, NULL, &io_size, &buffer_frame_size)))
+    {
+        outstream_destroy_ca(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
+
+    if (buffer_frame_size % osca->hardware_format.mBytesPerFrame != 0) {
+        buffer_frame_size = (osca->hardware_format.mBytesPerFrame == 24 ? 768 : 512);
+
+        if ((os_err = AudioObjectSetPropertyData(dca->device_id, &prop_address, 0, NULL, io_size, &buffer_frame_size)))
+        {
+            outstream_destroy_ca(si, os);
+            return SoundIoErrorOpeningDevice;
+        }
     }
 
     // get current
