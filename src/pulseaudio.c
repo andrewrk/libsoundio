@@ -520,6 +520,7 @@ static pa_sample_format_t to_pulseaudio_format(enum SoundIoFormat format) {
     case SoundIoFormatS24BE:      return PA_SAMPLE_S24_32BE;
     case SoundIoFormatS32LE:      return PA_SAMPLE_S32LE;
     case SoundIoFormatS32BE:      return PA_SAMPLE_S32BE;
+    case SoundIoFormatS24PLE:     return PA_SAMPLE_S24LE;
     case SoundIoFormatFloat32LE:  return PA_SAMPLE_FLOAT32LE;
     case SoundIoFormatFloat32BE:  return PA_SAMPLE_FLOAT32BE;
 

@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <math.h>
 
 static int usage(char *exe) {
@@ -31,6 +32,49 @@ static void write_sample_s16ne(char *ptr, double sample) {
     double range = (double)INT16_MAX - (double)INT16_MIN;
     double val = sample * range / 2.0;
     *buf = val;
+}
+
+/**
+ * Construct a signed 24 bit integer from three bytes into a int32_t.
+ */
+static int32_t construct_s24(uint8_t low, uint8_t mid, uint8_t high)
+{
+    return (int32_t)low | ((int32_t)mid << 8) | ((int32_t)high << 16) |
+        /* extend the sign bit */
+        (high & 0x80 ? ~(int32_t)0xffffff : 0);
+}
+
+/**
+ * Read a packed signed native-endian 24 bit integer.
+ */
+static int32_t read_s24(const uint8_t *src)
+{
+#if defined(SOUNDIO_OS_BIG_ENDIAN)
+    return construct_s24(src[2], src[1], src[0]);
+#elif defined(SOUNDIO_OS_LITTLE_ENDIAN)
+    return construct_s24(src[0], src[1], src[2]);
+#endif
+}
+
+static void write_sample_s24ne(char *ptr, double sample) {
+    const double range = (double)0xFFFFFF;
+    const double val = sample * range / 2.0;
+    const int32_t src0 = val;
+    const int32_t src = read_s24((const uint8_t *)&src0);
+	int32_t *dest = (int32_t *)ptr;
+	*dest = src;
+}
+
+static void write_sample_s24ple(char *ptr, double sample) {
+    const double range = 0xFFFFFF;
+    const double val = sample * range / 2.0;
+    const int32_t src0 = val;
+    const uint8_t *src = (const uint8_t *)&src0;
+    uint8_t *dest = (uint8_t *)ptr;
+
+    *dest++ = *src++;
+    *dest++ = *src++;
+    *dest++ = *src++;
 }
 
 static void write_sample_s32ne(char *ptr, double sample) {
@@ -232,7 +276,13 @@ int main(int argc, char **argv) {
     } else if (soundio_device_supports_format(device, SoundIoFormatS16NE)) {
         outstream->format = SoundIoFormatS16NE;
         write_sample = write_sample_s16ne;
-    } else {
+    } else if (soundio_device_supports_format(device, SoundIoFormatS24NE)) {
+        outstream->format = SoundIoFormatS24NE;
+        write_sample = write_sample_s24ne;
+    } else if (soundio_device_supports_format(device, SoundIoFormatS24PLE)) {
+        outstream->format = SoundIoFormatS24PLE;
+        write_sample = write_sample_s24ple;
+    }else {
         fprintf(stderr, "No suitable device format available.\n");
         return 1;
     }
