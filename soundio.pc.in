@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/include/soundio
+
+Name: soundio
+Description: Cross-platform audio input and output for real-time & consumer software
+URL: http://libsound.io/
+Version: 2.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lsoundio

@@ -223,6 +223,12 @@ configure_file(
     ${DOXYGEN_CONF_FILE}
 )
 
+configure_file(
+   ${libsoundio_SOURCE_DIR}/soundio.pc.in
+   ${libsoundio_BINARY_DIR}/soundio.pc
+   @ONLY
+)
+
 if(BUILD_DYNAMIC_LIBS)
     add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
     set_target_properties(libsoundio_shared PROPERTIES
@@ -249,6 +255,9 @@ endif()
 install(FILES
     ${LIBSOUNDIO_HEADERS}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/soundio")
+install(
+    FILES ${libsoundio_BINARY_DIR}/soundio.pc
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 # Example Programs
 
