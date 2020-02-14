@@ -87,6 +87,8 @@ struct SoundIoOutStreamWasapi {
     UINT32 min_padding_frames;
     float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    //win 10 comes with better shared mode
+    bool iaudioclient3_available;
 };
 
 struct SoundIoInStreamWasapi {
