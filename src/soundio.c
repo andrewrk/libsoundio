@@ -8,7 +8,7 @@
 #include "soundio_private.h"
 #include "util.h"
 #include "os.h"
-#include "config.h"
+#include "../build/config.h"
 
 #include <string.h>
 #include <assert.h>
