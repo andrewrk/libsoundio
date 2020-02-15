@@ -38,6 +38,8 @@ int soundio_wasapi_init(struct SoundIoPrivate *si);
 struct SoundIoDeviceWasapi {
     double period_duration;
     IMMDevice *mm_device;
+    //win 10 comes with better shared mode rendering
+    bool iaudio3_available;
 };
 
 struct SoundIoWasapi {
@@ -87,8 +89,6 @@ struct SoundIoOutStreamWasapi {
     UINT32 min_padding_frames;
     float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
-    //win 10 comes with better shared mode
-    bool iaudioclient3_available;
 };
 
 struct SoundIoInStreamWasapi {
