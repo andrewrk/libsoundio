@@ -100,6 +100,15 @@ static const IID IID_ISimpleAudioVolume = {
     0x87ce5498, 0x68d6, 0x44e5,{ 0x92, 0x15, 0x6d, 0xa4, 0x7e, 0xf8, 0x83, 0xd8 }
 };
 
++static const IID IID_IAudioEndpointVolume = {
+    +    //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    +0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
++};
++static const IID IID_IAudioEndpointVolumeCallback = {
+    +    //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    +0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
++};
+
 #else
 #define IS_EQUAL_GUID(a, b) IsEqualGUID((a), (b))
 #define IS_EQUAL_IID(a, b) IsEqualIID((a), (b))
@@ -1295,6 +1304,9 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
         period = dw->period_duration * wave_format.Format.nSamplesPerSec;
         duration = dw->period_duration * wave_format.Format.nSamplesPerSec;
+        to_wave_format_layout(&outstream->layout, &wave_format);
+        to_wave_format_format(outstream->format, &wave_format);
+        complete_wave_format_data(&wave_format);
     } else {
         WAVEFORMATEXTENSIBLE *mix_format;
         if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
