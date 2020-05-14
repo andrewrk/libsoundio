@@ -492,7 +492,10 @@ static void deinit_refresh_devices(struct RefreshDevices *rd) {
 		free(rd->default_render_id);
 	}
     if (rd->default_capture_device)
+    {
         IMMDevice_Release(rd->default_capture_device);
+        free(rd->default_capture_id);
+    }
     if (rd->collection)
         IMMDeviceCollection_Release(rd->collection);
     if (rd->lpwstr)
