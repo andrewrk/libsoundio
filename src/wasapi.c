@@ -486,10 +486,16 @@ static void deinit_refresh_devices(struct RefreshDevices *rd) {
     soundio_device_unref(rd->device_raw);
     if (rd->mm_device)
         IMMDevice_Release(rd->mm_device);
-    if (rd->default_render_device)
-        IMMDevice_Release(rd->default_render_device);
+	if (rd->default_render_device)
+	{
+		IMMDevice_Release(rd->default_render_device);
+		free(rd->default_render_id);
+	}
     if (rd->default_capture_device)
+    {
         IMMDevice_Release(rd->default_capture_device);
+        free(rd->default_capture_id);
+    }
     if (rd->collection)
         IMMDeviceCollection_Release(rd->collection);
     if (rd->lpwstr)
