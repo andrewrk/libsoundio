@@ -21,6 +21,13 @@ the former. Features that only exist in some sound backends are exposed.
    - [CoreAudio](https://developer.apple.com/library/mac/documentation/MusicAudio/Conceptual/CoreAudioOverview/Introduction/Introduction.html)
    - [WASAPI](https://msdn.microsoft.com/en-us/library/windows/desktop/dd371455%28v=vs.85%29.aspx)
    - Dummy (silence)
+ * Note on msvc C compiler:
+   Since msvc does not provide stdatomic header, an implementation from
+   https://github.com/zenny-chen/simple-stdatomic-for-VS-Clang
+   to help build as C code on msvc. The code is under Apache 2.0 license.
+   You need to add the header to your include path and add the source file
+   to your compilation.
+
  * Exposes both raw devices and shared devices. Raw devices give you the best
    performance but prevent other applications from using them. Shared devices
    are default and usually provide sample rate conversion and format
