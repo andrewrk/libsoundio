@@ -125,6 +125,15 @@ static const IID IID_IAudioEndpointVolumeCallback = {
     0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
 };
 
+static const IID IID_IAudioEndpointVolume = {
+        //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+        //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+
 #else
 #define IS_EQUAL_GUID(a, b) IsEqualGUID((a), (b))
 #define IS_EQUAL_IID(a, b) IsEqualIID((a), (b))
