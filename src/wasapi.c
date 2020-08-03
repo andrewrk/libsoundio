@@ -43,6 +43,483 @@
 #define PKEY_AUDIOENGINE_DEVICEFORMAT         (PKEY_AudioEngine_DeviceFormat)
 #define IID_IAUDIOCLOCK                       (IID_IAudioClock)
 
+// Copied from windows header for sdk that do not have them
+// Querying interface will allow runtime determining whether it
+// is available
+#ifndef __IAudioClient2_INTERFACE_DEFINED__
+#define __IAudioClient2_INTERFACE_DEFINED__
+
+/* interface IAudioClient2 */
+/* [local][unique][uuid][object] */
+EXTERN_C const IID IID_IAudioClient2;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+MIDL_INTERFACE("726778CD-F60A-4eda-82DE-E47610CD78AA")
+IAudioClient2 : public IAudioClient
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE IsOffloadCapable(
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL * pbOffloadCapable) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE SetClientProperties(
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE GetBufferSizeLimits(
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration) = 0;
+
+};
+#else 	/* C style interface */
+
+typedef struct IAudioClient2Vtbl {
+    BEGIN_INTERFACE
+
+        HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+            IAudioClient2* This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        IAudioClient2* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Initialize)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsBufferDuration,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsPeriodicity,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSize)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumBufferFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetStreamLatency)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsLatency);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentPadding)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumPaddingFrames);
+
+    HRESULT(STDMETHODCALLTYPE* IsFormatSupported)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [unique][annotation][out] */
+        _Out_opt_  WAVEFORMATEX** ppClosestMatch);
+
+    HRESULT(STDMETHODCALLTYPE* GetMixFormat)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  WAVEFORMATEX** ppDeviceFormat);
+
+    HRESULT(STDMETHODCALLTYPE* GetDevicePeriod)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsDefaultDevicePeriod,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsMinimumDevicePeriod);
+
+    HRESULT(STDMETHODCALLTYPE* Start)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Stop)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Reset)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* SetEventHandle)(
+        IAudioClient2* This,
+        /* [in] */ HANDLE eventHandle);
+
+    HRESULT(STDMETHODCALLTYPE* GetService)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  REFIID riid,
+        /* [annotation][iid_is][out] */
+        _Out_  void** ppv);
+
+    HRESULT(STDMETHODCALLTYPE* IsOffloadCapable)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL* pbOffloadCapable);
+
+    HRESULT(STDMETHODCALLTYPE* SetClientProperties)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSizeLimits)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration);
+
+    END_INTERFACE
+} IAudioClient2Vtbl;
+
+interface IAudioClient2 {
+    CONST_VTBL struct IAudioClient2Vtbl* lpVtbl;
+};
+#ifdef COBJMACROS
+#define IAudioClient2_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IAudioClient2_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IAudioClient2_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IAudioClient2_Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid) ) 
+
+#define IAudioClient2_GetBufferSize(This,pNumBufferFrames)	\
+    ( (This)->lpVtbl -> GetBufferSize(This,pNumBufferFrames) ) 
+
+#define IAudioClient2_GetStreamLatency(This,phnsLatency)	\
+    ( (This)->lpVtbl -> GetStreamLatency(This,phnsLatency) ) 
+
+#define IAudioClient2_GetCurrentPadding(This,pNumPaddingFrames)	\
+    ( (This)->lpVtbl -> GetCurrentPadding(This,pNumPaddingFrames) ) 
+
+#define IAudioClient2_IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch)	\
+    ( (This)->lpVtbl -> IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch) ) 
+
+#define IAudioClient2_GetMixFormat(This,ppDeviceFormat)	\
+    ( (This)->lpVtbl -> GetMixFormat(This,ppDeviceFormat) ) 
+
+#define IAudioClient2_GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod)	\
+    ( (This)->lpVtbl -> GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod) ) 
+
+#define IAudioClient2_Start(This)	\
+    ( (This)->lpVtbl -> Start(This) ) 
+
+#define IAudioClient2_Stop(This)	\
+    ( (This)->lpVtbl -> Stop(This) ) 
+
+#define IAudioClient2_Reset(This)	\
+    ( (This)->lpVtbl -> Reset(This) ) 
+
+#define IAudioClient2_SetEventHandle(This,eventHandle)	\
+    ( (This)->lpVtbl -> SetEventHandle(This,eventHandle) ) 
+
+#define IAudioClient2_GetService(This,riid,ppv)	\
+    ( (This)->lpVtbl -> GetService(This,riid,ppv) ) 
+
+
+#define IAudioClient2_IsOffloadCapable(This,Category,pbOffloadCapable)	\
+    ( (This)->lpVtbl -> IsOffloadCapable(This,Category,pbOffloadCapable) ) 
+
+#define IAudioClient2_SetClientProperties(This,pProperties)	\
+    ( (This)->lpVtbl -> SetClientProperties(This,pProperties) ) 
+
+#define IAudioClient2_GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration)	\
+    ( (This)->lpVtbl -> GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration) ) 
+
+#endif /* COBJMACROS */
+#endif 	/* C style interface */
+#endif 	/* __IAudioClient2_INTERFACE_DEFINED__ */
+#ifndef __IAudioClient3_INTERFACE_DEFINED__
+#define __IAudioClient3_INTERFACE_DEFINED__
+
+/* interface IAudioClient3 */
+/* [local][unique][uuid][object] */
+EXTERN_C const IID IID_IAudioClient3;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+IAudioClient3 : public IAudioClient2
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE GetSharedModeEnginePeriod(
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX * pFormat,
+        /* [annotation][out] */
+        _Out_  UINT32 * pDefaultPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pFundamentalPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pMinPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pMaxPeriodInFrames) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE GetCurrentSharedModeEnginePeriod(
+        /* [unique][annotation][out] */
+        _Out_  WAVEFORMATEX** ppFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pCurrentPeriodInFrames) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE InitializeSharedAudioStream(
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  UINT32 PeriodInFrames,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid) = 0;
+
+};
+
+#else 	/* C style interface */
+
+typedef struct IAudioClient3Vtbl {
+    BEGIN_INTERFACE
+
+        HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+            IAudioClient3* This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        IAudioClient3* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Initialize)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsBufferDuration,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsPeriodicity,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSize)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumBufferFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetStreamLatency)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsLatency);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentPadding)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumPaddingFrames);
+
+    HRESULT(STDMETHODCALLTYPE* IsFormatSupported)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [unique][annotation][out] */
+        _Out_opt_  WAVEFORMATEX** ppClosestMatch);
+
+    HRESULT(STDMETHODCALLTYPE* GetMixFormat)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  WAVEFORMATEX** ppDeviceFormat);
+
+    HRESULT(STDMETHODCALLTYPE* GetDevicePeriod)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsDefaultDevicePeriod,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsMinimumDevicePeriod);
+
+    HRESULT(STDMETHODCALLTYPE* Start)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Stop)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Reset)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* SetEventHandle)(
+        IAudioClient3* This,
+        /* [in] */ HANDLE eventHandle);
+
+    HRESULT(STDMETHODCALLTYPE* GetService)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  REFIID riid,
+        /* [annotation][iid_is][out] */
+        _Out_  void** ppv);
+
+    HRESULT(STDMETHODCALLTYPE* IsOffloadCapable)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL* pbOffloadCapable);
+
+    HRESULT(STDMETHODCALLTYPE* SetClientProperties)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSizeLimits)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration);
+
+    HRESULT(STDMETHODCALLTYPE* GetSharedModeEnginePeriod)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pDefaultPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pFundamentalPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pMinPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pMaxPeriodInFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentSharedModeEnginePeriod)(
+        IAudioClient3* This,
+        /* [unique][annotation][out] */
+        _Out_  WAVEFORMATEX** ppFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pCurrentPeriodInFrames);
+
+    HRESULT(STDMETHODCALLTYPE* InitializeSharedAudioStream)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  UINT32 PeriodInFrames,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    END_INTERFACE
+} IAudioClient3Vtbl;
+
+interface IAudioClient3 {
+    CONST_VTBL struct IAudioClient3Vtbl* lpVtbl;
+};
+#ifdef COBJMACROS
+#define IAudioClient3_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IAudioClient3_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IAudioClient3_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IAudioClient3_Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid) ) 
+
+#define IAudioClient3_GetBufferSize(This,pNumBufferFrames)	\
+    ( (This)->lpVtbl -> GetBufferSize(This,pNumBufferFrames) ) 
+
+#define IAudioClient3_GetStreamLatency(This,phnsLatency)	\
+    ( (This)->lpVtbl -> GetStreamLatency(This,phnsLatency) ) 
+
+#define IAudioClient3_GetCurrentPadding(This,pNumPaddingFrames)	\
+    ( (This)->lpVtbl -> GetCurrentPadding(This,pNumPaddingFrames) ) 
+
+#define IAudioClient3_IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch)	\
+    ( (This)->lpVtbl -> IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch) ) 
+
+#define IAudioClient3_GetMixFormat(This,ppDeviceFormat)	\
+    ( (This)->lpVtbl -> GetMixFormat(This,ppDeviceFormat) ) 
+
+#define IAudioClient3_GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod)	\
+    ( (This)->lpVtbl -> GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod) ) 
+
+#define IAudioClient3_Start(This)	\
+    ( (This)->lpVtbl -> Start(This) ) 
+
+#define IAudioClient3_Stop(This)	\
+    ( (This)->lpVtbl -> Stop(This) ) 
+
+#define IAudioClient3_Reset(This)	\
+    ( (This)->lpVtbl -> Reset(This) ) 
+
+#define IAudioClient3_SetEventHandle(This,eventHandle)	\
+    ( (This)->lpVtbl -> SetEventHandle(This,eventHandle) ) 
+
+#define IAudioClient3_GetService(This,riid,ppv)	\
+    ( (This)->lpVtbl -> GetService(This,riid,ppv) ) 
+
+
+#define IAudioClient3_IsOffloadCapable(This,Category,pbOffloadCapable)	\
+    ( (This)->lpVtbl -> IsOffloadCapable(This,Category,pbOffloadCapable) ) 
+
+#define IAudioClient3_SetClientProperties(This,pProperties)	\
+    ( (This)->lpVtbl -> SetClientProperties(This,pProperties) ) 
+
+#define IAudioClient3_GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration)	\
+    ( (This)->lpVtbl -> GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration) ) 
+
+
+#define IAudioClient3_GetSharedModeEnginePeriod(This,pFormat,pDefaultPeriodInFrames,pFundamentalPeriodInFrames,pMinPeriodInFrames,pMaxPeriodInFrames)	\
+    ( (This)->lpVtbl -> GetSharedModeEnginePeriod(This,pFormat,pDefaultPeriodInFrames,pFundamentalPeriodInFrames,pMinPeriodInFrames,pMaxPeriodInFrames) ) 
+
+#define IAudioClient3_GetCurrentSharedModeEnginePeriod(This,ppFormat,pCurrentPeriodInFrames)	\
+    ( (This)->lpVtbl -> GetCurrentSharedModeEnginePeriod(This,ppFormat,pCurrentPeriodInFrames) ) 
+
+#define IAudioClient3_InitializeSharedAudioStream(This,StreamFlags,PeriodInFrames,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> InitializeSharedAudioStream(This,StreamFlags,PeriodInFrames,pFormat,AudioSessionGuid) ) 
+
+#endif /* COBJMACROS */
+#endif 	/* C style interface */
+#endif 	/* __IAudioClient3_INTERFACE_DEFINED__ */
+
+
 // And some GUID are never implemented (Ignoring the INITGUID define)
 static const CLSID CLSID_MMDeviceEnumerator  = __uuidof(MMDeviceEnumerator);
 static const IID   IID_IMMDeviceEnumerator   = {
