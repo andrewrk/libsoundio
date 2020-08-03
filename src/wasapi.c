@@ -887,40 +887,91 @@ static void from_channel_mask_layout(UINT channel_mask, struct SoundIoChannelLay
 static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, struct SoundIoChannelLayout *layout) {
     assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
     layout->channel_count = 0;
-    from_channel_mask_layout(wave_format->dwChannelMask, layout);
+    if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+        from_channel_mask_layout(wave_format->dwChannelMask, layout);
+    }
+    else {
+        //only mono and stereo pcm supported without extensible
+        if (wave_format->Format.nChannels == 1) {
+            *layout = *soundio_channel_layout_get_builtin(0);
+        }
+        else if (wave_format->Format.nChannels == 2) {
+            *layout = *soundio_channel_layout_get_builtin(1);
+        }
+    }
 }
 
 static enum SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) {
-    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
-    bool is_pcm = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
-    bool is_float = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
-
-    if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
-        if (wave_format->Format.wBitsPerSample == 8) {
-            if (is_pcm)
+    bool is_extensible = 0;
+    bool is_pcm = 0;
+    bool is_float = 0;
+    bool is_drm = 0;
+    bool is_alaw = 0;
+    if (wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+        assert(!wave_format->Format.cbSize);
+        if (wave_format->Format.wFormatTag == WAVE_FORMAT_PCM) {
+            assert(wave_format->Format.nChannels == 1 || wave_format->Format.nChannels == 2);
+            is_pcm = 1;
+            if (wave_format->Format.wBitsPerSample == 8) {
                 return SoundIoFormatU8;
-        } else if (wave_format->Format.wBitsPerSample == 16) {
-            if (is_pcm)
+            }
+            else if (wave_format->Format.wBitsPerSample == 16) {
                 return SoundIoFormatS16LE;
-        } else if (wave_format->Format.wBitsPerSample == 32) {
-            if (is_pcm)
-                return SoundIoFormatS32LE;
-            else if (is_float)
-                return SoundIoFormatFloat32LE;
-        } else if (wave_format->Format.wBitsPerSample == 64) {
-            if (is_float)
-                return SoundIoFormatFloat64LE;
+            }
         }
-    } else if (wave_format->Format.wBitsPerSample == 32 &&
-            wave_format->Samples.wValidBitsPerSample == 24)
-    {
-        return SoundIoFormatS24LE;
+        //other types will be invalid since it is typically unsupported
     }
+    else {
+        is_extensible = 1;
+        //maybe a enum here is better.
+        //but still, there is the problem of exposing compressed types to the user
+        //and there is restriction on what kind shared or exclusive engine can work on
+        //if it needs to be supported in the whole library, there must be a software
+        //dynamic fallback that buffers the data, same appiles to resampling and
+        //format conversion (rtaudio has an implementation of this, but not necessarily
+        //optimal compute-wise)
+        is_pcm = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
+        is_float = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+        is_drm = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_DRM);
+        is_alaw = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW);
+        //other types here
+        if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
+            if (wave_format->Format.wBitsPerSample == 8) {
+                if (is_pcm)
+                    return SoundIoFormatU8;
+            }
+            else if (wave_format->Format.wBitsPerSample == 16) {
+                if (is_pcm)
+                    return SoundIoFormatS16LE;
+            }
+            else if (wave_format->Format.wBitsPerSample == 32) {
+                if (is_pcm)
+                    return SoundIoFormatS32LE;
+                else if (is_float)
+                    return SoundIoFormatFloat32LE;
+            }
+            else if (wave_format->Format.wBitsPerSample == 64) {
+                if (is_float)
+                    return SoundIoFormatFloat64LE;
+            }
+        }
+        else if (wave_format->Format.wBitsPerSample == 32 &&
+             wave_format->Samples.wValidBitsPerSample == 24) {
+            return SoundIoFormatS24LE;
+        }
+    }
+    //assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
 
+
+    //3-byte 24 bit will go here, libsoundio does not expose
+    //variable packing an bit depth for now, so 24 must look
+    //like the same thing as 32 bit if little endian from
+    //the outside
     return SoundIoFormatInvalid;
 }
 
 // only needs to support the layouts in test_layouts
+// since this is given to api, we can always assume extensible
 static void to_wave_format_layout(const struct SoundIoChannelLayout *layout, WAVEFORMATEXTENSIBLE *wave_format) {
     wave_format->dwChannelMask = 0;
     wave_format->Format.nChannels = layout->channel_count;
@@ -988,6 +1039,7 @@ static void to_wave_format_layout(const struct SoundIoChannelLayout *layout, WAV
 }
 
 // only needs to support the formats in test_formats
+// since this is given to api, we can always assume extensible
 static void to_wave_format_format(enum SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_format) {
     switch (format) {
     case SoundIoFormatU8:
@@ -1108,7 +1160,11 @@ static int detect_valid_layouts(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         return SoundIoErrorNoMem;
 
     WAVEFORMATEX *closest_match = NULL;
-    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+    WAVEFORMATEXTENSIBLE orig_wave_format;
+    if(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        orig_wave_format = *wave_format;
+    else
+        orig_wave_format.Format = wave_format->Format;
 
     for (int i = 0; i < ARRAY_LENGTH(test_formats); i += 1) {
         enum SoundIoChannelLayoutId test_layout_id = test_layouts[i];
@@ -1127,7 +1183,10 @@ static int detect_valid_layouts(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
             continue;
         } else {
-            *wave_format = orig_wave_format;
+            if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+                *wave_format = orig_wave_format;
+            else
+                wave_format->Format = orig_wave_format.Format;
             return SoundIoErrorOpeningDevice;
         }
     }
@@ -1148,7 +1207,11 @@ static int detect_valid_formats(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         return SoundIoErrorNoMem;
 
     WAVEFORMATEX *closest_match = NULL;
-    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+    WAVEFORMATEXTENSIBLE orig_wave_format;
+    if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        orig_wave_format = *wave_format;
+    else
+        orig_wave_format.Format = wave_format->Format;
 
     for (int i = 0; i < ARRAY_LENGTH(test_formats); i += 1) {
         enum SoundIoFormat test_format = test_formats[i];
@@ -1166,7 +1229,10 @@ static int detect_valid_formats(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
             continue;
         } else {
-            *wave_format = orig_wave_format;
+            if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+                *wave_format = orig_wave_format;
+            else
+                wave_format->Format = orig_wave_format.Format;
             return SoundIoErrorOpeningDevice;
         }
     }
