@@ -932,8 +932,8 @@ static enum SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_for
         //optimal compute-wise)
         is_pcm = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
         is_float = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
-        is_drm = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_DRM);
-        is_alaw = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW);
+        //is_drm = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_DRM);
+        //is_alaw = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW);
         //other types here
         if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
             if (wave_format->Format.wBitsPerSample == 8) {
@@ -1549,6 +1549,8 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         else {
             dev_w_raw->iaudio3_available=true;
             dev_w_shared->iaudio3_available = true;
+            dev_w_raw->iaudio3_available = false;
+            dev_w_shared->iaudio3_available = false;
         }
 
         REFERENCE_TIME default_device_period;
@@ -1961,19 +1963,33 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         to_wave_format_format(outstream->format, &wave_format);
         complete_wave_format_data(&wave_format);
         flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
-        if(dev->backend_data.wasapi.iaudio3_available) {
+        if (dev->backend_data.wasapi.iaudio3_available) {
             flags |= AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
             UINT32 default_period, increment, max_period;
-            IAudioClient3_GetSharedModeEnginePeriod((IAudioClient3*)osw->audio_client, &wave_format.Format, &default_period, &increment, &period, &max_period);
-            duration = max_period;
-            osw->min_padding_frames = period;
-        } 
+            if (FAILED(hr = IAudioClient3_GetSharedModeEnginePeriod((IAudioClient3*)osw->audio_client, &wave_format.Format, &default_period, &increment, &period, &max_period))) {
+                period = 0;
+                duration = 4.0 * outstream->sample_rate;
+            }
+            else {
+                duration = max_period;
+                osw->min_padding_frames = period;
+            }
+        }
         else {
-            period = 0;
-            duration = 4.0*outstream->sample_rate;
+            REFERENCE_TIME min_period;
+            REFERENCE_TIME def_period;
+            if (FAILED(hr = IAudioClient_GetDevicePeriod(osw->audio_client, &def_period, &min_period))) {
+                period = 0;
+                duration = 4.0 * outstream->sample_rate;
+            }
+            else {
+                period = from_reference_time(def_period) * outstream->sample_rate;
+                //larger buffer for ping-pong approach
+                duration = from_reference_time(def_period) * outstream->sample_rate * 2;
+                osw->min_padding_frames = from_reference_time(def_period) * outstream->sample_rate;
+            }
         }
         share_mode = AUDCLNT_SHAREMODE_SHARED;
-
     }
 
     if (FAILED(hr = InitializeOutStream(dev->backend_data.wasapi.iaudio3_available,osw->audio_client, share_mode, flags,
@@ -2178,7 +2194,7 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
             return;
         }
         osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        if (osw->writable_frame_count > 0) {
+        if (!osw->is_paused && osw->writable_frame_count > 0) {
             if (frames_used == 0 && !reset_buffer)
                 outstream->underflow_callback(outstream);
             int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
