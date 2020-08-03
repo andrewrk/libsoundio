@@ -166,7 +166,7 @@ double soundio_os_get_time(void) {
 #if defined(SOUNDIO_OS_WINDOWS)
 static DWORD WINAPI run_win32_thread(LPVOID userdata) {
     struct SoundIoOsThread *thread = (struct SoundIoOsThread *)userdata;
-    HRESULT err = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    HRESULT err = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE | COINIT_SPEED_OVER_MEMORY);
     assert(err == S_OK);
     thread->run(thread->arg);
     CoUninitialize();

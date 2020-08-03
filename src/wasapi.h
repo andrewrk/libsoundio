@@ -18,11 +18,17 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#include <intsafe.h>
 #include <windows.h>
+#include <initguid.h>
+#include <combaseapi.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <audiosessiontypes.h>
 #include <audiopolicy.h>
+#include <Functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
+#include <avrt.h>
 
 #ifndef AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
 #define AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM 0x80000000
@@ -89,6 +95,10 @@ struct SoundIoOutStreamWasapi {
     UINT32 min_padding_frames;
     float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    HANDLE h_mmThread;
+    DWORD taskIndex;
+    IAudioClock* iclock;
+    UINT64 write_frame_offset;
 };
 
 struct SoundIoInStreamWasapi {
