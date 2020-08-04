@@ -2233,8 +2233,8 @@ static void outstream_raw_run(struct SoundIoOutStreamPrivate *os) {
                 osw->is_paused = false;
             }
         }
-
-        outstream->write_callback(outstream, osw->buffer_frame_count, osw->buffer_frame_count);
+        if(!osw->is_paused)
+            outstream->write_callback(outstream, osw->buffer_frame_count, osw->buffer_frame_count);
     }
 }
 
