@@ -13,13 +13,6 @@
 #define CINTERFACE
 #define COBJMACROS
 #define CONST_VTABLE
-#include <initguid.h>
-#include <audioclient.h>
-#include <endpointvolume.h>
-#include <mmdeviceapi.h>
-#include <mmreg.h>
-#include <functiondiscoverykeys_devpkey.h>
-
 #include "wasapi.h"
 #include "soundio_private.h"
 
@@ -37,6 +30,7 @@
 
 // And some constants are passed by reference
 #define IID_IAUDIOCLIENT                      (IID_IAudioClient)
+#define IID_IAUDIOCLIENT3                     (IID_IAudioClient3)
 #define IID_IMMENDPOINT                       (IID_IMMEndpoint)
 #define IID_IAUDIOCLOCKADJUSTMENT             (IID_IAudioClockAdjustment)
 #define IID_IAUDIOSESSIONCONTROL              (IID_IAudioSessionControl)
@@ -47,6 +41,484 @@
 #define CLSID_MMDEVICEENUMERATOR              (CLSID_MMDeviceEnumerator)
 #define PKEY_DEVICE_FRIENDLYNAME              (PKEY_Device_FriendlyName)
 #define PKEY_AUDIOENGINE_DEVICEFORMAT         (PKEY_AudioEngine_DeviceFormat)
+#define IID_IAUDIOCLOCK                       (IID_IAudioClock)
+
+// Copied from windows header for sdk that do not have them
+// Querying interface will allow runtime determining whether it
+// is available
+#ifndef __IAudioClient2_INTERFACE_DEFINED__
+#define __IAudioClient2_INTERFACE_DEFINED__
+
+/* interface IAudioClient2 */
+/* [local][unique][uuid][object] */
+EXTERN_C const IID IID_IAudioClient2;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+MIDL_INTERFACE("726778CD-F60A-4eda-82DE-E47610CD78AA")
+IAudioClient2 : public IAudioClient
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE IsOffloadCapable(
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL * pbOffloadCapable) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE SetClientProperties(
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE GetBufferSizeLimits(
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration) = 0;
+
+};
+#else 	/* C style interface */
+
+typedef struct IAudioClient2Vtbl {
+    BEGIN_INTERFACE
+
+        HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+            IAudioClient2* This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        IAudioClient2* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Initialize)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsBufferDuration,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsPeriodicity,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSize)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumBufferFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetStreamLatency)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsLatency);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentPadding)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumPaddingFrames);
+
+    HRESULT(STDMETHODCALLTYPE* IsFormatSupported)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [unique][annotation][out] */
+        _Out_opt_  WAVEFORMATEX** ppClosestMatch);
+
+    HRESULT(STDMETHODCALLTYPE* GetMixFormat)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_  WAVEFORMATEX** ppDeviceFormat);
+
+    HRESULT(STDMETHODCALLTYPE* GetDevicePeriod)(
+        IAudioClient2* This,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsDefaultDevicePeriod,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsMinimumDevicePeriod);
+
+    HRESULT(STDMETHODCALLTYPE* Start)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Stop)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* Reset)(
+        IAudioClient2* This);
+
+    HRESULT(STDMETHODCALLTYPE* SetEventHandle)(
+        IAudioClient2* This,
+        /* [in] */ HANDLE eventHandle);
+
+    HRESULT(STDMETHODCALLTYPE* GetService)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  REFIID riid,
+        /* [annotation][iid_is][out] */
+        _Out_  void** ppv);
+
+    HRESULT(STDMETHODCALLTYPE* IsOffloadCapable)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL* pbOffloadCapable);
+
+    HRESULT(STDMETHODCALLTYPE* SetClientProperties)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSizeLimits)(
+        IAudioClient2* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration);
+
+    END_INTERFACE
+} IAudioClient2Vtbl;
+
+interface IAudioClient2 {
+    CONST_VTBL struct IAudioClient2Vtbl* lpVtbl;
+};
+#ifdef COBJMACROS
+#define IAudioClient2_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IAudioClient2_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IAudioClient2_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IAudioClient2_Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid) ) 
+
+#define IAudioClient2_GetBufferSize(This,pNumBufferFrames)	\
+    ( (This)->lpVtbl -> GetBufferSize(This,pNumBufferFrames) ) 
+
+#define IAudioClient2_GetStreamLatency(This,phnsLatency)	\
+    ( (This)->lpVtbl -> GetStreamLatency(This,phnsLatency) ) 
+
+#define IAudioClient2_GetCurrentPadding(This,pNumPaddingFrames)	\
+    ( (This)->lpVtbl -> GetCurrentPadding(This,pNumPaddingFrames) ) 
+
+#define IAudioClient2_IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch)	\
+    ( (This)->lpVtbl -> IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch) ) 
+
+#define IAudioClient2_GetMixFormat(This,ppDeviceFormat)	\
+    ( (This)->lpVtbl -> GetMixFormat(This,ppDeviceFormat) ) 
+
+#define IAudioClient2_GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod)	\
+    ( (This)->lpVtbl -> GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod) ) 
+
+#define IAudioClient2_Start(This)	\
+    ( (This)->lpVtbl -> Start(This) ) 
+
+#define IAudioClient2_Stop(This)	\
+    ( (This)->lpVtbl -> Stop(This) ) 
+
+#define IAudioClient2_Reset(This)	\
+    ( (This)->lpVtbl -> Reset(This) ) 
+
+#define IAudioClient2_SetEventHandle(This,eventHandle)	\
+    ( (This)->lpVtbl -> SetEventHandle(This,eventHandle) ) 
+
+#define IAudioClient2_GetService(This,riid,ppv)	\
+    ( (This)->lpVtbl -> GetService(This,riid,ppv) ) 
+
+
+#define IAudioClient2_IsOffloadCapable(This,Category,pbOffloadCapable)	\
+    ( (This)->lpVtbl -> IsOffloadCapable(This,Category,pbOffloadCapable) ) 
+
+#define IAudioClient2_SetClientProperties(This,pProperties)	\
+    ( (This)->lpVtbl -> SetClientProperties(This,pProperties) ) 
+
+#define IAudioClient2_GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration)	\
+    ( (This)->lpVtbl -> GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration) ) 
+
+#endif /* COBJMACROS */
+#endif 	/* C style interface */
+#endif 	/* __IAudioClient2_INTERFACE_DEFINED__ */
+#ifndef __IAudioClient3_INTERFACE_DEFINED__
+#define __IAudioClient3_INTERFACE_DEFINED__
+
+/* interface IAudioClient3 */
+/* [local][unique][uuid][object] */
+EXTERN_C const IID IID_IAudioClient3;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+IAudioClient3 : public IAudioClient2
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE GetSharedModeEnginePeriod(
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX * pFormat,
+        /* [annotation][out] */
+        _Out_  UINT32 * pDefaultPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pFundamentalPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pMinPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32 * pMaxPeriodInFrames) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE GetCurrentSharedModeEnginePeriod(
+        /* [unique][annotation][out] */
+        _Out_  WAVEFORMATEX** ppFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pCurrentPeriodInFrames) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE InitializeSharedAudioStream(
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  UINT32 PeriodInFrames,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid) = 0;
+
+};
+
+#else 	/* C style interface */
+
+typedef struct IAudioClient3Vtbl {
+    BEGIN_INTERFACE
+
+        HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+            IAudioClient3* This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        IAudioClient3* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Initialize)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsBufferDuration,
+        /* [annotation][in] */
+        _In_  REFERENCE_TIME hnsPeriodicity,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSize)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumBufferFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetStreamLatency)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsLatency);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentPadding)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  UINT32* pNumPaddingFrames);
+
+    HRESULT(STDMETHODCALLTYPE* IsFormatSupported)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDCLNT_SHAREMODE ShareMode,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [unique][annotation][out] */
+        _Out_opt_  WAVEFORMATEX** ppClosestMatch);
+
+    HRESULT(STDMETHODCALLTYPE* GetMixFormat)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_  WAVEFORMATEX** ppDeviceFormat);
+
+    HRESULT(STDMETHODCALLTYPE* GetDevicePeriod)(
+        IAudioClient3* This,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsDefaultDevicePeriod,
+        /* [annotation][out] */
+        _Out_opt_  REFERENCE_TIME* phnsMinimumDevicePeriod);
+
+    HRESULT(STDMETHODCALLTYPE* Start)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Stop)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* Reset)(
+        IAudioClient3* This);
+
+    HRESULT(STDMETHODCALLTYPE* SetEventHandle)(
+        IAudioClient3* This,
+        /* [in] */ HANDLE eventHandle);
+
+    HRESULT(STDMETHODCALLTYPE* GetService)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  REFIID riid,
+        /* [annotation][iid_is][out] */
+        _Out_  void** ppv);
+
+    HRESULT(STDMETHODCALLTYPE* IsOffloadCapable)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  AUDIO_STREAM_CATEGORY Category,
+        /* [annotation][out] */
+        _Out_  BOOL* pbOffloadCapable);
+
+    HRESULT(STDMETHODCALLTYPE* SetClientProperties)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const AudioClientProperties* pProperties);
+
+    HRESULT(STDMETHODCALLTYPE* GetBufferSizeLimits)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_  BOOL bEventDriven,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMinBufferDuration,
+        /* [annotation][out] */
+        _Out_  REFERENCE_TIME* phnsMaxBufferDuration);
+
+    HRESULT(STDMETHODCALLTYPE* GetSharedModeEnginePeriod)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pDefaultPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pFundamentalPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pMinPeriodInFrames,
+        /* [annotation][out] */
+        _Out_  UINT32* pMaxPeriodInFrames);
+
+    HRESULT(STDMETHODCALLTYPE* GetCurrentSharedModeEnginePeriod)(
+        IAudioClient3* This,
+        /* [unique][annotation][out] */
+        _Out_  WAVEFORMATEX** ppFormat,
+        /* [annotation][out] */
+        _Out_  UINT32* pCurrentPeriodInFrames);
+
+    HRESULT(STDMETHODCALLTYPE* InitializeSharedAudioStream)(
+        IAudioClient3* This,
+        /* [annotation][in] */
+        _In_  DWORD StreamFlags,
+        /* [annotation][in] */
+        _In_  UINT32 PeriodInFrames,
+        /* [annotation][in] */
+        _In_  const WAVEFORMATEX* pFormat,
+        /* [annotation][in] */
+        _In_opt_  LPCGUID AudioSessionGuid);
+
+    END_INTERFACE
+} IAudioClient3Vtbl;
+
+interface IAudioClient3 {
+    CONST_VTBL struct IAudioClient3Vtbl* lpVtbl;
+};
+#ifdef COBJMACROS
+#define IAudioClient3_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IAudioClient3_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IAudioClient3_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IAudioClient3_Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> Initialize(This,ShareMode,StreamFlags,hnsBufferDuration,hnsPeriodicity,pFormat,AudioSessionGuid) ) 
+
+#define IAudioClient3_GetBufferSize(This,pNumBufferFrames)	\
+    ( (This)->lpVtbl -> GetBufferSize(This,pNumBufferFrames) ) 
+
+#define IAudioClient3_GetStreamLatency(This,phnsLatency)	\
+    ( (This)->lpVtbl -> GetStreamLatency(This,phnsLatency) ) 
+
+#define IAudioClient3_GetCurrentPadding(This,pNumPaddingFrames)	\
+    ( (This)->lpVtbl -> GetCurrentPadding(This,pNumPaddingFrames) ) 
+
+#define IAudioClient3_IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch)	\
+    ( (This)->lpVtbl -> IsFormatSupported(This,ShareMode,pFormat,ppClosestMatch) ) 
+
+#define IAudioClient3_GetMixFormat(This,ppDeviceFormat)	\
+    ( (This)->lpVtbl -> GetMixFormat(This,ppDeviceFormat) ) 
+
+#define IAudioClient3_GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod)	\
+    ( (This)->lpVtbl -> GetDevicePeriod(This,phnsDefaultDevicePeriod,phnsMinimumDevicePeriod) ) 
+
+#define IAudioClient3_Start(This)	\
+    ( (This)->lpVtbl -> Start(This) ) 
+
+#define IAudioClient3_Stop(This)	\
+    ( (This)->lpVtbl -> Stop(This) ) 
+
+#define IAudioClient3_Reset(This)	\
+    ( (This)->lpVtbl -> Reset(This) ) 
+
+#define IAudioClient3_SetEventHandle(This,eventHandle)	\
+    ( (This)->lpVtbl -> SetEventHandle(This,eventHandle) ) 
+
+#define IAudioClient3_GetService(This,riid,ppv)	\
+    ( (This)->lpVtbl -> GetService(This,riid,ppv) ) 
+
+
+#define IAudioClient3_IsOffloadCapable(This,Category,pbOffloadCapable)	\
+    ( (This)->lpVtbl -> IsOffloadCapable(This,Category,pbOffloadCapable) ) 
+
+#define IAudioClient3_SetClientProperties(This,pProperties)	\
+    ( (This)->lpVtbl -> SetClientProperties(This,pProperties) ) 
+
+#define IAudioClient3_GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration)	\
+    ( (This)->lpVtbl -> GetBufferSizeLimits(This,pFormat,bEventDriven,phnsMinBufferDuration,phnsMaxBufferDuration) ) 
+
+
+#define IAudioClient3_GetSharedModeEnginePeriod(This,pFormat,pDefaultPeriodInFrames,pFundamentalPeriodInFrames,pMinPeriodInFrames,pMaxPeriodInFrames)	\
+    ( (This)->lpVtbl -> GetSharedModeEnginePeriod(This,pFormat,pDefaultPeriodInFrames,pFundamentalPeriodInFrames,pMinPeriodInFrames,pMaxPeriodInFrames) ) 
+
+#define IAudioClient3_GetCurrentSharedModeEnginePeriod(This,ppFormat,pCurrentPeriodInFrames)	\
+    ( (This)->lpVtbl -> GetCurrentSharedModeEnginePeriod(This,ppFormat,pCurrentPeriodInFrames) ) 
+
+#define IAudioClient3_InitializeSharedAudioStream(This,StreamFlags,PeriodInFrames,pFormat,AudioSessionGuid)	\
+    ( (This)->lpVtbl -> InitializeSharedAudioStream(This,StreamFlags,PeriodInFrames,pFormat,AudioSessionGuid) ) 
+
+#endif /* COBJMACROS */
+#endif 	/* C style interface */
+#endif 	/* __IAudioClient3_INTERFACE_DEFINED__ */
+
 
 // And some GUID are never implemented (Ignoring the INITGUID define)
 static const CLSID CLSID_MMDeviceEnumerator  = __uuidof(MMDeviceEnumerator);
@@ -61,6 +533,14 @@ static const IID   IID_IMMNotificationClient = {
 static const IID   IID_IAudioClient = {
     //MIDL_INTERFACE("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2")
     0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}
+};
+static const IID   IID_IAudioClient2 = {
+    //MIDL_INTERFACE("726778CD-F60A-4EDA-82DE-E47610CD78AA")
+    0x726778cd, 0xf60a, 0x4edA, {0x82, 0xde, 0xe4, 0x76, 0x10, 0xcd, 0x78, 0xaa}
+};
+static const IID   IID_IAudioClient3 = {
+    //MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+    0x7ed4ee07, 0x8e67, 0x4cd4, {0x8c, 0x1a, 0x2b, 0x7a, 0x59, 0x87, 0xad, 0x42}
 };
 static const IID   IID_IAudioRenderClient    = {
     //MIDL_INTERFACE("F294ACFC-3146-4483-A7BF-ADDCA7C260E2")
@@ -91,21 +571,131 @@ static const IID IID_ISimpleAudioVolume = {
     0x87ce5498, 0x68d6, 0x44e5,{ 0x92, 0x15, 0x6d, 0xa4, 0x7e, 0xf8, 0x83, 0xd8 }
 };
 
+static const IID IID_IAudioEndpointVolume = {
+    //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+    //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+
+static const IID IID_IAudioClock = {
+    //MIDL_INTERFACE("CD63314F-3FBA-4A1B-812C-EF96358728E7")
+    0xcd63314f, 0x3fba, 0x4a1b, {0x81, 0x2c, 0xef, 0x96, 0x35, 0x87, 0x28, 0xe7}
+};
+
+static const IID IID_IAudioEndpointVolume = {
+        //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+        //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+static const IID IID_IAudioEndpointVolume = {
+        //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+        //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+
+static const IID IID_IAudioEndpointVolume = {
+        //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+        //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+
 #else
 #define IS_EQUAL_GUID(a, b) IsEqualGUID((a), (b))
 #define IS_EQUAL_IID(a, b) IsEqualIID((a), (b))
+#define IID_IAUDIOCLIENT                      (&IID_IAudioClient)
+#define IID_IAUDIOCLIENT3                     (&IID_IAudioClient3)
+#define IID_IMMENDPOINT                       (&IID_IMMEndpoint)
+#define IID_IAUDIOCLOCKADJUSTMENT             (&IID_IAudioClockAdjustment)
+#define IID_IAUDIOSESSIONCONTROL              (&IID_IAudioSessionControl)
+#define IID_IAUDIORENDERCLIENT                (&IID_IAudioRenderClient)
+#define IID_IMMDEVICEENUMERATOR               (&IID_IMMDeviceEnumerator)
+#define IID_IAUDIOCAPTURECLIENT               (&IID_IAudioCaptureClient)
+#define IID_ISIMPLEAUDIOVOLUME                (&IID_ISimpleAudioVolume)
+#define CLSID_MMDEVICEENUMERATOR              (&CLSID_MMDeviceEnumerator)
+#define PKEY_DEVICE_FRIENDLYNAME              (&PKEY_Device_FriendlyName)
+#define PKEY_AUDIOENGINE_DEVICEFORMAT         (&PKEY_AudioEngine_DeviceFormat)
+#define IID_IAUDIOCLOCK                       (&IID_IAudioClock)
+static const IID   IID_IMMDeviceEnumerator = {
+    //MIDL_INTERFACE("A95664D2-9614-4F35-A746-DE8DB63617E6")
+    0xa95664d2, 0x9614, 0x4f35, {0xa7, 0x46, 0xde, 0x8d, 0xb6, 0x36, 0x17, 0xe6}
+};
+static const IID   IID_IMMNotificationClient = {
+    //MIDL_INTERFACE("7991EEC9-7E89-4D85-8390-6C703CEC60C0")
+    0x7991eec9, 0x7e89, 0x4d85, {0x83, 0x90, 0x6c, 0x70, 0x3c, 0xec, 0x60, 0xc0}
+};
+static const IID   IID_IAudioClient = {
+    //MIDL_INTERFACE("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2")
+    0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}
+};
+static const IID   IID_IAudioClient2 = {
+    //MIDL_INTERFACE("726778CD-F60A-4EDA-82DE-E47610CD78AA")
+    0x726778cd, 0xf60a, 0x4edA, {0x82, 0xde, 0xe4, 0x76, 0x10, 0xcd, 0x78, 0xaa}
+};
+static const IID   IID_IAudioClient3 = {
+    //MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+    0x7ed4ee07, 0x8e67, 0x4cd4, {0x8c, 0x1a, 0x2b, 0x7a, 0x59, 0x87, 0xad, 0x42}
+};
+static const IID   IID_IAudioRenderClient = {
+    //MIDL_INTERFACE("F294ACFC-3146-4483-A7BF-ADDCA7C260E2")
+    0xf294acfc, 0x3146, 0x4483, {0xa7, 0xbf, 0xad, 0xdc, 0xa7, 0xc2, 0x60, 0xe2}
+};
+static const IID   IID_IAudioSessionControl = {
+    //MIDL_INTERFACE("F4B1A599-7266-4319-A8CA-E70ACB11E8CD")
+    0xf4b1a599, 0x7266, 0x4319, {0xa8, 0xca, 0xe7, 0x0a, 0xcb, 0x11, 0xe8, 0xcd}
+};
+static const IID   IID_IAudioSessionEvents = {
+    //MIDL_INTERFACE("24918ACC-64B3-37C1-8CA9-74A66E9957A8")
+    0x24918acc, 0x64b3, 0x37c1, {0x8c, 0xa9, 0x74, 0xa6, 0x6e, 0x99, 0x57, 0xa8}
+};
+static const IID IID_IMMEndpoint = {
+    //MIDL_INTERFACE("1BE09788-6894-4089-8586-9A2A6C265AC5")
+    0x1be09788, 0x6894, 0x4089, {0x85, 0x86, 0x9a, 0x2a, 0x6c, 0x26, 0x5a, 0xc5}
+};
+static const IID IID_IAudioClockAdjustment = {
+    //MIDL_INTERFACE("f6e4c0a0-46d9-4fb8-be21-57a3ef2b626c")
+    0xf6e4c0a0, 0x46d9, 0x4fb8, {0xbe, 0x21, 0x57, 0xa3, 0xef, 0x2b, 0x62, 0x6c}
+};
+static const IID IID_IAudioCaptureClient = {
+    //MIDL_INTERFACE("C8ADBD64-E71E-48a0-A4DE-185C395CD317")
+    0xc8adbd64, 0xe71e, 0x48a0, {0xa4, 0xde, 0x18, 0x5c, 0x39, 0x5c, 0xd3, 0x17}
+};
 
-#define IID_IAUDIOCLIENT (&IID_IAudioClient)
-#define IID_IMMENDPOINT (&IID_IMMEndpoint)
-#define PKEY_DEVICE_FRIENDLYNAME (&PKEY_Device_FriendlyName)
-#define PKEY_AUDIOENGINE_DEVICEFORMAT (&PKEY_AudioEngine_DeviceFormat)
-#define CLSID_MMDEVICEENUMERATOR (&CLSID_MMDeviceEnumerator)
-#define IID_IAUDIOCLOCKADJUSTMENT (&IID_IAudioClockAdjustment)
-#define IID_IAUDIOSESSIONCONTROL (&IID_IAudioSessionControl)
-#define IID_IAUDIORENDERCLIENT (&IID_IAudioRenderClient)
-#define IID_IMMDEVICEENUMERATOR (&IID_IMMDeviceEnumerator)
-#define IID_IAUDIOCAPTURECLIENT (&IID_IAudioCaptureClient)
-#define IID_ISIMPLEAUDIOVOLUME (&IID_ISimpleAudioVolume)
+static const IID IID_ISimpleAudioVolume = {
+    //MIDL_INTERFACE("87ce5498-68d6-44e5-9215-6da47ef883d8")
+    0x87ce5498, 0x68d6, 0x44e5, {0x92, 0x15, 0x6d, 0xa4, 0x7e, 0xf8, 0x83, 0xd8}
+};
+
+static const IID IID_IAudioEndpointVolume = {
+    //MIDL_INTERFACE("5CDF2C82-841E-4546-9722-0CF74078229A")
+    0x5cdf2c82, 0x841e, 0x4546, {0x97, 0x22, 0x0c, 0xf7, 0x40, 0x78, 0x22, 0x9a}
+};
+static const IID IID_IAudioEndpointVolumeCallback = {
+    //MIDL_INTERFACE("657804FA-D6AD-4496-8A60-352752AF4F89")
+    0x657804fa, 0xd6ad, 0x4496, {0x8a, 0x60, 0x35, 0x27, 0x52, 0xaf, 0x4f, 0x89}
+};
+
+static const IID IID_IAudioClock = {
+    //MIDL_INTERFACE("CD63314F-3FBA-4A1B-812C-EF96358728E7")
+    0xcd63314f, 0x3fba, 0x4a1b, {0x81, 0x2c, 0xef, 0x96, 0x35, 0x87, 0x28, 0xe7}
+};
+
+static const CLSID CLSID_MMDeviceEnumerator = {
+    //MIDL_INTERFACE("CD63314F-3FBA-4A1B-812C-EF96358728E7")
+    0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}
+};
+
 #endif
 
 // Attempting to use the Windows-supplied versions of these constants resulted
@@ -295,42 +885,92 @@ static void from_channel_mask_layout(UINT channel_mask, struct SoundIoChannelLay
 }
 
 static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, struct SoundIoChannelLayout *layout) {
-    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
     layout->channel_count = 0;
-    from_channel_mask_layout(wave_format->dwChannelMask, layout);
+    if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+        from_channel_mask_layout(wave_format->dwChannelMask, layout);
+    }
+    else {
+        //only mono and stereo pcm supported without extensible
+        if (wave_format->Format.nChannels == 1) {
+            *layout = *soundio_channel_layout_get_builtin(0);
+        }
+        else if (wave_format->Format.nChannels == 2) {
+            *layout = *soundio_channel_layout_get_builtin(1);
+        }
+    }
 }
 
 static enum SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_format) {
-    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
-    bool is_pcm = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
-    bool is_float = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
-
-    if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
-        if (wave_format->Format.wBitsPerSample == 8) {
-            if (is_pcm)
+    bool is_extensible = 0;
+    bool is_pcm = 0;
+    bool is_float = 0;
+    bool is_drm = 0;
+    bool is_alaw = 0;
+    if (wave_format->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
+        assert(!wave_format->Format.cbSize);
+        if (wave_format->Format.wFormatTag == WAVE_FORMAT_PCM) {
+            assert(wave_format->Format.nChannels == 1 || wave_format->Format.nChannels == 2);
+            is_pcm = 1;
+            if (wave_format->Format.wBitsPerSample == 8) {
                 return SoundIoFormatU8;
-        } else if (wave_format->Format.wBitsPerSample == 16) {
-            if (is_pcm)
+            }
+            else if (wave_format->Format.wBitsPerSample == 16) {
                 return SoundIoFormatS16LE;
-        } else if (wave_format->Format.wBitsPerSample == 32) {
-            if (is_pcm)
-                return SoundIoFormatS32LE;
-            else if (is_float)
-                return SoundIoFormatFloat32LE;
-        } else if (wave_format->Format.wBitsPerSample == 64) {
-            if (is_float)
-                return SoundIoFormatFloat64LE;
+            }
         }
-    } else if (wave_format->Format.wBitsPerSample == 32 &&
-            wave_format->Samples.wValidBitsPerSample == 24)
-    {
-        return SoundIoFormatS24LE;
+        //other types will be invalid since it is typically unsupported
     }
+    else {
+        is_extensible = 1;
+        //maybe a enum here is better.
+        //but still, there is the problem of exposing compressed types to the user
+        //and there is restriction on what kind shared or exclusive engine can work on
+        //if it needs to be supported in the whole library, there must be a software
+        //dynamic fallback that buffers the data, same appiles to resampling and
+        //format conversion (rtaudio has an implementation of this, but not necessarily
+        //optimal compute-wise)
+        is_pcm = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM);
+        is_float = IS_EQUAL_GUID(&wave_format->SubFormat, &SOUNDIO_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+        //is_drm = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_DRM);
+        //is_alaw = IS_EQUAL_GUID(&wave_format->SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW);
+        //other types here
+        if (wave_format->Samples.wValidBitsPerSample == wave_format->Format.wBitsPerSample) {
+            if (wave_format->Format.wBitsPerSample == 8) {
+                if (is_pcm)
+                    return SoundIoFormatU8;
+            }
+            else if (wave_format->Format.wBitsPerSample == 16) {
+                if (is_pcm)
+                    return SoundIoFormatS16LE;
+            }
+            else if (wave_format->Format.wBitsPerSample == 32) {
+                if (is_pcm)
+                    return SoundIoFormatS32LE;
+                else if (is_float)
+                    return SoundIoFormatFloat32LE;
+            }
+            else if (wave_format->Format.wBitsPerSample == 64) {
+                if (is_float)
+                    return SoundIoFormatFloat64LE;
+            }
+        }
+        else if (wave_format->Format.wBitsPerSample == 32 &&
+             wave_format->Samples.wValidBitsPerSample == 24) {
+            return SoundIoFormatS24LE;
+        }
+    }
+    //assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
 
+
+    //3-byte 24 bit will go here, libsoundio does not expose
+    //variable packing an bit depth for now, so 24 must look
+    //like the same thing as 32 bit if little endian from
+    //the outside
     return SoundIoFormatInvalid;
 }
 
 // only needs to support the layouts in test_layouts
+// since this is given to api, we can always assume extensible
 static void to_wave_format_layout(const struct SoundIoChannelLayout *layout, WAVEFORMATEXTENSIBLE *wave_format) {
     wave_format->dwChannelMask = 0;
     wave_format->Format.nChannels = layout->channel_count;
@@ -398,6 +1038,7 @@ static void to_wave_format_layout(const struct SoundIoChannelLayout *layout, WAV
 }
 
 // only needs to support the formats in test_formats
+// since this is given to api, we can always assume extensible
 static void to_wave_format_format(enum SoundIoFormat format, WAVEFORMATEXTENSIBLE *wave_format) {
     switch (format) {
     case SoundIoFormatU8:
@@ -524,7 +1165,11 @@ static int detect_valid_layouts(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         return SoundIoErrorNoMem;
 
     WAVEFORMATEX *closest_match = NULL;
-    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+    WAVEFORMATEXTENSIBLE orig_wave_format;
+    if(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        orig_wave_format = *wave_format;
+    else
+        orig_wave_format.Format = wave_format->Format;
 
     for (int i = 0; i < ARRAY_LENGTH(test_formats); i += 1) {
         enum SoundIoChannelLayoutId test_layout_id = test_layouts[i];
@@ -543,7 +1188,10 @@ static int detect_valid_layouts(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
             continue;
         } else {
-            *wave_format = orig_wave_format;
+            if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+                *wave_format = orig_wave_format;
+            else
+                wave_format->Format = orig_wave_format.Format;
             return SoundIoErrorOpeningDevice;
         }
     }
@@ -564,7 +1212,11 @@ static int detect_valid_formats(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         return SoundIoErrorNoMem;
 
     WAVEFORMATEX *closest_match = NULL;
-    WAVEFORMATEXTENSIBLE orig_wave_format = *wave_format;
+    WAVEFORMATEXTENSIBLE orig_wave_format;
+    if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        orig_wave_format = *wave_format;
+    else
+        orig_wave_format.Format = wave_format->Format;
 
     for (int i = 0; i < ARRAY_LENGTH(test_formats); i += 1) {
         enum SoundIoFormat test_format = test_formats[i];
@@ -582,7 +1234,10 @@ static int detect_valid_formats(struct RefreshDevices *rd, WAVEFORMATEXTENSIBLE 
         } else if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == S_FALSE || hr == E_INVALIDARG) {
             continue;
         } else {
-            *wave_format = orig_wave_format;
+            if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+                *wave_format = orig_wave_format;
+            else
+                wave_format->Format = orig_wave_format.Format;
             return SoundIoErrorOpeningDevice;
         }
     }
@@ -884,14 +1539,21 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             IUnknown_Release(rd.audio_client);
             rd.audio_client = NULL;
         }
-        if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAUDIOCLIENT,
+        if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAUDIOCLIENT3,
                         CLSCTX_ALL, NULL, (void**)&rd.audio_client)))
         {
-            rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
-            rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
-            rd.device_shared = NULL;
-            rd.device_raw = NULL;
-            continue;
+            if (FAILED(hr = IMMDevice_Activate(rd.mm_device, IID_IAUDIOCLIENT,
+                CLSCTX_ALL, NULL, (void**)&rd.audio_client))) {
+                rd.device_shared->probe_error = SoundIoErrorOpeningDevice;
+                rd.device_raw->probe_error = SoundIoErrorOpeningDevice;
+                rd.device_shared = NULL;
+                rd.device_raw = NULL;
+                continue;
+            }
+        }
+        else {
+            dev_w_raw->iaudio3_available=true;
+            dev_w_shared->iaudio3_available = true;
         }
 
         REFERENCE_TIME default_device_period;
@@ -906,6 +1568,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             continue;
         }
         dev_w_shared->period_duration = from_reference_time(default_device_period);
+        //This can change with IAudioClient3
         rd.device_shared->software_latency_current = dev_w_shared->period_duration;
 
         dev_w_raw->period_duration = from_reference_time(min_device_period);
@@ -1192,7 +1855,7 @@ static void force_device_scan_wasapi(struct SoundIoPrivate *si) {
 
 static void outstream_thread_deinit(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
-
+    AvRevertMmThreadCharacteristics(osw->h_mmThread);
     if (osw->audio_volume_control)
         IUnknown_Release(osw->audio_volume_control);
     if (osw->audio_render_client)
@@ -1241,6 +1904,19 @@ static void outstream_destroy_wasapi(struct SoundIoPrivate *si, struct SoundIoOu
     osw->mutex = NULL;
 }
 
+HRESULT InitializeOutStream(bool client3_avail, IAudioClient* client, AUDCLNT_SHAREMODE share, DWORD flags, 
+    UINT32 duration, UINT32 period, WAVEFORMATEX* format, LPCGUID session_guid) {
+    if (client3_avail && share == AUDCLNT_SHAREMODE_SHARED) {
+        return IAudioClient3_InitializeSharedAudioStream((IAudioClient3*)client,flags,period,format, session_guid);
+    }
+    REFERENCE_TIME dur_time, period_time;
+    double dur = duration;
+    double per = period;
+    dur_time = to_reference_time(dur/format->nSamplesPerSec);
+    period_time = to_reference_time(per / format->nSamplesPerSec);
+    return IAudioClient_Initialize(client,share,flags,dur_time,period_time,format, session_guid);
+}
+
 static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     struct SoundIoOutStream *outstream = &os->pub;
@@ -1248,18 +1924,23 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     struct SoundIoDevicePrivate *dev = (struct SoundIoDevicePrivate *)device;
     struct SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
     HRESULT hr;
-
-    if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
-                    CLSCTX_ALL, NULL, (void**)&osw->audio_client)))
-    {
-        return SoundIoErrorOpeningDevice;
+    if (dw->iaudio3_available) {
+        if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT3,
+            CLSCTX_ALL, NULL, (void**)&osw->audio_client))) {
+            return SoundIoErrorOpeningDevice;
+        }
     }
-
+    else {
+        if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
+            CLSCTX_ALL, NULL, (void**)&osw->audio_client))) {
+            return SoundIoErrorOpeningDevice;
+        }
+    }
 
     AUDCLNT_SHAREMODE share_mode;
     DWORD flags;
-    REFERENCE_TIME buffer_duration;
-    REFERENCE_TIME periodicity;
+    UINT32 duration;
+    UINT32 period;
     WAVEFORMATEXTENSIBLE wave_format = {0};
     wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
@@ -1267,8 +1948,11 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         wave_format.Format.nSamplesPerSec = outstream->sample_rate;
         flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
-        periodicity = to_reference_time(dw->period_duration);
-        buffer_duration = periodicity;
+        period = dw->period_duration * wave_format.Format.nSamplesPerSec;
+        duration = dw->period_duration * wave_format.Format.nSamplesPerSec;
+        to_wave_format_layout(&outstream->layout, &wave_format);
+        to_wave_format_format(outstream->format, &wave_format);
+        complete_wave_format_data(&wave_format);
     } else {
         WAVEFORMATEXTENSIBLE *mix_format;
         if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
@@ -1278,17 +1962,41 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         osw->need_resample = (mix_format->Format.nSamplesPerSec != wave_format.Format.nSamplesPerSec);
         CoTaskMemFree(mix_format);
         mix_format = NULL;
+        to_wave_format_layout(&outstream->layout, &wave_format);
+        to_wave_format_format(outstream->format, &wave_format);
+        complete_wave_format_data(&wave_format);
         flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+        if (dev->backend_data.wasapi.iaudio3_available) {
+            flags |= AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+            UINT32 default_period, increment, max_period;
+            if (FAILED(hr = IAudioClient3_GetSharedModeEnginePeriod((IAudioClient3*)osw->audio_client, &wave_format.Format, &default_period, &increment, &period, &max_period))) {
+                period = 0;
+                duration = 4.0 * outstream->sample_rate;
+            }
+            else {
+                duration = max_period;
+                osw->min_padding_frames = period;
+            }
+        }
+        else {
+            REFERENCE_TIME min_period;
+            REFERENCE_TIME def_period;
+            if (FAILED(hr = IAudioClient_GetDevicePeriod(osw->audio_client, &def_period, &min_period))) {
+                period = 0;
+                duration = 4.0 * outstream->sample_rate;
+            }
+            else {
+                period = from_reference_time(def_period) * outstream->sample_rate;
+                //larger buffer for ping-pong approach
+                duration = from_reference_time(def_period) * outstream->sample_rate * 2;
+                osw->min_padding_frames = from_reference_time(def_period) * outstream->sample_rate;
+            }
+        }
         share_mode = AUDCLNT_SHAREMODE_SHARED;
-        periodicity = 0;
-        buffer_duration = to_reference_time(4.0);
     }
-    to_wave_format_layout(&outstream->layout, &wave_format);
-    to_wave_format_format(outstream->format, &wave_format);
-    complete_wave_format_data(&wave_format);
 
-    if (FAILED(hr = IAudioClient_Initialize(osw->audio_client, share_mode, flags,
-            buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, NULL)))
+    if (FAILED(hr = InitializeOutStream(dev->backend_data.wasapi.iaudio3_available,osw->audio_client, share_mode, flags,
+        duration, period, (WAVEFORMATEX*)&wave_format, NULL)))
     {
         if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
             if (FAILED(hr = IAudioClient_GetBufferSize(osw->audio_client, &osw->buffer_frame_count))) {
@@ -1296,10 +2004,17 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
             }
             IUnknown_Release(osw->audio_client);
             osw->audio_client = NULL;
-            if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
-                            CLSCTX_ALL, NULL, (void**)&osw->audio_client)))
-            {
-                return SoundIoErrorOpeningDevice;
+            if (dw->iaudio3_available) {
+                if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT3,
+                    CLSCTX_ALL, NULL, (void**)&osw->audio_client))) {
+                    return SoundIoErrorOpeningDevice;
+                }
+            }
+            else {
+                if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
+                    CLSCTX_ALL, NULL, (void**)&osw->audio_client))) {
+                    return SoundIoErrorOpeningDevice;
+                }
             }
             if (!osw->is_raw) {
                 WAVEFORMATEXTENSIBLE *mix_format;
@@ -1311,16 +2026,17 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
                 CoTaskMemFree(mix_format);
                 mix_format = NULL;
                 flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+                if (dev->backend_data.wasapi.iaudio3_available)
+                    flags |= AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
                 to_wave_format_layout(&outstream->layout, &wave_format);
                 to_wave_format_format(outstream->format, &wave_format);
                 complete_wave_format_data(&wave_format);
             }
-
-            buffer_duration = to_reference_time(osw->buffer_frame_count / (double)outstream->sample_rate);
+            duration = osw->buffer_frame_count;
             if (osw->is_raw)
-                periodicity = buffer_duration;
-            if (FAILED(hr = IAudioClient_Initialize(osw->audio_client, share_mode, flags,
-                    buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, NULL)))
+                period = duration;
+            if (FAILED(hr = InitializeOutStream(dev->backend_data.wasapi.iaudio3_available, osw->audio_client, share_mode, flags,
+                duration, period, (WAVEFORMATEX*)&wave_format, NULL)))
             {
                 if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT) {
                     return SoundIoErrorIncompatibleDevice;
@@ -1339,19 +2055,20 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         }
     }
     REFERENCE_TIME max_latency_ref_time;
-    if (FAILED(hr = IAudioClient_GetStreamLatency(osw->audio_client, &max_latency_ref_time))) {
-        return SoundIoErrorOpeningDevice;
+    if (!osw->is_raw && !dw->iaudio3_available) {
+        if (FAILED(hr = IAudioClient_GetStreamLatency(osw->audio_client, &max_latency_ref_time))) {
+            return SoundIoErrorOpeningDevice;
+        }
+        double max_latency_sec = from_reference_time(max_latency_ref_time);
+        osw->min_padding_frames = (max_latency_sec * outstream->sample_rate) + 0.5;
     }
-    double max_latency_sec = from_reference_time(max_latency_ref_time);
-    osw->min_padding_frames = (max_latency_sec * outstream->sample_rate) + 0.5;
-
 
     if (FAILED(hr = IAudioClient_GetBufferSize(osw->audio_client, &osw->buffer_frame_count))) {
         return SoundIoErrorOpeningDevice;
     }
     outstream->software_latency = osw->buffer_frame_count / (double)outstream->sample_rate;
 
-    if (osw->is_raw) {
+    if (osw->is_raw || dev->backend_data.wasapi.iaudio3_available) {
         if (FAILED(hr = IAudioClient_SetEventHandle(osw->audio_client, osw->h_event))) {
             return SoundIoErrorOpeningDevice;
         }
@@ -1391,6 +2108,13 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     {
         return SoundIoErrorOpeningDevice;
     }
+
+    if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIOCLOCK,
+        (void**)&osw->iclock))) {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    osw->h_mmThread = AvSetMmThreadCharacteristics(TEXT("Audio"),&osw->taskIndex);
 
     return 0;
 }
@@ -1447,6 +2171,7 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
                 outstream->error_callback(outstream, SoundIoErrorStreaming);
                 return;
             }
+            osw->write_frame_count = 0;
             SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
             reset_buffer = true;
         }
@@ -1472,7 +2197,7 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
             return;
         }
         osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        if (osw->writable_frame_count > 0) {
+        if (!osw->is_paused && osw->writable_frame_count > 0) {
             if (frames_used == 0 && !reset_buffer)
                 outstream->underflow_callback(outstream);
             int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
@@ -1514,8 +2239,98 @@ static void outstream_raw_run(struct SoundIoOutStreamPrivate *os) {
                 osw->is_paused = false;
             }
         }
+        if(!osw->is_paused)
+            outstream->write_callback(outstream, osw->buffer_frame_count, osw->buffer_frame_count);
+    }
+}
 
-        outstream->write_callback(outstream, osw->buffer_frame_count, osw->buffer_frame_count);
+static void outstream_shared_run_audio3(struct SoundIoOutStreamPrivate* os)
+{
+    struct SoundIoOutStreamWasapi* osw = &os->backend_data.wasapi;
+    struct SoundIoOutStream* outstream = &os->pub;
+
+    HRESULT hr;
+    if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
+        outstream->error_callback(outstream, SoundIoErrorStreaming);
+        return;
+    }
+    UINT32 padding = 0;
+    if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &padding))) {
+        outstream->error_callback(outstream, SoundIoErrorStreaming);
+        return;
+    }
+
+    //write some samples so that the underflow callback works.
+    //In normal shared mode, it happens that if the user
+    //work exactly on the time frame of update, there will also
+    //be an extra callback invoked every frame. This path trys
+    //to keep something less than a full buffer unwritten
+    //to keep track of whether the wake was supplying uneeded
+    //data with extra latency or an actual need for update.
+    //If buffer size is given to be exactly as update size,
+    //respecting the request, there can be lots of
+    //extra unneeded underflow callbacks
+    osw->writable_frame_count = osw->buffer_frame_count - padding;
+    if (osw->writable_frame_count)
+        outstream->write_callback(outstream, soundio_int_min(osw->writable_frame_count,osw->min_padding_frames + 1), osw->writable_frame_count);
+
+    for (;;) {
+        WaitForSingleObject(osw->h_event, INFINITE);
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag))
+            return;
+        bool reset_buffer= 0;
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->clear_buffer_flag)) {
+            if (!osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = true;
+            }
+            if (FAILED(hr = IAudioClient_Reset(osw->audio_client))) {
+                outstream->error_callback(outstream, SoundIoErrorStreaming);
+                return;
+            }
+            osw->write_frame_count = 0;
+            SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
+            reset_buffer = true;
+        }
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->pause_resume_flag)) {
+            bool pause = SOUNDIO_ATOMIC_LOAD(osw->desired_pause_state);
+            if (pause && !osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = true;
+            }
+            else if (!pause && osw->is_paused) {
+                if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
+                    outstream->error_callback(outstream, SoundIoErrorStreaming);
+                    return;
+                }
+                osw->is_paused = false;
+            }
+        }
+        if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &padding))) {
+            outstream->error_callback(outstream, SoundIoErrorStreaming);
+            return;
+        }
+        //Do not write if things are paused.
+        if(osw->min_padding_frames < padding || osw->is_paused)
+            continue;
+        else if (!padding) {
+            if(!reset_buffer)
+                outstream->underflow_callback(outstream);
+            outstream->write_callback(outstream, soundio_int_min(osw->writable_frame_count, osw->min_padding_frames + 1), osw->writable_frame_count);
+        }
+        else {
+            osw->writable_frame_count = osw->buffer_frame_count - padding;
+            if (osw->writable_frame_count)
+                outstream->write_callback(outstream, osw->min_padding_frames - padding, osw->writable_frame_count);
+        }
+            
+
     }
 }
 
@@ -1523,8 +2338,8 @@ static void outstream_thread_run(void *arg) {
     struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)arg;
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     struct SoundIoOutStream *outstream = &os->pub;
-    struct SoundIoDevice *device = outstream->device;
-    struct SoundIo *soundio = device->soundio;
+    struct SoundIoDevicePrivate *device = (struct SoundIoDevicePrivate*)outstream->device;
+    struct SoundIo *soundio = device->pub.soundio;
     struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
 
     int err;
@@ -1556,6 +2371,8 @@ static void outstream_thread_run(void *arg) {
 
     if (osw->is_raw)
         outstream_raw_run(os);
+    else if (device->backend_data.wasapi.iaudio3_available)
+        outstream_shared_run_audio3(os);
     else
         outstream_shared_run(os);
 
@@ -1565,7 +2382,7 @@ static void outstream_thread_run(void *arg) {
 static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     struct SoundIoOutStream *outstream = &os->pub;
-    struct SoundIoDevice *device = outstream->device;
+    struct SoundIoDevicePrivate *device = (struct SoundIoDevicePrivate*)outstream->device;
     struct SoundIo *soundio = &si->pub;
 
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->pause_resume_flag);
@@ -1579,7 +2396,7 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
     // via conditions and signals. The thread for initialization and teardown is also used
     // for the realtime code calls the user write_callback.
 
-    osw->is_raw = device->is_raw;
+    osw->is_raw = device->pub.is_raw;
 
     if (!(osw->cond = soundio_os_cond_create())) {
         outstream_destroy_wasapi(si, os);
@@ -1596,7 +2413,7 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
         return SoundIoErrorNoMem;
     }
 
-    if (osw->is_raw) {
+    if (osw->is_raw || device->backend_data.wasapi.iaudio3_available) {
         osw->h_event = CreateEvent(NULL, FALSE, FALSE, NULL);
         if (!osw->h_event) {
             outstream_destroy_wasapi(si, os);
@@ -1661,8 +2478,7 @@ static int outstream_begin_write_wasapi(struct SoundIoPrivate *si, struct SoundI
     HRESULT hr;
 
     osw->write_frame_count = *frame_count;
-
-
+    osw->write_frame_offset += *frame_count;
     char *data;
     if (FAILED(hr = IAudioRenderClient_GetBuffer(osw->audio_render_client,
                     osw->write_frame_count, (BYTE**)&data)))
@@ -1692,7 +2508,7 @@ static int outstream_end_write_wasapi(struct SoundIoPrivate *si, struct SoundIoO
 static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
-    if (osw->h_event) {
+    if (osw->is_raw) {
         return SoundIoErrorIncompatibleDevice;
     } else {
         SOUNDIO_ATOMIC_FLAG_CLEAR(osw->clear_buffer_flag);
@@ -1712,11 +2528,23 @@ static int outstream_get_latency_wasapi(struct SoundIoPrivate *si, struct SoundI
 
     HRESULT hr;
     UINT32 frames_used;
-    if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &frames_used))) {
+ //   if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &frames_used))) {
+   //     return SoundIoErrorStreaming;
+   // }
+    UINT64 device_offset;
+    if (FAILED(hr = IAudioClock_GetPosition(osw->iclock,&device_offset,NULL))) {
         return SoundIoErrorStreaming;
     }
-
-    *out_latency = frames_used / (double)outstream->sample_rate;
+    UINT64 device_frequency;
+    if (FAILED(hr = IAudioClock_GetFrequency(osw->iclock, &device_frequency, NULL))) {
+        return SoundIoErrorStreaming;
+    }
+    double dev_freq = device_frequency;
+    double samp_rate = outstream->sample_rate;
+    double time1 = device_offset/ dev_freq;
+    double time2 = osw->write_frame_offset / samp_rate;
+    *out_latency = time2-time1;
+    outstream->software_latency = time2-time1;
     return 0;
 }
 
@@ -1785,10 +2613,17 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     struct SoundIoDeviceWasapi *dw = &dev->backend_data.wasapi;
     HRESULT hr;
 
-    if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
-                    CLSCTX_ALL, NULL, (void**)&isw->audio_client)))
-    {
-        return SoundIoErrorOpeningDevice;
+    if (dw->iaudio3_available) {
+        if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT3,
+            CLSCTX_ALL, NULL, (void**)&isw->audio_client))) {
+            return SoundIoErrorOpeningDevice;
+        }
+    }
+    else {
+        if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
+            CLSCTX_ALL, NULL, (void**)&isw->audio_client))) {
+            return SoundIoErrorOpeningDevice;
+        }
     }
 
     AUDCLNT_SHAREMODE share_mode;
@@ -1833,10 +2668,17 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
             }
             IUnknown_Release(isw->audio_client);
             isw->audio_client = NULL;
-            if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
-                            CLSCTX_ALL, NULL, (void**)&isw->audio_client)))
-            {
-                return SoundIoErrorOpeningDevice;
+            if (dw->iaudio3_available) {
+                if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT3,
+                    CLSCTX_ALL, NULL, (void**)&isw->audio_client))) {
+                    return SoundIoErrorOpeningDevice;
+                }
+            }
+            else {
+                if (FAILED(hr = IMMDevice_Activate(dw->mm_device, IID_IAUDIOCLIENT,
+                    CLSCTX_ALL, NULL, (void**)&isw->audio_client))) {
+                    return SoundIoErrorOpeningDevice;
+                }
             }
             if (!isw->is_raw) {
                 WAVEFORMATEXTENSIBLE *mix_format;
