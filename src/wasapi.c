@@ -885,7 +885,6 @@ static void from_channel_mask_layout(UINT channel_mask, struct SoundIoChannelLay
 }
 
 static void from_wave_format_layout(WAVEFORMATEXTENSIBLE *wave_format, struct SoundIoChannelLayout *layout) {
-    assert(wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
     layout->channel_count = 0;
     if (wave_format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
         from_channel_mask_layout(wave_format->dwChannelMask, layout);
@@ -1549,8 +1548,6 @@ static int refresh_devices(struct SoundIoPrivate *si) {
         else {
             dev_w_raw->iaudio3_available=true;
             dev_w_shared->iaudio3_available = true;
-            dev_w_raw->iaudio3_available = false;
-            dev_w_shared->iaudio3_available = false;
         }
 
         REFERENCE_TIME default_device_period;
