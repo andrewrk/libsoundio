@@ -202,8 +202,8 @@ set(LIBSOUNDIO_LIBS
 
 if(MSVC)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Wall")
-    set(LIB_CFLAGS "/TP /W4")
-    set(EXAMPLE_CFLAGS "/W4")
+    set(LIB_CFLAGS "/TP /W3")
+    set(EXAMPLE_CFLAGS "/W3")
     set(TEST_CFLAGS "${LIB_CFLAGS}")
     set(TEST_LDFLAGS " ")
     set(LIBM " ")
