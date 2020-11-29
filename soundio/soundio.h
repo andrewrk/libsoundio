@@ -1142,7 +1142,7 @@ SOUNDIO_EXPORT int soundio_instream_begin_read(struct SoundIoInStream *instream,
 /// * #SoundIoErrorStreaming
 SOUNDIO_EXPORT int soundio_instream_end_read(struct SoundIoInStream *instream);
 
-/// If the underyling device supports pausing, this pauses the stream and
+/// If the underlying device supports pausing, this pauses the stream and
 /// prevents SoundIoInStream::read_callback from being called. Otherwise this returns
 /// #SoundIoErrorIncompatibleDevice.
 /// This function may be called from any thread.
