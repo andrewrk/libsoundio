@@ -90,6 +90,10 @@
 #define SOUNDIO_OS_LITTLE_ENDIAN
 #elif defined(__bfin__)
 #define SOUNDIO_OS_LITTLE_ENDIAN
+#elif defined(_M_ARM)
+#define SOUNDIO_OS_LITTLE_ENDIAN
+#elif defined(_M_ARM64)
+#define SOUNDIO_OS_LITTLE_ENDIAN
 #else
 #error unable to detect endianness
 #endif
