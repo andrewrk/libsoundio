@@ -128,7 +128,7 @@ const char * soundio_format_string(enum SoundIoFormat format) {
     case SoundIoFormatS16LE:      return "signed 16-bit LE";
     case SoundIoFormatS16BE:      return "signed 16-bit BE";
     case SoundIoFormatU16LE:      return "unsigned 16-bit LE";
-    case SoundIoFormatU16BE:      return "unsigned 16-bit LE";
+    case SoundIoFormatU16BE:      return "unsigned 16-bit BE";
     case SoundIoFormatS24LE:      return "signed 24-bit LE";
     case SoundIoFormatS24BE:      return "signed 24-bit BE";
     case SoundIoFormatU24LE:      return "unsigned 24-bit LE";
