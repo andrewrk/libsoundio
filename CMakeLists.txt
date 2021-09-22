@@ -312,7 +312,6 @@ if(BUILD_TESTS)
     if(MSVC)
         set_property(SOURCE "${libsoundio_SOURCE_DIR}/test/latency.c" PROPERTY LANGUAGE CXX)
     endif()
-    target_link_libraries(latency LINK_PUBLIC ${LIBSOUNDIO_LIBS} ${LIBM})
     set_target_properties(latency PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${LIB_CFLAGS}
