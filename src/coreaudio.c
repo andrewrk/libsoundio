@@ -17,77 +17,77 @@ static AudioObjectPropertyAddress device_listen_props[] = {
     {
         kAudioDevicePropertyDeviceHasChanged,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioObjectPropertyName,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyDeviceUID,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyStreamConfiguration,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyStreamConfiguration,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyPreferredChannelLayout,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyPreferredChannelLayout,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyNominalSampleRate,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyNominalSampleRate,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyAvailableNominalSampleRates,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyAvailableNominalSampleRates,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyBufferFrameSize,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyBufferFrameSize,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyBufferFrameSizeRange,
         kAudioObjectPropertyScopeInput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
     {
         kAudioDevicePropertyBufferFrameSizeRange,
         kAudioObjectPropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     },
 };
 
@@ -141,7 +141,7 @@ static void destroy_ca(struct SoundIoPrivate *si) {
     AudioObjectPropertyAddress prop_address = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_devices_changed, si);
 
@@ -434,7 +434,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
     AudioObjectPropertyAddress prop_address = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
 
     if ((os_err = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject,
@@ -503,7 +503,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
         prop_address.mSelector = kAudioObjectPropertyName;
         prop_address.mScope = kAudioObjectPropertyScopeGlobal;
-        prop_address.mElement = kAudioObjectPropertyElementMaster;
+        prop_address.mElement = kAudioObjectPropertyElementMain;
         io_size = sizeof(CFStringRef);
         if (rd.string_ref) {
             CFRelease(rd.string_ref);
@@ -525,7 +525,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
         prop_address.mSelector = kAudioDevicePropertyDeviceUID;
         prop_address.mScope = kAudioObjectPropertyScopeGlobal;
-        prop_address.mElement = kAudioObjectPropertyElementMaster;
+        prop_address.mElement = kAudioObjectPropertyElementMain;
         io_size = sizeof(CFStringRef);
         if (rd.string_ref) {
             CFRelease(rd.string_ref);
@@ -552,7 +552,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             io_size = 0;
             prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, NULL, &io_size))) {
                 deinit_refresh_devices(&rd);
                 return SoundIoErrorOpeningDevice;
@@ -603,7 +603,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             prop_address.mSelector = kAudioDevicePropertyPreferredChannelLayout;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             if (!(os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address,
                 0, NULL, &io_size)))
             {
@@ -643,7 +643,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             prop_address.mSelector = kAudioDevicePropertyNominalSampleRate;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             io_size = sizeof(double);
             double value;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
@@ -669,7 +669,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
             } else {
                 prop_address.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
                 prop_address.mScope = aim_to_scope(aim);
-                prop_address.mElement = kAudioObjectPropertyElementMaster;
+                prop_address.mElement = kAudioObjectPropertyElementMain;
                 if ((os_err = AudioObjectGetPropertyDataSize(device_id, &prop_address, 0, NULL,
                     &io_size)))
                 {
@@ -715,7 +715,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSize;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             io_size = sizeof(UInt32);
             UInt32 buffer_frame_size;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
@@ -729,7 +729,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             prop_address.mSelector = kAudioDevicePropertyBufferFrameSizeRange;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             io_size = sizeof(AudioValueRange);
             AudioValueRange avr;
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
@@ -743,7 +743,7 @@ static int refresh_devices(struct SoundIoPrivate *si) {
 
             prop_address.mSelector = kAudioDevicePropertyLatency;
             prop_address.mScope = aim_to_scope(aim);
-            prop_address.mElement = kAudioObjectPropertyElementMaster;
+            prop_address.mElement = kAudioObjectPropertyElementMain;
             io_size = sizeof(UInt32);
             if ((os_err = AudioObjectGetPropertyData(device_id, &prop_address, 0, NULL,
                 &io_size, &dca->latency_frames)))
@@ -894,7 +894,7 @@ static void outstream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoOutStr
     AudioObjectPropertyAddress prop_address = {
         kAudioDeviceProcessorOverload,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_outstream_device_overload, os);
 
@@ -1151,7 +1151,7 @@ static void instream_destroy_ca(struct SoundIoPrivate *si, struct SoundIoInStrea
     AudioObjectPropertyAddress prop_address = {
         kAudioDeviceProcessorOverload,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     AudioObjectRemovePropertyListener(dca->device_id, &prop_address, on_instream_device_overload, is);
 
@@ -1230,7 +1230,7 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
     AudioObjectPropertyAddress prop_address;
     prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
     prop_address.mScope = kAudioObjectPropertyScopeInput;
-    prop_address.mElement = kAudioObjectPropertyElementMaster;
+    prop_address.mElement = kAudioObjectPropertyElementMain;
     io_size = 0;
     if ((os_err = AudioObjectGetPropertyDataSize(dca->device_id, &prop_address,
         0, NULL, &io_size)))
@@ -1437,7 +1437,7 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si) {
     AudioObjectPropertyAddress prop_address = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     if ((err = AudioObjectAddPropertyListener(kAudioObjectSystemObject, &prop_address,
         on_devices_changed, si)))
