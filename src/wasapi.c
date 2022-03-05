@@ -30,26 +30,10 @@
 #define E_NOTFOUND 0x80070490
 #endif //E_NOTFOUND
 
-#ifdef __cplusplus
-// In C++ mode, IsEqualGUID() takes its arguments by reference
-#define IS_EQUAL_GUID(a, b) IsEqualGUID(*(a), *(b))
-#define IS_EQUAL_IID(a, b) IsEqualIID((a), *(b))
-
-// And some constants are passed by reference
-#define IID_IAUDIOCLIENT                      (IID_IAudioClient)
-#define IID_IMMENDPOINT                       (IID_IMMEndpoint)
-#define IID_IAUDIOCLOCKADJUSTMENT             (IID_IAudioClockAdjustment)
-#define IID_IAUDIOSESSIONCONTROL              (IID_IAudioSessionControl)
-#define IID_IAUDIORENDERCLIENT                (IID_IAudioRenderClient)
-#define IID_IMMDEVICEENUMERATOR               (IID_IMMDeviceEnumerator)
-#define IID_IAUDIOCAPTURECLIENT               (IID_IAudioCaptureClient)
-#define IID_ISIMPLEAUDIOVOLUME                (IID_ISimpleAudioVolume)
-#define CLSID_MMDEVICEENUMERATOR              (CLSID_MMDeviceEnumerator)
-#define PKEY_DEVICE_FRIENDLYNAME              (PKEY_Device_FriendlyName)
-#define PKEY_AUDIOENGINE_DEVICEFORMAT         (PKEY_AudioEngine_DeviceFormat)
-
 // And some GUID are never implemented (Ignoring the INITGUID define)
-static const CLSID CLSID_MMDeviceEnumerator  = __uuidof(MMDeviceEnumerator);
+static const CLSID CLSID_MMDeviceEnumerator = {
+    0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}
+};
 static const IID   IID_IMMDeviceEnumerator   = {
     //MIDL_INTERFACE("A95664D2-9614-4F35-A746-DE8DB63617E6")
     0xa95664d2, 0x9614, 0x4f35, {0xa7, 0x46, 0xde, 0x8d, 0xb6, 0x36, 0x17, 0xe6}
@@ -90,6 +74,24 @@ static const IID IID_ISimpleAudioVolume = {
     //MIDL_INTERFACE("87ce5498-68d6-44e5-9215-6da47ef883d8")
     0x87ce5498, 0x68d6, 0x44e5,{ 0x92, 0x15, 0x6d, 0xa4, 0x7e, 0xf8, 0x83, 0xd8 }
 };
+
+#ifdef __cplusplus
+// In C++ mode, IsEqualGUID() takes its arguments by reference
+#define IS_EQUAL_GUID(a, b) IsEqualGUID(*(a), *(b))
+#define IS_EQUAL_IID(a, b) IsEqualIID((a), *(b))
+
+// And some constants are passed by reference
+#define IID_IAUDIOCLIENT                      (IID_IAudioClient)
+#define IID_IMMENDPOINT                       (IID_IMMEndpoint)
+#define IID_IAUDIOCLOCKADJUSTMENT             (IID_IAudioClockAdjustment)
+#define IID_IAUDIOSESSIONCONTROL              (IID_IAudioSessionControl)
+#define IID_IAUDIORENDERCLIENT                (IID_IAudioRenderClient)
+#define IID_IMMDEVICEENUMERATOR               (IID_IMMDeviceEnumerator)
+#define IID_IAUDIOCAPTURECLIENT               (IID_IAudioCaptureClient)
+#define IID_ISIMPLEAUDIOVOLUME                (IID_ISimpleAudioVolume)
+#define CLSID_MMDEVICEENUMERATOR              (CLSID_MMDeviceEnumerator)
+#define PKEY_DEVICE_FRIENDLYNAME              (PKEY_Device_FriendlyName)
+#define PKEY_AUDIOENGINE_DEVICEFORMAT         (PKEY_AudioEngine_DeviceFormat)
 
 #else
 #define IS_EQUAL_GUID(a, b) IsEqualGUID((a), (b))
