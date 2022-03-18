@@ -334,6 +334,7 @@ void soundio_os_mutex_unlock(struct SoundIoOsMutex *mutex) {
 #endif
 }
 
+// XXX: do we still need this? and other stuff like it?
 struct SoundIoOsCond * soundio_os_cond_create(void) {
     struct SoundIoOsCond *cond = ALLOCATE(struct SoundIoOsCond, 1);
 

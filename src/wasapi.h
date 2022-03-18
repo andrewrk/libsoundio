@@ -73,7 +73,6 @@ struct SoundIoOutStreamWasapi {
     struct SoundIoOsCond *start_cond;
     struct SoundIoAtomicFlag thread_exit_flag;
     bool is_raw;
-    int writable_frame_count;
     UINT32 buffer_frame_count;
     int write_frame_count;
     HANDLE h_event;

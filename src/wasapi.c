@@ -1407,14 +1407,14 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
         return;
     }
-    osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-    if (osw->writable_frame_count <= 0) {
+    int writable_frame_count = osw->buffer_frame_count - frames_used;
+    if (writable_frame_count <= 0) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
         return;
     }
     // XXX: how does this part work?
     int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
-    outstream->write_callback(outstream, frame_count_min, osw->writable_frame_count);
+    outstream->write_callback(outstream, frame_count_min, writable_frame_count);
 
     if (FAILED(hr = IAudioClient_Start(osw->audio_client))) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
@@ -1422,18 +1422,9 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
     }
 
     for (;;) {
-        // XXX: removing this, may be able to remove other local variables etc
-        // osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        // double time_until_underrun = frames_used / (double)outstream->sample_rate;
-        // double wait_time = time_until_underrun / 2.0;
-        // soundio_os_mutex_lock(osw->mutex);
-        // soundio_os_cond_timed_wait(osw->cond, osw->mutex, wait_time);
-        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag)) {
-            // soundio_os_mutex_unlock(osw->mutex);
+        if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag))
             return;
-        }
-        // soundio_os_mutex_unlock(osw->mutex);
-        bool reset_buffer = false; // XXX: does this work here? why wasn't it supported in exclusive?
+        bool reset_buffer = false;
         if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->clear_buffer_flag)) {
             if (!osw->is_paused) {
                 if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
@@ -1470,12 +1461,12 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
             outstream->error_callback(outstream, SoundIoErrorStreaming);
             return;
         }
-        osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        if (osw->writable_frame_count > 0) {
+        int writable_frame_count = osw->buffer_frame_count - frames_used;
+        if (writable_frame_count > 0) {
             if (frames_used == 0 && !reset_buffer)
                 outstream->underflow_callback(outstream);
             int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
-            outstream->write_callback(outstream, frame_count_min, osw->writable_frame_count);
+            outstream->write_callback(outstream, frame_count_min, writable_frame_count);
         }
     }
 }
