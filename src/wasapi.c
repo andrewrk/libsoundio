@@ -1265,9 +1265,9 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     WAVEFORMATEXTENSIBLE wave_format = {0};
     wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+    wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
+    flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
     if (osw->is_raw) {
-        wave_format.Format.nSamplesPerSec = outstream->sample_rate;
-        flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
         periodicity = to_reference_time(dw->period_duration);
         buffer_duration = periodicity;
@@ -1276,11 +1276,10 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
             return SoundIoErrorOpeningDevice;
         }
-        wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
         osw->need_resample = (mix_format->Format.nSamplesPerSec != wave_format.Format.nSamplesPerSec);
         CoTaskMemFree(mix_format);
         mix_format = NULL;
-        flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+        flags |= osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
         share_mode = AUDCLNT_SHAREMODE_SHARED;
         periodicity = 0;
         buffer_duration = to_reference_time(outstream->software_latency);
@@ -1289,6 +1288,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     to_wave_format_format(outstream->format, &wave_format);
     complete_wave_format_data(&wave_format);
 
+    // XXX: make sure unaligned error is corrected properly...can we trigger this?
     if (FAILED(hr = IAudioClient_Initialize(osw->audio_client, share_mode, flags,
             buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, NULL)))
     {
@@ -1353,10 +1353,8 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     }
     outstream->software_latency = osw->buffer_frame_count / (double)outstream->sample_rate;
 
-    if (osw->is_raw) {
-        if (FAILED(hr = IAudioClient_SetEventHandle(osw->audio_client, osw->h_event))) {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (FAILED(hr = IAudioClient_SetEventHandle(osw->audio_client, osw->h_event))) {
+        return SoundIoErrorOpeningDevice;
     }
 
     if (outstream->name) {
@@ -1397,6 +1395,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     return 0;
 }
 
+// XXX: delete any unused variables, also, can writable frame count be a local now?
 static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     struct SoundIoOutStream *outstream = &os->pub;
@@ -1413,6 +1412,7 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
         return;
     }
+    // XXX: how does this part work?
     int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
     outstream->write_callback(outstream, frame_count_min, osw->writable_frame_count);
 
@@ -1422,21 +1422,18 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
     }
 
     for (;;) {
-        if (FAILED(hr = IAudioClient_GetCurrentPadding(osw->audio_client, &frames_used))) {
-            outstream->error_callback(outstream, SoundIoErrorStreaming);
-            return;
-        }
-        osw->writable_frame_count = osw->buffer_frame_count - frames_used;
-        double time_until_underrun = frames_used / (double)outstream->sample_rate;
-        double wait_time = time_until_underrun / 2.0;
-        soundio_os_mutex_lock(osw->mutex);
-        soundio_os_cond_timed_wait(osw->cond, osw->mutex, wait_time);
+        // XXX: removing this, may be able to remove other local variables etc
+        // osw->writable_frame_count = osw->buffer_frame_count - frames_used;
+        // double time_until_underrun = frames_used / (double)outstream->sample_rate;
+        // double wait_time = time_until_underrun / 2.0;
+        // soundio_os_mutex_lock(osw->mutex);
+        // soundio_os_cond_timed_wait(osw->cond, osw->mutex, wait_time);
         if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag)) {
-            soundio_os_mutex_unlock(osw->mutex);
+            // soundio_os_mutex_unlock(osw->mutex);
             return;
         }
-        soundio_os_mutex_unlock(osw->mutex);
-        bool reset_buffer = false;
+        // soundio_os_mutex_unlock(osw->mutex);
+        bool reset_buffer = false; // XXX: does this work here? why wasn't it supported in exclusive?
         if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->clear_buffer_flag)) {
             if (!osw->is_paused) {
                 if (FAILED(hr = IAudioClient_Stop(osw->audio_client))) {
@@ -1598,13 +1595,14 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
         return SoundIoErrorNoMem;
     }
 
-    if (osw->is_raw) {
+    // XXX: turn off
+    // if (osw->is_raw) {
         osw->h_event = CreateEvent(NULL, FALSE, FALSE, NULL);
         if (!osw->h_event) {
             outstream_destroy_wasapi(si, os);
             return SoundIoErrorOpeningDevice;
         }
-    }
+    // }
 
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag);
     int err;
@@ -1691,10 +1689,13 @@ static int outstream_end_write_wasapi(struct SoundIoPrivate *si, struct SoundIoO
     return 0;
 }
 
+// XXX: "On systems that support clearing the buffer, this defaults to a large latency, potentially upwards of 2 seconds, with the understanding that you will call soundio_outstream_clear_buffer when you want to reduce the latency to 0."
+// Should we just change those docs and support this here? Also, why isn't it supported in raw mode?
+// XXX: also, signal it correctly
 static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
-    if (osw->h_event) {
+    if (osw->is_raw) {
         return SoundIoErrorIncompatibleDevice;
     } else {
         SOUNDIO_ATOMIC_FLAG_CLEAR(osw->clear_buffer_flag);
