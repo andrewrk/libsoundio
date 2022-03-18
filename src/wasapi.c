@@ -1395,7 +1395,6 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     return 0;
 }
 
-// XXX: delete any unused variables, also, can writable frame count be a local now?
 static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
     struct SoundIoOutStream *outstream = &os->pub;
@@ -1586,14 +1585,11 @@ static int outstream_open_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStr
         return SoundIoErrorNoMem;
     }
 
-    // XXX: turn off
-    // if (osw->is_raw) {
-        osw->h_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (!osw->h_event) {
-            outstream_destroy_wasapi(si, os);
-            return SoundIoErrorOpeningDevice;
-        }
-    // }
+    osw->h_event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (!osw->h_event) {
+        outstream_destroy_wasapi(si, os);
+        return SoundIoErrorOpeningDevice;
+    }
 
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(osw->thread_exit_flag);
     int err;
@@ -1622,13 +1618,7 @@ static int outstream_pause_wasapi(struct SoundIoPrivate *si, struct SoundIoOutSt
 
     SOUNDIO_ATOMIC_STORE(osw->desired_pause_state, pause);
     SOUNDIO_ATOMIC_FLAG_CLEAR(osw->pause_resume_flag);
-    if (osw->h_event) {
-        SetEvent(osw->h_event);
-    } else {
-        soundio_os_mutex_lock(osw->mutex);
-        soundio_os_cond_signal(osw->cond, osw->mutex);
-        soundio_os_mutex_unlock(osw->mutex);
-    }
+    SetEvent(osw->h_event);
 
     return 0;
 }
@@ -1682,7 +1672,6 @@ static int outstream_end_write_wasapi(struct SoundIoPrivate *si, struct SoundIoO
 
 // XXX: "On systems that support clearing the buffer, this defaults to a large latency, potentially upwards of 2 seconds, with the understanding that you will call soundio_outstream_clear_buffer when you want to reduce the latency to 0."
 // Should we just change those docs and support this here? Also, why isn't it supported in raw mode?
-// XXX: also, signal it correctly
 static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
@@ -1690,9 +1679,7 @@ static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct Sound
         return SoundIoErrorIncompatibleDevice;
     } else {
         SOUNDIO_ATOMIC_FLAG_CLEAR(osw->clear_buffer_flag);
-        soundio_os_mutex_lock(osw->mutex);
-        soundio_os_cond_signal(osw->cond, osw->mutex);
-        soundio_os_mutex_unlock(osw->mutex);
+        SetEvent(osw->h_event);
     }
 
     return 0;
@@ -1812,7 +1799,7 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
         flags = 0;
         share_mode = AUDCLNT_SHAREMODE_SHARED;
         periodicity = 0;
-        buffer_duration = to_reference_time(instream->software_latency);
+        buffer_duration = to_reference_time(4.0);
     }
     to_wave_format_layout(&instream->layout, &wave_format);
     to_wave_format_format(instream->format, &wave_format);
