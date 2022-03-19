@@ -1265,9 +1265,9 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     WAVEFORMATEXTENSIBLE wave_format = {0};
     wave_format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wave_format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
-    wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
-    flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
     if (osw->is_raw) {
+        wave_format.Format.nSamplesPerSec = outstream->sample_rate;
+        flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         share_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
         periodicity = to_reference_time(dw->period_duration);
         buffer_duration = periodicity;
@@ -1276,10 +1276,12 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         if (FAILED(hr = IAudioClient_GetMixFormat(osw->audio_client, (WAVEFORMATEX **)&mix_format))) {
             return SoundIoErrorOpeningDevice;
         }
+        wave_format.Format.nSamplesPerSec = (DWORD)outstream->sample_rate;
         osw->need_resample = (mix_format->Format.nSamplesPerSec != wave_format.Format.nSamplesPerSec);
         CoTaskMemFree(mix_format);
         mix_format = NULL;
-        flags |= osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+        flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+        flags |= AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         share_mode = AUDCLNT_SHAREMODE_SHARED;
         periodicity = 0;
         buffer_duration = to_reference_time(outstream->software_latency);
@@ -1288,7 +1290,6 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
     to_wave_format_format(outstream->format, &wave_format);
     complete_wave_format_data(&wave_format);
 
-    // XXX: make sure unaligned error is corrected properly...can we trigger this?
     if (FAILED(hr = IAudioClient_Initialize(osw->audio_client, share_mode, flags,
             buffer_duration, periodicity, (WAVEFORMATEX*)&wave_format, NULL)))
     {
@@ -1313,6 +1314,7 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
                 CoTaskMemFree(mix_format);
                 mix_format = NULL;
                 flags = osw->need_resample ? AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY : 0;
+                flags |= AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
                 to_wave_format_layout(&outstream->layout, &wave_format);
                 to_wave_format_format(outstream->format, &wave_format);
                 complete_wave_format_data(&wave_format);
@@ -1411,7 +1413,6 @@ static void outstream_shared_run(struct SoundIoOutStreamPrivate *os) {
         outstream->error_callback(outstream, SoundIoErrorStreaming);
         return;
     }
-    // XXX: how does this part work?
     int frame_count_min = soundio_int_max(0, (int)osw->min_padding_frames - (int)frames_used);
     outstream->write_callback(outstream, frame_count_min, writable_frame_count);
 
@@ -1670,8 +1671,6 @@ static int outstream_end_write_wasapi(struct SoundIoPrivate *si, struct SoundIoO
     return 0;
 }
 
-// XXX: "On systems that support clearing the buffer, this defaults to a large latency, potentially upwards of 2 seconds, with the understanding that you will call soundio_outstream_clear_buffer when you want to reduce the latency to 0."
-// Should we just change those docs and support this here? Also, why isn't it supported in raw mode?
 static int outstream_clear_buffer_wasapi(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os) {
     struct SoundIoOutStreamWasapi *osw = &os->backend_data.wasapi;
 
