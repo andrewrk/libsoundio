@@ -865,6 +865,8 @@ static void destroy_jack(struct SoundIoPrivate *si) {
         soundio_os_mutex_destroy(sij->mutex);
 }
 
+static void jack_error_handler(const char *msg) {}
+
 int soundio_jack_init(struct SoundIoPrivate *si) {
     struct SoundIoJack *sij = &si->backend_data.jack;
     struct SoundIo *soundio = &si->pub;
@@ -888,6 +890,9 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
         destroy_jack(si);
         return SoundIoErrorNoMem;
     }
+
+    jack_set_error_function(jack_error_handler);
+    jack_set_info_function(jack_error_handler);
 
     // We pass JackNoStartServer due to
     // https://github.com/jackaudio/jack2/issues/138

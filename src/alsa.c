@@ -1863,6 +1863,8 @@ static int instream_get_latency_alsa(struct SoundIoPrivate *si, struct SoundIoIn
     return 0;
 }
 
+static void alsa_error_handler(const char *file, int line, const char *function, int err, const char *fmt,...) {}
+
 int soundio_alsa_init(struct SoundIoPrivate *si) {
     struct SoundIoAlsa *sia = &si->backend_data.alsa;
     int err;
@@ -1923,6 +1925,8 @@ int soundio_alsa_init(struct SoundIoPrivate *si) {
         assert(errno == EMFILE || errno == ENFILE);
         return SoundIoErrorSystemResources;
     }
+
+    snd_lib_error_set_handler(alsa_error_handler);
 
     wakeup_device_poll(sia);
 
