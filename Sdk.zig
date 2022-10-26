@@ -158,8 +158,8 @@ pub fn createLibrary(sdk: *Sdk, target: std.zig.CrossTarget, linkage: std.builti
         lib.addCSourceFiles(&sources_coreaudio, &c_flags);
     }
     if (os_config.wasapi) {
-        // lib.linkSystemLibrary("asound");
-        lib.addCSourceFiles(&sources_wasapi, &c_flags);
+        lib.linkSystemLibraryName("ole32");
+        lib.addCSourceFiles(&sources_wasapi, c_flags ++ &[_][]const u8{"-DZIG_BUILD_WORKAROUND"});
     }
 
     return lib;
