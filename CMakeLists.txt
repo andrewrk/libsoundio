@@ -386,3 +386,5 @@ message(
     "* CoreAudio  (optional)        : ${STATUS_COREAUDIO}\n"
     "* WASAPI     (optional)        : ${STATUS_WASAPI}\n"
 )
+
+set(LIBSOUNDIO_LIBS ${LIBSOUNDIO_LIBS} PARENT_SCOPE)
