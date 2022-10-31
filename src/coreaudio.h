@@ -47,6 +47,10 @@ struct SoundIoCoreAudio {
 
 struct SoundIoOutStreamCoreAudio {
     AudioComponentInstance instance;
+    AudioDeviceIOProcID io_proc_id;
+    AudioStreamID raw_stream_id;
+    AudioStreamBasicDescription hardware_format;
+    AudioStreamBasicDescription previous_hardware_format;
     AudioBufferList *io_data;
     int buffer_index;
     int frames_left;
@@ -54,6 +58,8 @@ struct SoundIoOutStreamCoreAudio {
     double hardware_latency;
     float volume;
     struct SoundIoChannelArea areas[SOUNDIO_MAX_CHANNELS];
+    struct SoundIoAtomicBool output_format_match;
+    bool revert_format;
 };
 
 struct SoundIoInStreamCoreAudio {

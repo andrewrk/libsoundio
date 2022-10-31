@@ -109,12 +109,17 @@ if(ENABLE_COREAUDIO)
         find_path(AUDIOUNIT_INCLUDE_DIR NAMES AudioUnit.h)
         find_library(AUDIOUNIT_LIBRARY NAMES AudioUnit)
         include_directories(${AUDIOUNIT_INCLUDE_DIR})
+
+        find_path(AUDIOTOOLBOX_INCLUDE_DIR NAMES AudioToolbox/AudioFormat.h)
+        find_library(AUDIOTOOLBOX_LIBRARY NAMES AudioToolbox)
+        include_directories(${AUDIOTOOLBOX_INCLUDE_DIR})
     else()
         set(STATUS_COREAUDIO "not found")
         set(SOUNDIO_HAVE_COREAUDIO false)
         set(COREAUDIO_LIBRARY "")
         set(COREFOUNDATION_LIBRARY "")
         set(AUDIOUNIT_LIBRARY "")
+        set(AUDIOTOOLBOX_LIBRARY "")
     endif()
 else()
     set(STATUS_COREAUDIO "disabled")
@@ -122,6 +127,7 @@ else()
     set(COREAUDIO_LIBRARY "")
     set(COREFOUNDATION_LIBRARY "")
     set(AUDIOUNIT_LIBRARY "")
+    set(AUDIOTOOLBOX_LIBRARY "")
 endif()
 
 if(ENABLE_WASAPI)
@@ -194,6 +200,7 @@ set(LIBSOUNDIO_LIBS
     ${COREAUDIO_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${AUDIOUNIT_LIBRARY}
+    ${AUDIOTOOLBOX_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
 )
 

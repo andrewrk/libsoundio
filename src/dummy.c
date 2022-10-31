@@ -380,7 +380,7 @@ static int instream_get_latency_dummy(struct SoundIoPrivate *si, struct SoundIoI
 }
 
 static int set_all_device_formats(struct SoundIoDevice *device) {
-    device->format_count = 18;
+    device->format_count = 19;
     device->formats = ALLOCATE(enum SoundIoFormat, device->format_count);
     if (!device->formats)
         return SoundIoErrorNoMem;
@@ -395,14 +395,15 @@ static int set_all_device_formats(struct SoundIoDevice *device) {
     device->formats[7] = SoundIoFormatS24FE;
     device->formats[8] = SoundIoFormatU24NE;
     device->formats[9] = SoundIoFormatU24FE;
-    device->formats[10] = SoundIoFormatFloat64NE;
-    device->formats[11] = SoundIoFormatFloat64FE;
-    device->formats[12] = SoundIoFormatS16NE;
-    device->formats[13] = SoundIoFormatS16FE;
-    device->formats[14] = SoundIoFormatU16NE;
-    device->formats[15] = SoundIoFormatU16FE;
-    device->formats[16] = SoundIoFormatS8;
-    device->formats[17] = SoundIoFormatU8;
+    device->formats[10] = SoundIoFormatS24PLE;
+    device->formats[11] = SoundIoFormatFloat64NE;
+    device->formats[12] = SoundIoFormatFloat64FE;
+    device->formats[13] = SoundIoFormatS16NE;
+    device->formats[14] = SoundIoFormatS16FE;
+    device->formats[15] = SoundIoFormatU16NE;
+    device->formats[16] = SoundIoFormatU16FE;
+    device->formats[11] = SoundIoFormatS8;
+    device->formats[18] = SoundIoFormatU8;
 
     return 0;
 }

@@ -24,6 +24,7 @@ static enum SoundIoFormat prioritized_formats[] = {
     SoundIoFormatS32NE,
     SoundIoFormatS32FE,
     SoundIoFormatS24NE,
+    SoundIoFormatS24PLE,
     SoundIoFormatS24FE,
     SoundIoFormatS16NE,
     SoundIoFormatS16FE,
