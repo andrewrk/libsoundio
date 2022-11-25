@@ -419,7 +419,11 @@ void soundio_os_cond_signal(struct SoundIoOsCond *cond,
     memset(&kev, 0, sizeof(kev));
     kev.ident = notify_ident;
     kev.filter = EVFILT_USER;
+#if defined(NOTE_TRIGGER)
     kev.fflags = NOTE_TRIGGER;
+#elif defined(EV_TRIGGER)
+    kev.flags = EV_TRIGGER;
+#endif
 
     if (kevent(cond->kq_id, &kev, 1, NULL, 0, &timeout) == -1) {
         if (errno == EINTR)
