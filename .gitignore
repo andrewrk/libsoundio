@@ -1,3 +1,2 @@
-build/
-build-win32/
-build-win64/
+/zig-cache
+/zig-out
