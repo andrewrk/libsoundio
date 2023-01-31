@@ -2,13 +2,18 @@ const std = @import("std");
 
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions();
+    const optimize = b.standardOptimizeOption(.{});
 
-    const pulseaudio_dep = b.dependency("pulseaudio", .{});
+    const pulseaudio_dep = b.dependency("pulseaudio", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-    const lib = b.addStaticLibrary("soundio", null);
-    lib.setTarget(target);
-    lib.setBuildMode(mode);
+    const lib = b.addStaticLibrary(.{
+        .name = "soundio",
+        .target = target,
+        .optimize = optimize,
+    });
     lib.linkLibC();
     lib.linkLibrary(pulseaudio_dep.artifact("pulse"));
     lib.addIncludePath(".");
