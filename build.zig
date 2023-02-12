@@ -17,7 +17,9 @@ pub fn build(b: *std.build.Builder) void {
     lib.linkLibC();
     lib.linkLibrary(pulseaudio_dep.artifact("pulse"));
     lib.addIncludePath(".");
-    lib.addConfigHeader(b.addConfigHeader(.{ .path = "src/config.h.in" }, .cmake, .{
+    lib.addConfigHeader(b.addConfigHeader(.{
+        .style = .{ .cmake = .{ .path = "src/config.h.in" } },
+    }, .{
         .SOUNDIO_HAVE_JACK = null,
         .SOUNDIO_HAVE_PULSEAUDIO = {},
         .SOUNDIO_HAVE_ALSA = null,
