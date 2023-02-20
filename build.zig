@@ -52,4 +52,40 @@ pub fn build(b: *std.build.Builder) void {
     });
     lib.install();
     lib.installHeadersDirectory("soundio", "soundio");
+
+    const sio_list_devices = b.addExecutable(.{
+        .name = "sio_list_devices",
+        .target = target,
+        .optimize = optimize,
+    });
+    sio_list_devices.addCSourceFiles(&.{"example/sio_list_devices.c"}, &.{});
+    sio_list_devices.linkLibrary(lib);
+    sio_list_devices.install();
+
+    const sio_microphone = b.addExecutable(.{
+        .name = "sio_microphone",
+        .target = target,
+        .optimize = optimize,
+    });
+    sio_microphone.addCSourceFiles(&.{"example/sio_microphone.c"}, &.{});
+    sio_microphone.linkLibrary(lib);
+    sio_microphone.install();
+
+    const sio_record = b.addExecutable(.{
+        .name = "sio_record",
+        .target = target,
+        .optimize = optimize,
+    });
+    sio_record.addCSourceFiles(&.{"example/sio_record.c"}, &.{});
+    sio_record.linkLibrary(lib);
+    sio_record.install();
+
+    const sio_sine = b.addExecutable(.{
+        .name = "sio_sine",
+        .target = target,
+        .optimize = optimize,
+    });
+    sio_sine.addCSourceFiles(&.{"example/sio_sine.c"}, &.{});
+    sio_sine.linkLibrary(lib);
+    sio_sine.install();
 }
