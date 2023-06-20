@@ -171,7 +171,9 @@ void soundio_destroy(struct SoundIo *soundio) {
 }
 
 static void do_nothing_cb(struct SoundIo *soundio) { }
-static void default_msg_callback(const char *msg) { }
+static void default_jack_msg_callback(const char *msg) { }
+static void snd_lib_error_default(const char *file, int line, const char *function, int err, const char *fmt, ...)
+{ }
 
 static void default_backend_disconnect_cb(struct SoundIo *soundio, int err) {
     soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
@@ -199,8 +201,9 @@ struct SoundIo *soundio_create(void) {
     soundio->on_events_signal = do_nothing_cb;
     soundio->app_name = "SoundIo";
     soundio->emit_rtprio_warning = default_emit_rtprio_warning;
-    soundio->jack_info_callback = default_msg_callback;
-    soundio->jack_error_callback = default_msg_callback;
+    soundio->jack_info_callback = default_jack_msg_callback;
+    soundio->jack_error_callback = default_jack_msg_callback;
+    soundio->alsa_error_callback = snd_lib_error_default;
     return soundio;
 }
 
