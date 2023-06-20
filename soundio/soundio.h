@@ -381,6 +381,14 @@ struct SoundIo {
     /// Optional: JACK error callback.
     /// See SoundIo::jack_info_callback
     void (*jack_error_callback)(const char *msg);
+
+
+    /// Optional: ALSA error callback.
+    /// By default, libsoundio sets this to an empty function in order to
+    /// silence stdio messages from ALSA. You may override the behavior by
+    /// setting this to `NULL` to reinstate ALSAs default behaviour of printing
+    /// to stderr.
+    void(* alsa_error_callback) (const char *file, int line, const char *function, int err, const char *fmt,...);
 };
 
 /// The size of this struct is not part of the API or ABI.
