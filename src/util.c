@@ -35,6 +35,7 @@ char *soundio_alloc_sprintf(int *len, const char *format, ...) {
 
     int len2 = vsnprintf(mem, required_size, format, ap2);
     assert(len2 == len1);
+    (void)len2;
 
     va_end(ap2);
     va_end(ap);
