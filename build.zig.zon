@@ -4,8 +4,8 @@
 
     .dependencies = .{
         .pulseaudio = .{
-            .url = "https://github.com/andrewrk/pulseaudio/archive/60f8702b8781b93309685e96e1e7864c48a2f2de.tar.gz",
-            .hash = "1220fa0fa6773e72891bf68b73f6fd7ee598ec0389df73f0de0f760b8ea132290de7",
+            .url = "https://github.com/andrewrk/pulseaudio/archive/5bff0ed0e33ea5fc49dbf9df9e78bce97a7b3141.tar.gz",
+            .hash = "1220f09c02db9dccc4f861b8420c03e8bf4081fcdcc2e0f03b5acfe01bd83bcdf41d",
         },
     },
 }

@@ -26,10 +26,10 @@ pub fn build(b: *std.build.Builder) void {
         .SOUNDIO_HAVE_COREAUDIO = null,
         .SOUNDIO_HAVE_WASAPI = null,
 
-        .SOUNDIO_VERSION_MAJOR = 2,
-        .SOUNDIO_VERSION_MINOR = 0,
-        .SOUNDIO_VERSION_PATCH = 0,
-        .SOUNDIO_VERSION_STRING = "2.0.0",
+        .LIBSOUNDIO_VERSION_MAJOR = 2,
+        .LIBSOUNDIO_VERSION_MINOR = 0,
+        .LIBSOUNDIO_VERSION_PATCH = 0,
+        .LIBSOUNDIO_VERSION = "2.0.0",
     }));
     lib.addCSourceFiles(&.{
         "src/soundio.c",
