@@ -170,10 +170,17 @@ void soundio_destroy(struct SoundIo *soundio) {
     free(si);
 }
 
-static void do_nothing_cb(struct SoundIo *soundio) { }
-static void default_msg_callback(const char *msg) { }
+static void do_nothing_cb(struct SoundIo *soundio) {
+    (void)soundio;
+}
+
+static void default_msg_callback(const char *msg) { 
+    (void)msg;
+}
 
 static void default_backend_disconnect_cb(struct SoundIo *soundio, int err) {
+    (void)soundio;
+
     soundio_panic("libsoundio: backend disconnected: %s", soundio_strerror(err));
 }
 
@@ -458,10 +465,13 @@ int soundio_outstream_end_write(struct SoundIoOutStream *outstream) {
 }
 
 static void default_outstream_error_callback(struct SoundIoOutStream *os, int err) {
+    (void)os;
     soundio_panic("libsoundio: %s", soundio_strerror(err));
 }
 
-static void default_underflow_callback(struct SoundIoOutStream *outstream) { }
+static void default_underflow_callback(struct SoundIoOutStream *outstream) {
+    (void)outstream;
+}
 
 struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device) {
     struct SoundIoOutStreamPrivate *os = ALLOCATE(struct SoundIoOutStreamPrivate, 1);
@@ -565,14 +575,17 @@ int soundio_outstream_set_volume(struct SoundIoOutStream *outstream, double volu
     struct SoundIo *soundio = outstream->device->soundio;
     struct SoundIoPrivate *si = (struct SoundIoPrivate *)soundio;
     struct SoundIoOutStreamPrivate *os = (struct SoundIoOutStreamPrivate *)outstream;
-    return si->outstream_set_volume(si, os, volume);
+    return si->outstream_set_volume(si, os, (float)volume);
 }
 
 static void default_instream_error_callback(struct SoundIoInStream *is, int err) {
+    (void)is;
     soundio_panic("libsoundio: %s", soundio_strerror(err));
 }
 
-static void default_overflow_callback(struct SoundIoInStream *instream) { }
+static void default_overflow_callback(struct SoundIoInStream *instream) { 
+    (void)instream;
+}
 
 struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device) {
     struct SoundIoInStreamPrivate *is = ALLOCATE(struct SoundIoInStreamPrivate, 1);
@@ -702,10 +715,12 @@ bool soundio_have_backend(enum SoundIoBackend backend) {
 }
 
 int soundio_backend_count(struct SoundIo *soundio) {
+    (void)soundio;
     return ARRAY_LENGTH(available_backends);
 }
 
 enum SoundIoBackend soundio_get_backend(struct SoundIo *soundio, int index) {
+    (void)soundio;
     return available_backends[index];
 }
 

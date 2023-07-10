@@ -25,8 +25,16 @@ static void test_os_get_time(void) {
     }
 }
 
-static void write_callback(struct SoundIoOutStream *device, int frame_count_min, int frame_count_max) { }
-static void error_callback(struct SoundIoOutStream *device, int err) { }
+static void write_callback(struct SoundIoOutStream *device, int frame_count_min, int frame_count_max) { 
+    (void)device;
+    (void)frame_count_min;
+    (void)frame_count_max;
+}
+
+static void error_callback(struct SoundIoOutStream *device, int err) { 
+    (void)device;
+    (void)err;
+}
 
 static void test_create_outstream(void) {
     struct SoundIo *soundio = soundio_create();
@@ -66,7 +74,7 @@ static void test_ring_buffer_basic(void) {
     assert(soundio_ring_buffer_capacity(rb) == page_size);
 
     char *write_ptr = soundio_ring_buffer_write_ptr(rb);
-    int amt = sprintf(write_ptr, "hello") + 1;
+    int amt = snprintf(write_ptr, soundio_ring_buffer_capacity(rb), "hello") + 1;
     soundio_ring_buffer_advance_write_ptr(rb, amt);
 
     assert(soundio_ring_buffer_fill_count(rb) == amt);
@@ -83,7 +91,7 @@ static void test_ring_buffer_basic(void) {
 
     soundio_ring_buffer_advance_write_ptr(rb, page_size - 2);
     soundio_ring_buffer_advance_read_ptr(rb, page_size - 2);
-    amt = sprintf(soundio_ring_buffer_write_ptr(rb), "writing past the end") + 1;
+    amt = snprintf(soundio_ring_buffer_write_ptr(rb), soundio_ring_buffer_capacity(rb), "writing past the end") + 1;
     soundio_ring_buffer_advance_write_ptr(rb, amt);
 
     assert(soundio_ring_buffer_fill_count(rb) == amt);
@@ -112,27 +120,30 @@ static double random_double(void) {
 }
 
 static void reader_thread_run(void *arg) {
-    while (!SOUNDIO_ATOMIC_LOAD(rb_done)) {
-        SOUNDIO_ATOMIC_FETCH_ADD(rb_read_it, 1);
+    (void)arg;
+
+    while (!SOUNDIO_ATOMIC_LOAD_BOOL(rb_done)) {
+        SOUNDIO_ATOMIC_FETCH_ADD_INT(rb_read_it, 1);
         int fill_count = soundio_ring_buffer_fill_count(rb);
         assert(fill_count >= 0);
         assert(fill_count <= rb_size);
-        int amount_to_read = soundio_int_min(random_double() * 2.0 * fill_count, fill_count);
+        int amount_to_read = soundio_int_min((int)(random_double() * 2.0 * fill_count), fill_count);
         soundio_ring_buffer_advance_read_ptr(rb, amount_to_read);
         expected_read_head += amount_to_read;
     }
 }
 
 static void writer_thread_run(void *arg) {
-    while (!SOUNDIO_ATOMIC_LOAD(rb_done)) {
-        SOUNDIO_ATOMIC_FETCH_ADD(rb_write_it, 1);
+    (void)arg;
+    while (!SOUNDIO_ATOMIC_LOAD_BOOL(rb_done)) {
+        SOUNDIO_ATOMIC_FETCH_ADD_INT(rb_write_it, 1);
         int fill_count = soundio_ring_buffer_fill_count(rb);
         assert(fill_count >= 0);
         assert(fill_count <= rb_size);
         int free_count = rb_size - fill_count;
         assert(free_count >= 0);
         assert(free_count <= rb_size);
-        int value = soundio_int_min(random_double() * 2.0 * free_count, free_count);
+        int value = soundio_int_min((int)(random_double() * 2.0 * free_count), free_count);
         soundio_ring_buffer_advance_write_ptr(rb, value);
         expected_write_head += value;
     }
@@ -144,9 +155,9 @@ static void test_ring_buffer_threaded(void) {
     rb = soundio_ring_buffer_create(soundio, rb_size);
     expected_write_head = 0;
     expected_read_head = 0;
-    SOUNDIO_ATOMIC_STORE(rb_read_it, 0);
-    SOUNDIO_ATOMIC_STORE(rb_write_it, 0);
-    SOUNDIO_ATOMIC_STORE(rb_done, false);
+    SOUNDIO_ATOMIC_STORE_INT(rb_read_it, 0);
+    SOUNDIO_ATOMIC_STORE_INT(rb_write_it, 0);
+    SOUNDIO_ATOMIC_STORE_BOOL(rb_done, false);
 
     struct SoundIoOsThread *reader_thread;
     ok_or_panic(soundio_os_thread_create(reader_thread_run, NULL, NULL, &reader_thread));
@@ -154,8 +165,8 @@ static void test_ring_buffer_threaded(void) {
     struct SoundIoOsThread *writer_thread;
     ok_or_panic(soundio_os_thread_create(writer_thread_run, NULL, NULL, &writer_thread));
 
-    while (SOUNDIO_ATOMIC_LOAD(rb_read_it) < 100000 || SOUNDIO_ATOMIC_LOAD(rb_write_it) < 100000) {}
-    SOUNDIO_ATOMIC_STORE(rb_done, true);
+    while (SOUNDIO_ATOMIC_LOAD_INT(rb_read_it) < 100000 || SOUNDIO_ATOMIC_LOAD_INT(rb_write_it) < 100000) {}
+    SOUNDIO_ATOMIC_STORE_BOOL(rb_done, true);
 
     soundio_os_thread_destroy(reader_thread);
     soundio_os_thread_destroy(writer_thread);
@@ -172,7 +183,7 @@ static void test_mirrored_memory(void) {
 
     static const int requested_bytes = 1024;
     ok_or_panic(soundio_os_init_mirrored_memory(&mem, requested_bytes));
-    const int size_bytes = mem.capacity;
+    const int size_bytes = (int) mem.capacity;
 
     for (int i = 0; i < size_bytes; i += 1) {
         mem.address[i] = rand() % CHAR_MAX;

@@ -86,11 +86,12 @@ static inline bool soundio_streql(const char *str1, int str1_len, const char *st
 
 static inline int ceil_dbl_to_int(double x) {
     const double truncation = (int)x;
-    return truncation + (truncation < x);
+    return (int)(truncation + (truncation < x));
 }
 
 static inline double ceil_dbl(double x) {
-    const double truncation = (long long) x;
+    const long long truncated = (long long)x;
+    const double truncation = (double) truncated;
     const double ceiling = truncation + (truncation < x);
     return ceiling;
 }

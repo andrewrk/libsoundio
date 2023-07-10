@@ -24,19 +24,19 @@ static void write_sample_s16ne(char *ptr, double sample) {
     int16_t *buf = (int16_t *)ptr;
     double range = (double)INT16_MAX - (double)INT16_MIN;
     double val = sample * range / 2.0;
-    *buf = val;
+    *buf = (int16_t) val;
 }
 
 static void write_sample_s32ne(char *ptr, double sample) {
     int32_t *buf = (int32_t *)ptr;
     double range = (double)INT32_MAX - (double)INT32_MIN;
     double val = sample * range / 2.0;
-    *buf = val;
+    *buf = (int32_t) val;
 }
 
 static void write_sample_float32ne(char *ptr, double sample) {
     float *buf = (float *)ptr;
-    *buf = sample;
+    *buf = (float) sample;
 }
 
 static void write_sample_float64ne(char *ptr, double sample) {
@@ -67,6 +67,10 @@ static void write_time(struct SoundIoOutStream *outstream, double extra) {
 }
 
 static void write_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
+    (void)outstream;
+    (void)frame_count_min;
+    (void)frame_count_max;
+
     double float_sample_rate = outstream->sample_rate;
     double seconds_per_frame = 1.0f / float_sample_rate;
     struct SoundIoChannelArea *areas;
@@ -91,14 +95,14 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
             double sample;
             if (frames_until_pulse <= 0) {
                 if (pulse_frames_left == -1) {
-                    pulse_frames_left = 0.25 * float_sample_rate;
+                    pulse_frames_left = (int) (0.25 * float_sample_rate);
                     write_time(outstream, seconds_per_frame * frame); // announce beep start
                 }
                 if (pulse_frames_left > 0) {
                     pulse_frames_left -= 1;
-                    sample = sinf((seconds_offset + frame * seconds_per_frame) * radians_per_second);
+                    sample = sinf((float) ((seconds_offset + frame * seconds_per_frame) * radians_per_second));
                 } else {
-                    frames_until_pulse = (0.5 + (rand() / (double)RAND_MAX) * 2.0) * float_sample_rate;
+                    frames_until_pulse = (int) ((0.5 + (rand() / (double)RAND_MAX) * 2.0) * float_sample_rate);
                     pulse_frames_left = -1;
                     sample = 0.0;
                     write_time(outstream, seconds_per_frame * frame); // announce beep end
@@ -123,6 +127,7 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
 }
 
 static void underflow_callback(struct SoundIoOutStream *outstream) {
+    (void)outstream;
     soundio_panic("underflow\n");
 }
 

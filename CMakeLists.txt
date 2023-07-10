@@ -1,4 +1,9 @@
-cmake_minimum_required(VERSION 2.8.5)
+# Copyright (c) 2023 Andrew Kelley
+# This file is MIT licensed.
+# See http://opensource.org/licenses/MIT
+
+cmake_minimum_required(VERSION 3.0.0)
+
 project(libsoundio C)
 set(CMAKE_MODULE_PATH ${libsoundio_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
@@ -22,6 +27,7 @@ set(LIBSOUNDIO_VERSION_MINOR 0)
 set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
+
 
 if(NOT SOUNDIO_STATIC_LIBNAME)
     set(SOUNDIO_STATIC_LIBNAME soundio)
@@ -203,7 +209,6 @@ if(MSVC)
     set(EXAMPLE_CFLAGS "/W4")
     set(TEST_CFLAGS "${LIB_CFLAGS}")
     set(TEST_LDFLAGS " ")
-    set(LIBM " ")
 else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -pedantic")
     set(LIB_CFLAGS "-std=c11 -fvisibility=hidden -Wall -Werror=strict-prototypes -Werror=old-style-definition -Werror=missing-prototypes -D_REENTRANT -D_POSIX_C_SOURCE=200809L -Wno-missing-braces")
@@ -386,3 +391,5 @@ message(
     "* CoreAudio  (optional)        : ${STATUS_COREAUDIO}\n"
     "* WASAPI     (optional)        : ${STATUS_WASAPI}\n"
 )
+
+

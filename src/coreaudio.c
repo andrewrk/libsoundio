@@ -109,7 +109,7 @@ static OSStatus on_devices_changed(AudioObjectID in_object_id, UInt32 in_number_
     struct SoundIoPrivate *si = (struct SoundIoPrivate*)in_client_data;
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
-    SOUNDIO_ATOMIC_STORE(sica->device_scan_queued, true);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->device_scan_queued, true);
     soundio_os_cond_signal(sica->scan_devices_cond, NULL);
 
     return noErr;
@@ -121,7 +121,7 @@ static OSStatus on_service_restarted(AudioObjectID in_object_id, UInt32 in_numbe
     struct SoundIoPrivate *si = (struct SoundIoPrivate*)in_client_data;
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
-    SOUNDIO_ATOMIC_STORE(sica->service_restarted, true);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->service_restarted, true);
     soundio_os_cond_signal(sica->scan_devices_cond, NULL);
 
     return noErr;
@@ -794,7 +794,7 @@ static void shutdown_backend(struct SoundIoPrivate *si, int err) {
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     soundio_os_mutex_lock(sica->mutex);
     sica->shutdown_err = err;
-    SOUNDIO_ATOMIC_STORE(sica->have_devices_flag, true);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->have_devices_flag, true);
     soundio_os_mutex_unlock(sica->mutex);
     soundio_os_cond_signal(sica->cond, NULL);
     soundio_os_cond_signal(sica->have_devices_cond, NULL);
@@ -806,7 +806,7 @@ static void flush_events_ca(struct SoundIoPrivate *si) {
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
 
     // block until have devices
-    while (!SOUNDIO_ATOMIC_LOAD(sica->have_devices_flag))
+    while (!SOUNDIO_ATOMIC_LOAD_BOOL(sica->have_devices_flag))
         soundio_os_cond_wait(sica->have_devices_cond, NULL);
 
     bool change = false;
@@ -848,7 +848,7 @@ static void wakeup_ca(struct SoundIoPrivate *si) {
 
 static void force_device_scan_ca(struct SoundIoPrivate *si) {
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
-    SOUNDIO_ATOMIC_STORE(sica->device_scan_queued, true);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->device_scan_queued, true);
     soundio_os_cond_signal(sica->scan_devices_cond, NULL);
 }
 
@@ -861,17 +861,17 @@ static void device_thread_run(void *arg) {
     for (;;) {
         if (!SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sica->abort_flag))
             break;
-        if (SOUNDIO_ATOMIC_LOAD(sica->service_restarted)) {
+        if (SOUNDIO_ATOMIC_LOAD_BOOL(sica->service_restarted)) {
             shutdown_backend(si, SoundIoErrorBackendDisconnected);
             return;
         }
-        if (SOUNDIO_ATOMIC_EXCHANGE(sica->device_scan_queued, false)) {
+        if (SOUNDIO_ATOMIC_EXCHANGE_BOOL(sica->device_scan_queued, false)) {
             err = refresh_devices(si);
             if (err) {
                 shutdown_backend(si, err);
                 return;
             }
-            if (!SOUNDIO_ATOMIC_EXCHANGE(sica->have_devices_flag, true))
+            if (!SOUNDIO_ATOMIC_EXCHANGE_BOOL(sica->have_devices_flag, true))
                 soundio_os_cond_signal(sica->have_devices_cond, NULL);
             soundio_os_cond_signal(sica->cond, NULL);
             soundio->on_events_signal(soundio);
@@ -1410,9 +1410,9 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si) {
     struct SoundIoCoreAudio *sica = &si->backend_data.coreaudio;
     int err;
 
-    SOUNDIO_ATOMIC_STORE(sica->have_devices_flag, false);
-    SOUNDIO_ATOMIC_STORE(sica->device_scan_queued, true);
-    SOUNDIO_ATOMIC_STORE(sica->service_restarted, false);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->have_devices_flag, false);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->device_scan_queued, true);
+    SOUNDIO_ATOMIC_STORE_BOOL(sica->service_restarted, false);
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sica->abort_flag);
 
     sica->mutex = soundio_os_mutex_create();
