@@ -150,6 +150,12 @@ static void destroy_ca(struct SoundIoPrivate *si) {
     };
     AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_devices_changed, si);
 
+    prop_address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+    AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_devices_changed, si);
+
+    prop_address.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+    AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_devices_changed, si);
+
     prop_address.mSelector = kAudioHardwarePropertyServiceRestarted;
     AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &prop_address, on_service_restarted, si);
 
@@ -1444,6 +1450,22 @@ int soundio_coreaudio_init(struct SoundIoPrivate *si) {
         kAudioObjectPropertyScopeGlobal,
         kAudioObjectPropertyElementMain
     };
+    if ((err = AudioObjectAddPropertyListener(kAudioObjectSystemObject, &prop_address,
+        on_devices_changed, si)))
+    {
+        destroy_ca(si);
+        return SoundIoErrorSystemResources;
+    }
+
+    prop_address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+    if ((err = AudioObjectAddPropertyListener(kAudioObjectSystemObject, &prop_address,
+        on_devices_changed, si)))
+    {
+        destroy_ca(si);
+        return SoundIoErrorSystemResources;
+    }
+
+    prop_address.mSelector = kAudioHardwarePropertyDefaultInputDevice;
     if ((err = AudioObjectAddPropertyListener(kAudioObjectSystemObject, &prop_address,
         on_devices_changed, si)))
     {
