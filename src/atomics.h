@@ -15,7 +15,7 @@
 #ifdef _MSC_VER
 #define SOUNDIO_USE_MSVC_NATIVE_C_ATOMICS
 #else
-#define SOUNDIO_USE_GNU_ATOMICS
+#define SOUNDIO_USE_UNIX_ATOMICS
 #endif // ifdef _MSC_VER
 
 #endif // ifdef __cplusplus
@@ -79,7 +79,7 @@ struct SoundIoAtomicULong {
 
 #endif
 
-#ifdef SOUNDIO_USE_GNU_ATOMICS
+#ifdef SOUNDIO_USE_UNIX_ATOMICS
 
 #include <stdatomic.h>
 
@@ -107,8 +107,8 @@ struct SoundIoAtomicULong {
 #define SOUNDIO_ATOMIC_FETCH_ADD_(a, delta) atomic_fetch_add(&a.x, delta)
 #define SOUNDIO_ATOMIC_STORE_(a, value) atomic_store(&a.x, value)
 #define SOUNDIO_ATOMIC_EXCHANGE_(a, value) atomic_exchange(&a.x, value)
-#define SOUNDIO_ATOMIC_FLAG_TEST_AND_SET_(a) atomic_flag_test_and_set(&a.x)
-#define SOUNDIO_ATOMIC_FLAG_CLEAR_(a) atomic_flag_clear(&a.x)
+#define SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(a) atomic_flag_test_and_set(&a.x)
+#define SOUNDIO_ATOMIC_FLAG_CLEAR(a) atomic_flag_clear(&a.x)
 #define SOUNDIO_ATOMIC_FLAG_INIT ATOMIC_FLAG_INIT
 
 #define SOUNDIO_ATOMIC_LOAD_BOOL SOUNDIO_ATOMIC_LOAD_
