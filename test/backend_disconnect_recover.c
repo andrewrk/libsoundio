@@ -12,12 +12,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#ifndef _MSC_VER
 #include <unistd.h>
 
 __attribute__ ((cold))
 __attribute__ ((noreturn))
 __attribute__ ((format (printf, 1, 2)))
 static void panic(const char *format, ...) {
+#else
+#include <Windows.h>
+#define sleep(x) Sleep(x * 1000)
+
+__declspec(noreturn) static void panic(const char *format, ...) {
+#endif
     va_list ap;
     va_start(ap, format);
     vfprintf(stderr, format, ap);

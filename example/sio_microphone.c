@@ -46,10 +46,14 @@ static int prioritized_sample_rates[] = {
 };
 
 
+#ifndef _MSC_VER
 __attribute__ ((cold))
 __attribute__ ((noreturn))
 __attribute__ ((format (printf, 1, 2)))
 static void panic(const char *format, ...) {
+#else
+__declspec(noreturn) static void panic(const char *format, ...) {
+#endif
     va_list ap;
     va_start(ap, format);
     vfprintf(stderr, format, ap);

@@ -450,7 +450,7 @@ void soundio_os_cond_timed_wait(struct SoundIoOsCond *cond,
         target_cs = &cond->default_cs_id;
         EnterCriticalSection(&cond->default_cs_id);
     }
-    DWORD ms = seconds * 1000.0;
+    DWORD ms = (DWORD) (seconds * 1000.0);
     SleepConditionVariableCS(&cond->id, target_cs, ms);
     if (!locked_mutex)
         LeaveCriticalSection(&cond->default_cs_id);
@@ -585,7 +585,7 @@ int soundio_os_init(void) {
     if (!pending)
         return 0;
 
-    if ((err = internal_init()))
+    if ((err = internal_init()) != 0)
         return err;
 
     if (!InitOnceComplete(&win32_init_once, INIT_ONCE_ASYNC, NULL))
@@ -610,8 +610,9 @@ int soundio_os_page_size(void) {
 }
 
 static inline size_t ceil_dbl_to_size_t(double x) {
-    const double truncation = (size_t)x;
-    return truncation + (truncation < x);
+    const size_t trunc = (size_t)x;
+    const double truncation = (double)trunc;
+    return (size_t) (truncation + (truncation < x));
 }
 
 int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t requested_capacity) {
@@ -619,7 +620,7 @@ int soundio_os_init_mirrored_memory(struct SoundIoOsMirroredMemory *mem, size_t 
 
 #if defined(SOUNDIO_OS_WINDOWS)
     BOOL ok;
-    HANDLE hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, actual_capacity * 2, NULL);
+    HANDLE hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD)(actual_capacity * 2), NULL);
     if (!hMapFile)
         return SoundIoErrorNoMem;
 
