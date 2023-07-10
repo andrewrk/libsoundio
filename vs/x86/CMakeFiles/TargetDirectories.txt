@@ -1,0 +1,16 @@
+D:/git/libsoundio/vs/x86/CMakeFiles/latency.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/libsoundio_shared.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/sio_sine.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/libsoundio_static.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/sio_list_devices.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/sio_microphone.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/sio_record.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/underflow.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/unit_tests.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/backend_disconnect_recover.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/overflow.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/coverage.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/doc.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/INSTALL.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/ALL_BUILD.dir
+D:/git/libsoundio/vs/x86/CMakeFiles/ZERO_CHECK.dir

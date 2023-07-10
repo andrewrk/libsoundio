@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\git\libsoundio\vs\x86\CMakeFiles\751ff3beeb6f9173f5a8d9b82971ff6d\doc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\git\libsoundio\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\git\libsoundio\vs\x86\CMakeFiles\doc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{279DD6F8-EB32-30C5-AE42-5A830DB9901C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
