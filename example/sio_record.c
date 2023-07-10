@@ -12,7 +12,15 @@
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define sleep(x) Sleep(1000*(x))
+#else
 #include <unistd.h>
+#endif
+
 
 struct RecordContext {
     struct SoundIoRingBuffer *ring_buffer;

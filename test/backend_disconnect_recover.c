@@ -12,7 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define __attribute__(x)
+#define sleep(x) Sleep(1000*(x))
+#else
 #include <unistd.h>
+#endif
+
 
 __attribute__ ((cold))
 __attribute__ ((noreturn))
