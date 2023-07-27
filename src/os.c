@@ -742,6 +742,7 @@ void soundio_os_deinit_mirrored_memory(struct SoundIoOsMirroredMemory *mem) {
 #else
     int err = munmap(mem->address, 2 * mem->capacity);
     assert(!err);
+    (void) err;
 #endif
     mem->address = NULL;
 }
