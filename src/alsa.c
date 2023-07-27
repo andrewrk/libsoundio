@@ -1867,6 +1867,8 @@ int soundio_alsa_init(struct SoundIoPrivate *si) {
     struct SoundIoAlsa *sia = &si->backend_data.alsa;
     int err;
 
+    snd_lib_error_set_handler(si->pub.alsa_error_callback);
+
     sia->notify_fd = -1;
     sia->notify_wd = -1;
     SOUNDIO_ATOMIC_FLAG_TEST_AND_SET(sia->abort_flag);
