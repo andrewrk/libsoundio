@@ -16,7 +16,7 @@ pub fn build(b: *std.build.Builder) void {
     });
     lib.linkLibC();
     lib.linkLibrary(pulseaudio_dep.artifact("pulse"));
-    lib.addIncludePath(".");
+    lib.addIncludePath(.{ .path = "." });
     lib.addConfigHeader(b.addConfigHeader(.{
         .style = .{ .cmake = .{ .path = "src/config.h.in" } },
     }, .{
