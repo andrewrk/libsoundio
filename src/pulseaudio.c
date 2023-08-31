@@ -675,6 +675,11 @@ static int outstream_open_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamP
 
     pa_sample_spec sample_spec;
     sample_spec.format = to_pulseaudio_format(outstream->format);
+    if (sample_spec.format == PA_SAMPLE_INVALID) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        outstream_destroy_pa(si, os);
+        return SoundIoErrorIncompatibleDevice;
+    }
     sample_spec.rate = outstream->sample_rate;
 
     sample_spec.channels = outstream->layout.channel_count;
@@ -900,6 +905,11 @@ static int instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPri
 
     pa_sample_spec sample_spec;
     sample_spec.format = to_pulseaudio_format(instream->format);
+    if (sample_spec.format == PA_SAMPLE_INVALID) {
+        pa_threaded_mainloop_unlock(sipa->main_loop);
+        instream_destroy_pa(si, is);
+        return SoundIoErrorIncompatibleDevice;
+    }
     sample_spec.rate = instream->sample_rate;
     sample_spec.channels = instream->layout.channel_count;
 
