@@ -1359,23 +1359,26 @@ static int outstream_do_open(struct SoundIoPrivate *si, struct SoundIoOutStreamP
         return SoundIoErrorOpeningDevice;
     }
 
-    if (outstream->name) {
-        if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIOSESSIONCONTROL,
-                        (void **)&osw->audio_session_control)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
 
-        int err;
-        if ((err = to_lpwstr(outstream->name, strlen(outstream->name), &osw->stream_name))) {
-            return err;
-        }
-        if (FAILED(hr = IAudioSessionControl_SetDisplayName(osw->audio_session_control,
-                        osw->stream_name, NULL)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
+    if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIOSESSIONCONTROL,
+                    (void **)&osw->audio_session_control)))
+    {
+        return SoundIoErrorOpeningDevice;
     }
+
+    int err;
+    if ((err = to_lpwstr(outstream->name, strlen(outstream->name), &osw->stream_name))) {
+        return err;
+    }
+    if (FAILED(hr = IAudioSessionControl_SetDisplayName(osw->audio_session_control,
+                    osw->stream_name, NULL)))
+    {
+        return SoundIoErrorOpeningDevice;
+    }
+
 
     if (FAILED(hr = IAudioClient_GetService(osw->audio_client, IID_IAUDIORENDERCLIENT,
                     (void **)&osw->audio_render_client)))
@@ -1870,22 +1873,23 @@ static int instream_do_open(struct SoundIoPrivate *si, struct SoundIoInStreamPri
         }
     }
 
-    if (instream->name) {
-        if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOSESSIONCONTROL,
-                        (void **)&isw->audio_session_control)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
-        int err;
-        if ((err = to_lpwstr(instream->name, strlen(instream->name), &isw->stream_name))) {
-            return err;
-        }
-        if (FAILED(hr = IAudioSessionControl_SetDisplayName(isw->audio_session_control,
-                        isw->stream_name, NULL)))
-        {
-            return SoundIoErrorOpeningDevice;
-        }
+    if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOSESSIONCONTROL,
+                    (void **)&isw->audio_session_control)))
+    {
+        return SoundIoErrorOpeningDevice;
+    }
+
+    int err;
+    if ((err = to_lpwstr(instream->name, strlen(instream->name), &isw->stream_name))) {
+        return err;
+    }
+    if (FAILED(hr = IAudioSessionControl_SetDisplayName(isw->audio_session_control,
+                    isw->stream_name, NULL)))
+    {
+        return SoundIoErrorOpeningDevice;
     }
 
     if (FAILED(hr = IAudioClient_GetService(isw->audio_client, IID_IAUDIOCAPTURECLIENT,

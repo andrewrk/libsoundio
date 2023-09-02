@@ -185,6 +185,9 @@ static int outstream_open_dummy(struct SoundIoPrivate *si, struct SoundIoOutStre
                 device->software_latency_min, 1.0, device->software_latency_max);
     }
 
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
     osd->period_duration = outstream->software_latency / 2.0;
 
     int err;
@@ -297,6 +300,9 @@ static int instream_open_dummy(struct SoundIoPrivate *si, struct SoundIoInStream
         instream->software_latency = soundio_double_clamp(
                 device->software_latency_min, 1.0, device->software_latency_max);
     }
+
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
     isd->period_duration = instream->software_latency;
 

@@ -890,6 +890,7 @@ static int instream_open_pa(struct SoundIoPrivate *si, struct SoundIoInStreamPri
 
     if ((unsigned)instream->layout.channel_count > PA_CHANNELS_MAX)
         return SoundIoErrorIncompatibleBackend;
+
     if (!instream->name)
         instream->name = "SoundIoInStream";
 

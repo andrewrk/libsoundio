@@ -970,6 +970,9 @@ static int outstream_open_ca(struct SoundIoPrivate *si, struct SoundIoOutStreamP
             outstream->software_latency,
             device->software_latency_max);
 
+    if (!outstream->name)
+        outstream->name = "SoundIoOutStream";
+
     AudioComponentDescription desc = {0};
     desc.componentType = kAudioUnitType_Output;
     desc.componentSubType = kAudioUnitSubType_HALOutput;
@@ -1231,6 +1234,8 @@ static int instream_open_ca(struct SoundIoPrivate *si, struct SoundIoInStreamPri
             instream->software_latency,
             device->software_latency_max);
 
+    if (!instream->name)
+        instream->name = "SoundIoInStream";
 
     AudioObjectPropertyAddress prop_address;
     prop_address.mSelector = kAudioDevicePropertyStreamConfiguration;
