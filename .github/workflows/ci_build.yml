@@ -1,0 +1,150 @@
+name: CI Build
+
+on: [push, pull_request]
+
+jobs:
+  build-win-msvc:
+    name: Windows ${{ matrix.target.arch }} ${{ matrix.toolchain.compiler }}
+    runs-on: ${{ matrix.toolchain.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [
+          {os: windows-2016, compiler: VS2017},
+          {os: windows-2019, compiler: VS2019},
+        ]
+        target: [
+          {platform: Win32, arch: x86},
+          {platform: x64, arch: x64},
+        ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get version tag
+      run: |
+        git describe --always --tags --dirty
+        echo GIT_TAG=`git describe --always --tags --dirty` >> ${GITHUB_ENV}
+      shell: bash
+
+    # Install dependencies
+    # libsoundio can't build with CMake 3.18 https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1363
+    - run: choco install cmake --version=3.17.5 -y --no-progress
+    # Install virtual audio device (Test will fail without this, because there are no sound device on CI build machine)
+    - run: choco install voicemeeter -y --no-progress
+
+    # Build
+    - run: cmake --version
+    - run: cmake -B build -A ${{matrix.target.platform}} -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build build --config Release
+
+    # Upload artifact
+    - uses: actions/upload-artifact@v2
+      with:
+        name: libsoundio-${{ env.GIT_TAG }}-Windows-${{ matrix.target.arch }}-${{ matrix.toolchain.compiler }}
+        path: "build/*"
+
+    # Test
+    - name: Run tests
+      run: |
+        cd build/Release
+        ./unit_tests
+        ./sio_list_devices
+
+  build-win-mingw:
+    name: Windows x64 MinGW
+    runs-on: windows-2016
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get version tag
+      run: |
+        git describe --always --tags --dirty
+        echo GIT_TAG=`git describe --always --tags --dirty` >> ${GITHUB_ENV}
+      shell: bash
+
+    # Install dependencies
+    - uses: msys2/setup-msys2@v2
+      with:
+        install: make cmake mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
+    - run: choco install voicemeeter -y --no-progress
+      shell: powershell
+
+    # Build
+    - run: cmake --version
+    - run: cmake -B build -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build build --config Release
+
+    # Upload artifact
+    - uses: actions/upload-artifact@v2
+      with:
+        name: libsoundio-${{ env.GIT_TAG }}-MinGW64
+        path: "build/*"
+
+    # Test
+    - name: Run tests
+      run: |
+        cd build
+        ./unit_tests
+        ./sio_list_devices
+
+  build-ubuntu:
+    name: Ubuntu GCC
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get version tag
+      run: |
+        git describe --always --tags --dirty
+        echo GIT_TAG=`git describe --always --tags --dirty` >> ${GITHUB_ENV}
+
+    # Install dependencies
+    - run: sudo apt install -y libasound2-dev libjack-jackd2-dev libpulse-dev
+
+    # Build
+    - run: cmake --version
+    - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build build --config Release
+
+    # Upload artifact
+    - run: tar cf build.tar build
+    - uses: actions/upload-artifact@v2
+      with:
+        name: libsoundio-${{ env.GIT_TAG }}-Ubuntu
+        path: "*.tar"
+
+    # Test
+    - name: Run tests
+      run: |
+        cd build
+        ./unit_tests
+        ./sio_list_devices
+
+  build-macos:
+    name: macOS Clang
+    runs-on: macos-10.15
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get version tag
+      run: |
+        git describe --always --tags --dirty
+        echo GIT_TAG=`git describe --always --tags --dirty` >> ${GITHUB_ENV}
+
+    # Build
+    - run: cmake --version
+    - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build build --config Release
+
+    # Upload artifact
+    - run: tar cf build.tar build
+    - uses: actions/upload-artifact@v2
+      with:
+        name: libsoundio-${{ env.GIT_TAG }}-macOS
+        path: "*.tar"
+
+    # Test
+    - name: Run tests
+      run: |
+        cd build
+        ./unit_tests
+        ./sio_list_devices
