@@ -835,6 +835,39 @@ static int outstream_get_latency_pa(struct SoundIoPrivate *si, struct SoundIoOut
     return 0;
 }
 
+static int outstream_set_volume_pa(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume) {
+    struct SoundIoPulseAudio *sipa = &si->backend_data.pulseaudio;
+    struct SoundIoOutStreamPulseAudio *ospa = &os->backend_data.pulseaudio;
+    struct SoundIoOutStream *outstream = &os->pub;
+
+    pa_cvolume v;
+#ifdef PA_CHECK_VERSION
+    pa_cvolume_init(&v);
+#endif
+
+    int channels, ch;
+    double vol;
+    pa_operation *op;
+
+    channels = (unsigned)outstream->layout.channel_count;
+    v.channels = channels;
+    vol = PA_VOLUME_NORM * (volume > 1.0f ? 1.0f : volume);
+    for (ch = 0; ch < channels; ch++) {
+        v.values[ch] = vol;
+    }
+
+    op = pa_context_set_sink_input_volume(sipa->pulse_context,
+        pa_stream_get_index(ospa->stream),
+        &v, NULL, NULL);
+    if (!op) {
+        return SoundIoErrorStreaming;
+    } else {
+        pa_operation_unref(op);
+    }
+    outstream->volume = volume;
+    return 0;
+}
+
 static void recording_stream_state_callback(pa_stream *stream, void *userdata) {
     struct SoundIoInStreamPrivate *is = (struct SoundIoInStreamPrivate*)userdata;
     struct SoundIoInStreamPulseAudio *ispa = &is->backend_data.pulseaudio;
@@ -1135,6 +1168,7 @@ int soundio_pulseaudio_init(struct SoundIoPrivate *si) {
     si->outstream_clear_buffer = outstream_clear_buffer_pa;
     si->outstream_pause = outstream_pause_pa;
     si->outstream_get_latency = outstream_get_latency_pa;
+    si->outstream_set_volume = outstream_set_volume_pa;
 
     si->instream_open = instream_open_pa;
     si->instream_destroy = instream_destroy_pa;

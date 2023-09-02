@@ -587,6 +587,11 @@ static int outstream_get_latency_jack(struct SoundIoPrivate *si, struct SoundIoO
     return 0;
 }
 
+static int outstream_set_volume_jack(struct SoundIoPrivate *si, struct SoundIoOutStreamPrivate *os, float volume) {
+    struct SoundIoOutStream *outstream = &os->pub;
+    outstream->volume = volume;
+    return 0;
+}
 
 static void instream_destroy_jack(struct SoundIoPrivate *si, struct SoundIoInStreamPrivate *is) {
     struct SoundIoInStreamJack *isj = &is->backend_data.jack;
@@ -951,6 +956,7 @@ int soundio_jack_init(struct SoundIoPrivate *si) {
     si->outstream_clear_buffer = outstream_clear_buffer_jack;
     si->outstream_pause = outstream_pause_jack;
     si->outstream_get_latency = outstream_get_latency_jack;
+    si->outstream_set_volume = outstream_set_volume_jack;
 
     si->instream_open = instream_open_jack;
     si->instream_destroy = instream_destroy_jack;
