@@ -738,10 +738,6 @@ static int outstream_start_pa(struct SoundIoPrivate *si, struct SoundIoOutStream
 
     pa_threaded_mainloop_lock(sipa->main_loop);
 
-    ospa->write_byte_count = pa_stream_writable_size(ospa->stream);
-    int frame_count = ospa->write_byte_count / outstream->bytes_per_frame;
-    outstream->write_callback(outstream, 0, frame_count);
-
     pa_operation *op = pa_stream_cork(ospa->stream, false, NULL, NULL);
     if (!op) {
         pa_threaded_mainloop_unlock(sipa->main_loop);
