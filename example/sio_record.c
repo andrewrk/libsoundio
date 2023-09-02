@@ -12,7 +12,12 @@
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#ifdef _WIN32
+#include <windows.h>
+#define sleep(n) Sleep(n * 1000)
+#else
 #include <unistd.h>
+#endif
 
 struct RecordContext {
     struct SoundIoRingBuffer *ring_buffer;
