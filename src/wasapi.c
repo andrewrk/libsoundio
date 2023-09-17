@@ -138,6 +138,7 @@ static enum SoundIoFormat test_formats[] = {
     SoundIoFormatU8,
     SoundIoFormatS16LE,
     SoundIoFormatS24LE,
+    SoundIoFormatS24PackedLE,
     SoundIoFormatS32LE,
     SoundIoFormatFloat32LE,
     SoundIoFormatFloat64LE,
@@ -306,6 +307,9 @@ static enum SoundIoFormat from_wave_format_format(WAVEFORMATEXTENSIBLE *wave_for
         } else if (wave_format->Format.wBitsPerSample == 16) {
             if (is_pcm)
                 return SoundIoFormatS16LE;
+        } else if (wave_format->Format.wBitsPerSample == 24) {
+            if (is_pcm)
+                return SoundIoFormatS24PackedLE;
         } else if (wave_format->Format.wBitsPerSample == 32) {
             if (is_pcm)
                 return SoundIoFormatS32LE;
@@ -403,6 +407,11 @@ static void to_wave_format_format(enum SoundIoFormat format, WAVEFORMATEXTENSIBL
         wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
         wave_format->Format.wBitsPerSample = 16;
         wave_format->Samples.wValidBitsPerSample = 16;
+        break;
+    case SoundIoFormatS24PackedLE:
+        wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
+        wave_format->Format.wBitsPerSample = 24;
+        wave_format->Samples.wValidBitsPerSample = 24;
         break;
     case SoundIoFormatS24LE:
         wave_format->SubFormat = SOUNDIO_KSDATAFORMAT_SUBTYPE_PCM;
