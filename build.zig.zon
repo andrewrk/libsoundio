@@ -1,11 +1,22 @@
 .{
     .name = "libsoundio",
-    .version = "2.0.0",
+    .version = "2.0.1-1",
 
     .dependencies = .{
         .pulseaudio = .{
-            .url = "https://github.com/andrewrk/pulseaudio/archive/8489b016d7efed37e523bbbe36c915cad12391e9.tar.gz",
-            .hash = "122027b863eb46c95288e489a72bbbafb82ef4e9967eed66dbd76aedb0b3b61e72dc",
+            .url = "https://github.com/andrewrk/pulseaudio/archive/f1bbca09f77b12faf32909070f9297fa28b0e067.tar.gz",
+            .hash = "1220c21cdaf8aa26f859873749b9b89da04b7711ea988378ff74174e672b446105f0",
         },
+    },
+    .paths = .{
+        "LICENSE",
+        "README.md",
+        "build.zig",
+        "build.zig.zon",
+        "doc",
+        "example",
+        "soundio",
+        "src",
+        "test",
     },
 }
