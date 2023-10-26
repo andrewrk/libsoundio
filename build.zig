@@ -1,29 +1,63 @@
 const std = @import("std");
 
+const flags: []const []const u8 = &.{
+    "-std=c11",
+    "-fvisibility=hidden",
+    "-Wall",
+    "-Werror=strict-prototypes",
+    "-Werror=old-style-definition",
+    "-Werror=missing-prototypes",
+    "-D_REENTRANT",
+    "-D_POSIX_C_SOURCE=200809L",
+    "-Wno-missing-braces",
+};
+
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-    const pulseaudio_dep = b.dependency("pulseaudio", .{
-        .target = target,
-        .optimize = optimize,
-    });
 
     const lib = b.addStaticLibrary(.{
         .name = "soundio",
         .target = target,
         .optimize = optimize,
     });
+
+    const os_tag = target.getOsTag();
+
+    switch (os_tag) {
+        .linux => {
+            const pulseaudio_dep = b.dependency("pulseaudio", .{
+                .target = target,
+                .optimize = optimize,
+            });
+
+            lib.linkLibrary(pulseaudio_dep.artifact("pulse"));
+            lib.addCSourceFile(.{
+                .file = .{ .path = "src/pulseaudio.c" },
+                .flags = flags,
+            });
+        },
+        .macos => {
+            lib.linkFramework("CoreFoundation");
+            lib.linkFramework("CoreAudio");
+            lib.linkFramework("AudioUnit");
+            lib.addCSourceFile(.{
+                .file = .{ .path = "src/coreaudio.c" },
+                .flags = flags,
+            });
+        },
+        else => @panic("unsupported OS"),
+    }
+
     lib.linkLibC();
-    lib.linkLibrary(pulseaudio_dep.artifact("pulse"));
     lib.addIncludePath(.{ .path = "." });
     lib.addConfigHeader(b.addConfigHeader(.{
         .style = .{ .cmake = .{ .path = "src/config.h.in" } },
     }, .{
         .SOUNDIO_HAVE_JACK = null,
-        .SOUNDIO_HAVE_PULSEAUDIO = {},
+        .SOUNDIO_HAVE_PULSEAUDIO = if (os_tag == .linux) {} else null,
         .SOUNDIO_HAVE_ALSA = null,
-        .SOUNDIO_HAVE_COREAUDIO = null,
+        .SOUNDIO_HAVE_COREAUDIO = if (os_tag == .macos) {} else null,
         .SOUNDIO_HAVE_WASAPI = null,
 
         .LIBSOUNDIO_VERSION_MAJOR = 2,
@@ -39,19 +73,8 @@ pub fn build(b: *std.build.Builder) void {
             "src/dummy.c",
             "src/channel_layout.c",
             "src/ring_buffer.c",
-            "src/pulseaudio.c",
         },
-        .flags = &.{
-            "-std=c11",
-            "-fvisibility=hidden",
-            "-Wall",
-            "-Werror=strict-prototypes",
-            "-Werror=old-style-definition",
-            "-Werror=missing-prototypes",
-            "-D_REENTRANT",
-            "-D_POSIX_C_SOURCE=200809L",
-            "-Wno-missing-braces",
-        },
+        .flags = flags,
     });
     b.installArtifact(lib);
     lib.installHeadersDirectory("soundio", "soundio");
