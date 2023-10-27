@@ -46,6 +46,15 @@ pub fn build(b: *std.build.Builder) void {
                 .flags = flags,
             });
         },
+        .windows => {
+            lib.addCSourceFile(.{
+                .file = .{ .path = "src/wasapi.c" },
+                .flags = flags,
+            });
+
+            lib.linkSystemLibrary("ole32");
+            b.installArtifact(lib);
+        },
         else => @panic("unsupported OS"),
     }
 
@@ -58,7 +67,7 @@ pub fn build(b: *std.build.Builder) void {
         .SOUNDIO_HAVE_PULSEAUDIO = if (os_tag == .linux) {} else null,
         .SOUNDIO_HAVE_ALSA = null,
         .SOUNDIO_HAVE_COREAUDIO = if (os_tag == .macos) {} else null,
-        .SOUNDIO_HAVE_WASAPI = null,
+        .SOUNDIO_HAVE_WASAPI = if (os_tag == .windows) {} else null,
 
         .LIBSOUNDIO_VERSION_MAJOR = 2,
         .LIBSOUNDIO_VERSION_MINOR = 0,
@@ -76,6 +85,7 @@ pub fn build(b: *std.build.Builder) void {
         },
         .flags = flags,
     });
+    //lib.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
     b.installArtifact(lib);
     lib.installHeadersDirectory("soundio", "soundio");
 
@@ -87,6 +97,7 @@ pub fn build(b: *std.build.Builder) void {
     sio_list_devices.addCSourceFiles(.{
         .files = &.{"example/sio_list_devices.c"},
     });
+    sio_list_devices.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
     sio_list_devices.linkLibrary(lib);
     b.installArtifact(sio_list_devices);
 
@@ -98,6 +109,7 @@ pub fn build(b: *std.build.Builder) void {
     sio_microphone.addCSourceFiles(.{
         .files = &.{"example/sio_microphone.c"},
     });
+    sio_microphone.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
     sio_microphone.linkLibrary(lib);
     b.installArtifact(sio_microphone);
 
@@ -109,6 +121,7 @@ pub fn build(b: *std.build.Builder) void {
     sio_record.addCSourceFiles(.{
         .files = &.{"example/sio_record.c"},
     });
+    sio_record.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
     sio_record.linkLibrary(lib);
     b.installArtifact(sio_record);
 
@@ -120,6 +133,7 @@ pub fn build(b: *std.build.Builder) void {
     sio_sine.addCSourceFiles(.{
         .files = &.{"example/sio_sine.c"},
     });
+    sio_sine.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
     sio_sine.linkLibrary(lib);
     b.installArtifact(sio_sine);
 }
