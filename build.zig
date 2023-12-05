@@ -12,9 +12,10 @@ const flags: []const []const u8 = &.{
     "-Wno-missing-braces",
 };
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const t = target.result;
 
     const lib = b.addStaticLibrary(.{
         .name = "soundio",
@@ -22,9 +23,7 @@ pub fn build(b: *std.build.Builder) void {
         .optimize = optimize,
     });
 
-    const os_tag = target.getOsTag();
-
-    switch (os_tag) {
+    switch (t.os.tag) {
         .linux => {
             const pulseaudio_dep = b.dependency("pulseaudio", .{
                 .target = target,
@@ -64,10 +63,10 @@ pub fn build(b: *std.build.Builder) void {
         .style = .{ .cmake = .{ .path = "src/config.h.in" } },
     }, .{
         .SOUNDIO_HAVE_JACK = null,
-        .SOUNDIO_HAVE_PULSEAUDIO = if (os_tag == .linux) {} else null,
+        .SOUNDIO_HAVE_PULSEAUDIO = if (t.os.tag == .linux) {} else null,
         .SOUNDIO_HAVE_ALSA = null,
-        .SOUNDIO_HAVE_COREAUDIO = if (os_tag == .macos) {} else null,
-        .SOUNDIO_HAVE_WASAPI = if (os_tag == .windows) {} else null,
+        .SOUNDIO_HAVE_COREAUDIO = if (t.os.tag == .macos) {} else null,
+        .SOUNDIO_HAVE_WASAPI = if (t.os.tag == .windows) {} else null,
 
         .LIBSOUNDIO_VERSION_MAJOR = 2,
         .LIBSOUNDIO_VERSION_MINOR = 0,
