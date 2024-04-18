@@ -11,6 +11,11 @@
 #include <assert.h>
 
 #include "AvailabilityMacros.h"
+#ifndef MAC_OS_X_VERSION_10_8
+#define kAudioObjectPropertyScopeInput kAudioDevicePropertyScopeInput
+#define kAudioObjectPropertyScopeOutput kAudioDevicePropertyScopeOutput
+#define kAudioHardwarePropertyServiceRestarted 'srst'
+#endif
 #ifndef MAC_OS_VERSION_12_0
 #define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
 #endif
