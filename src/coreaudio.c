@@ -10,7 +10,7 @@
 
 #include <assert.h>
 
-#include "AvailabilityMacros.h"
+#include <AvailabilityMacros.h>
 #ifndef MAC_OS_VERSION_12_0
 #define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
 #endif
