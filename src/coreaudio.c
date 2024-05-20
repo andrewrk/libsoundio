@@ -11,7 +11,7 @@
 #include <assert.h>
 
 #include "AvailabilityMacros.h"
-#ifndef MAC_OS_VERSION_12_0
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 120000
 #define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
 #endif
 
