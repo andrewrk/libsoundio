@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) void {
         },
         .flags = flags,
     });
-    //lib.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
+    //lib.root_module.addCMacro("SOUNDIO_STATIC_LIBRARY", "1");
     b.installArtifact(lib);
     lib.installHeadersDirectory(b.path("soundio"), "soundio", .{});
 
@@ -103,7 +103,7 @@ pub fn build(b: *std.Build) void {
     sio_list_devices.addCSourceFiles(.{
         .files = &.{"example/sio_list_devices.c"},
     });
-    sio_list_devices.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
+    sio_list_devices.root_module.addCMacro("SOUNDIO_STATIC_LIBRARY", "1");
     sio_list_devices.linkLibrary(lib);
     b.installArtifact(sio_list_devices);
 
@@ -115,7 +115,7 @@ pub fn build(b: *std.Build) void {
     sio_microphone.addCSourceFiles(.{
         .files = &.{"example/sio_microphone.c"},
     });
-    sio_microphone.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
+    sio_microphone.root_module.addCMacro("SOUNDIO_STATIC_LIBRARY", "1");
     sio_microphone.linkLibrary(lib);
     b.installArtifact(sio_microphone);
 
@@ -127,7 +127,7 @@ pub fn build(b: *std.Build) void {
     sio_record.addCSourceFiles(.{
         .files = &.{"example/sio_record.c"},
     });
-    sio_record.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
+    sio_record.root_module.addCMacro("SOUNDIO_STATIC_LIBRARY", "1");
     sio_record.linkLibrary(lib);
     b.installArtifact(sio_record);
 
@@ -139,7 +139,7 @@ pub fn build(b: *std.Build) void {
     sio_sine.addCSourceFiles(.{
         .files = &.{"example/sio_sine.c"},
     });
-    sio_sine.defineCMacro("SOUNDIO_STATIC_LIBRARY", null);
+    sio_sine.root_module.addCMacro("SOUNDIO_STATIC_LIBRARY", "1");
     sio_sine.linkLibrary(lib);
     b.installArtifact(sio_sine);
 }
