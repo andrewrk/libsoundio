@@ -252,9 +252,14 @@ if(BUILD_EXAMPLE_PROGRAMS)
     set_target_properties(sio_sine PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    target_link_libraries(sio_sine soundio ${LIBSOUNDIO_LIBS} ${LIBM})
+    if(BUILD_SHARED_LIBS)
+        target_link_libraries(sio_sine soundio)
+    else()
+        target_link_libraries(sio_sine soundio ${LIBSOUNDIO_LIBS})
+    endif(
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+    
     add_executable(sio_list_devices example/sio_list_devices.c)
     set_target_properties(sio_list_devices PROPERTIES
         LINKER_LANGUAGE C
@@ -287,7 +292,6 @@ if(BUILD_EXAMPLE_PROGRAMS)
         target_link_libraries(sio_record soundio ${LIBSOUNDIO_LIBS})
     endif()
 
-    target_link_libraries(sio_record soundio ${LIBSOUNDIO_LIBS})
     install(TARGETS sio_record DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
@@ -311,7 +315,7 @@ if(BUILD_TESTS)
     set_target_properties(underflow PROPERTIES
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
-    if(BUILD_DYNAMIC_LIBS)
+    if(BUILD_SHARED_LIBS)
         target_link_libraries(underflow soundio ${LIBM})
     else()
         target_link_libraries(underflow soundio ${LIBSOUNDIO_LIBS} ${LIBM})
