@@ -183,6 +183,7 @@ endif()
 include_directories(
     ${libsoundio_SOURCE_DIR}
     ${libsoundio_BINARY_DIR}
+    "${libsoundio_SOURCE_DIR}/include"
     "${libsoundio_SOURCE_DIR}/test"
     "${libsoundio_SOURCE_DIR}/src"
 )
@@ -249,6 +250,8 @@ endif()
 install(FILES
     ${LIBSOUNDIO_HEADERS}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/soundio")
+
+target_include_directories(soundio INTERFACE "${libsoundio_SOURCE_DIR}/include")
 
 # Example Programs
 
