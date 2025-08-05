@@ -226,6 +226,7 @@ configure_file(
 
 if(BUILD_DYNAMIC_LIBS)
     add_library(libsoundio_shared SHARED ${LIBSOUNDIO_SOURCES})
+    target_include_directories(libsoundio_shared INTERFACE "${libsoundio_SOURCE_DIR}/include")
     set_target_properties(libsoundio_shared PROPERTIES
         OUTPUT_NAME soundio
         SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
@@ -239,6 +240,7 @@ endif()
 
 if(BUILD_STATIC_LIBS)
     add_library(libsoundio_static STATIC ${LIBSOUNDIO_SOURCES})
+    target_include_directories(libsoundio_static INTERFACE "${libsoundio_SOURCE_DIR}/include")
     set_target_properties(libsoundio_static PROPERTIES
         OUTPUT_NAME ${SOUNDIO_STATIC_LIBNAME}
         COMPILE_FLAGS ${LIB_CFLAGS}
@@ -250,8 +252,6 @@ endif()
 install(FILES
     ${LIBSOUNDIO_HEADERS}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/soundio")
-
-target_include_directories(soundio INTERFACE "${libsoundio_SOURCE_DIR}/include")
 
 # Example Programs
 
