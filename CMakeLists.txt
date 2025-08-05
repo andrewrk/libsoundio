@@ -23,10 +23,6 @@ set(LIBSOUNDIO_VERSION_PATCH 0)
 set(LIBSOUNDIO_VERSION "${LIBSOUNDIO_VERSION_MAJOR}.${LIBSOUNDIO_VERSION_MINOR}.${LIBSOUNDIO_VERSION_PATCH}")
 message("Configuring libsoundio version ${LIBSOUNDIO_VERSION}")
 
-if(NOT SOUNDIO_STATIC_LIBNAME)
-    set(SOUNDIO_STATIC_LIBNAME soundio)
-endif()
-
 option(BUILD_STATIC_LIBS "Build shared library" ON)
 option(BUILD_EXAMPLE_PROGRAMS "Build example programs" ON)
 option(BUILD_TESTS "Build tests" ON)
@@ -229,16 +225,26 @@ configure_file(
     ${DOXYGEN_CONF_FILE}
 )
 
-add_library(soundio ${LIBSOUNDIO_LIBRARY_TYPE} ${LIBSOUNDIO_SOURCES})
+add_library(soundio ${SOUNDIO_LIBRARY_TYPE} ${LIBSOUNDIO_SOURCES})
+
+if(BUILD_SHARED_LIBS)
+    set_target_properties(libsoundio_shared PROPERTIES
+        OUTPUT_NAME soundio
+        SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
+        VERSION ${LIBSOUNDIO_VERSION}
+        COMPILE_FLAGS ${LIB_CFLAGS}
+        LINKER_LANGUAGE C
+    )
+    target_link_libraries(soundio LINK_PUBLIC ${LIBSOUNDIO_LIBS})
+else()
+    set_target_properties(soundio PROPERTIES
+        OUTPUT_NAME soundio
+        COMPILE_FLAGS ${LIB_CFLAGS}
+        LINKER_LANGUAGE C
+    )
+endif()
+
 target_include_directories(soundio INTERFACE "${libsoundio_SOURCE_DIR}/include")
-set_target_properties(soundio PROPERTIES
-   OUTPUT_NAME soundio
-   SOVERSION ${LIBSOUNDIO_VERSION_MAJOR}
-   VERSION ${LIBSOUNDIO_VERSION}
-   COMPILE_FLAGS ${LIB_CFLAGS}
-   LINKER_LANGUAGE C
-)
-target_link_libraries(soundio LINK_PUBLIC ${LIBSOUNDIO_LIBS})
 install(TARGETS soundio DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(FILES
@@ -253,10 +259,10 @@ if(BUILD_EXAMPLE_PROGRAMS)
         LINKER_LANGUAGE C
         COMPILE_FLAGS ${EXAMPLE_CFLAGS})
     if(BUILD_SHARED_LIBS)
-        target_link_libraries(sio_sine soundio)
+        target_link_libraries(sio_sine soundio ${LIBM})
     else()
-        target_link_libraries(sio_sine soundio ${LIBSOUNDIO_LIBS})
-    endif(
+        target_link_libraries(sio_sine soundio ${LIBSOUNDIO_LIBS} ${LIBM})
+    endif()
     install(TARGETS sio_sine DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     
