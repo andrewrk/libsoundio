@@ -17,10 +17,13 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const t = target.result;
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
+        .linkage = .static,
         .name = "soundio",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     switch (t.os.tag) {
@@ -97,8 +100,10 @@ pub fn build(b: *std.Build) void {
 
     const sio_list_devices = b.addExecutable(.{
         .name = "sio_list_devices",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     sio_list_devices.addCSourceFiles(.{
         .files = &.{"example/sio_list_devices.c"},
@@ -109,8 +114,10 @@ pub fn build(b: *std.Build) void {
 
     const sio_microphone = b.addExecutable(.{
         .name = "sio_microphone",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     sio_microphone.addCSourceFiles(.{
         .files = &.{"example/sio_microphone.c"},
@@ -121,8 +128,10 @@ pub fn build(b: *std.Build) void {
 
     const sio_record = b.addExecutable(.{
         .name = "sio_record",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     sio_record.addCSourceFiles(.{
         .files = &.{"example/sio_record.c"},
@@ -133,8 +142,10 @@ pub fn build(b: *std.Build) void {
 
     const sio_sine = b.addExecutable(.{
         .name = "sio_sine",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     sio_sine.addCSourceFiles(.{
         .files = &.{"example/sio_sine.c"},
