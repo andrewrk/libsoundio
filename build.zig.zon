@@ -1,12 +1,13 @@
 .{
-    .name = "libsoundio",
+    .name = .libsoundio,
+    .fingerprint =  0xa25a4bdc8e54811b,
     .version = "2.0.1-7",
     .minimum_zig_version = "0.14.0-dev.2638+04c9f50ae",
 
     .dependencies = .{
         .pulseaudio = .{
-            .url = "https://github.com/andrewrk/pulseaudio/archive/refs/tags/16.1.1-2.tar.gz",
-            .hash = "1220c4a15f871f0784113c34e92e57b2862e7f678a467e5d246a6f2ebfadfca8d116",
+            .url = "git+https://github.com/wang-edward/pulseaudio#e299b52c49ee2fb8623f99d85d768a823c499121",
+            .hash = "pulseaudio-16.1.1-6-mk_62FNWNwAFOAn2KCbEi9WVEiwB2sEhmKKgWzJ7KZ0E",
         },
     },
     .paths = .{
