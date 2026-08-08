@@ -113,6 +113,7 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
             // let refresh_devices be called again.
             jack_free(port_names);
             soundio_destroy_devices_info(devices_info);
+            SoundIoListJackClient_deinit(&clients);
             return SoundIoErrorInterrupted;
         }
 
@@ -142,6 +143,7 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
         if (!client) {
             jack_free(port_names);
             soundio_destroy_devices_info(devices_info);
+            SoundIoListJackClient_deinit(&clients);
             return SoundIoErrorNoMem;
         }
         if (client->port_count >= SOUNDIO_MAX_CHANNELS) {
@@ -169,6 +171,7 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
         if (!dev) {
             jack_free(port_names);
             soundio_destroy_devices_info(devices_info);
+            SoundIoListJackClient_deinit(&clients);
             return SoundIoErrorNoMem;
         }
         struct SoundIoDevice *device = &dev->pub;
@@ -206,6 +209,7 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
             jack_free(port_names);
             soundio_device_unref(device);
             soundio_destroy_devices_info(devices_info);
+            SoundIoListJackClient_deinit(&clients);
             return SoundIoErrorNoMem;
         }
 
@@ -221,6 +225,7 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
                 jack_free(port_names);
                 soundio_device_unref(device);
                 soundio_destroy_devices_info(devices_info);
+                SoundIoListJackClient_deinit(&clients);
                 return SoundIoErrorNoMem;
             }
         }
@@ -274,11 +279,14 @@ static int refresh_devices_bare(struct SoundIoPrivate *si) {
         if (SoundIoListDevicePtr_append(device_list, device)) {
             soundio_device_unref(device);
             soundio_destroy_devices_info(devices_info);
+            SoundIoListJackClient_deinit(&clients);
             return SoundIoErrorNoMem;
         }
 
     }
+    
     jack_free(port_names);
+    SoundIoListJackClient_deinit(&clients);
 
     soundio_destroy_devices_info(si->safe_devices_info);
     si->safe_devices_info = devices_info;
